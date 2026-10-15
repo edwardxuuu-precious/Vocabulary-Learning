@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+.env
+.env.local
+*.log
+artifacts/
+server/integrations/.schema/
+# 验收时生成的本机 Codex 对话索引不提交。
+Work_Progress/**/dialogue/

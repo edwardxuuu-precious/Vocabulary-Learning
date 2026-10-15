@@ -1,0 +1,127 @@
+{
+  "model": "gpt-6-luna",
+  "effort": "low",
+  "serviceTier": "default",
+  "dataDir": "C:\\Users\\edwar\\Documents\\ChatGPT\\英语学习\\Work_Progress\\2026-10-15\\202427_luna_comparison\\gpt-6-luna",
+  "prewarmExistingHistory": true,
+  "runs": 2,
+  "rows": [
+    {
+      "round": 1,
+      "mode": "cold",
+      "phases": {
+        "connectionReady": 2049.7931,
+        "threadReady": 4901.567300000001,
+        "turnAccepted": 4919.159600000001,
+        "firstDelta": 9844.6606,
+        "modelCompleted": 10194.140099999999,
+        "validated": 10197.0998
+      },
+      "replyMs": 10197.877100000002,
+      "reply": {
+        "text": "你喜欢会变身的挖掘机呀！我记对了吗？",
+        "tone": "curious",
+        "action": {
+          "type": "propose_interest",
+          "interest": "我喜欢会变身的挖掘机。"
+        }
+      }
+    },
+    {
+      "round": 2,
+      "mode": "same_history",
+      "preparationMs": 392.8302999999996,
+      "phases": {
+        "connectionReady": 0.13580000000001746,
+        "threadReady": 0.1510999999991327,
+        "turnAccepted": 17.139799999999013,
+        "firstDelta": 9365.4056,
+        "modelCompleted": 9740.739,
+        "validated": 9743.3461
+      },
+      "replyMs": 9743.537600000001,
+      "reply": {
+        "text": "你现在最喜欢会变身的挖掘机呀！我记对了吗？",
+        "tone": "curious",
+        "action": {
+          "type": "propose_interest",
+          "interest": "我现在最喜欢的是会变身的挖掘机。"
+        }
+      }
+    }
+  ],
+  "protocol": [
+    {
+      "method": "initialize",
+      "elapsedMs": 175.18739999999997,
+      "failed": false,
+      "atMs": 190.6525
+    },
+    {
+      "method": "account/read",
+      "elapsedMs": 1855.6184000000003,
+      "failed": false,
+      "atMs": 2046.4597
+    },
+    {
+      "method": "permissionProfile/list",
+      "elapsedMs": 3.383299999999963,
+      "failed": false,
+      "atMs": 2050.6787999999997
+    },
+    {
+      "method": "config/read",
+      "elapsedMs": 8.651499999999942,
+      "failed": false,
+      "atMs": 2059.6805999999997
+    },
+    {
+      "method": "thread/start",
+      "elapsedMs": 2834.1224,
+      "failed": false,
+      "atMs": 4893.918900000001
+    },
+    {
+      "method": "turn/start",
+      "elapsedMs": 16.743199999999888,
+      "failed": false,
+      "atMs": 4920.058300000001
+    },
+    {
+      "method": "thread/archive",
+      "elapsedMs": 12.504000000000815,
+      "failed": false,
+      "atMs": 10210.8544
+    },
+    {
+      "method": "thread/list",
+      "elapsedMs": 1.9282000000002881,
+      "failed": false,
+      "atMs": 10214.8178
+    },
+    {
+      "method": "thread/unarchive",
+      "elapsedMs": 331.1954999999998,
+      "failed": false,
+      "atMs": 10546.0689
+    },
+    {
+      "method": "thread/resume",
+      "elapsedMs": 43.19340000000011,
+      "failed": false,
+      "atMs": 10591.382300000001
+    },
+    {
+      "method": "turn/start",
+      "elapsedMs": 16.95560000000114,
+      "failed": false,
+      "atMs": 10608.5418
+    },
+    {
+      "method": "thread/archive",
+      "elapsedMs": 12.593300000000454,
+      "failed": false,
+      "atMs": 20347.3827
+    }
+  ]
+}

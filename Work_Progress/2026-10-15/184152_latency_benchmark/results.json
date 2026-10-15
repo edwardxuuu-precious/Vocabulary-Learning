@@ -1,0 +1,338 @@
+[
+  {
+    "model": "gpt-6-luna",
+    "run": "cold",
+    "totalMs": 9087.855,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 1768.245
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 4439.204
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 4455.808
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 8762.534
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 9083.072
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 9087.435
+      }
+    ],
+    "reply": {
+      "text": "你喜欢恐龙，我记对了吗？",
+      "tone": "curious",
+      "action": {
+        "type": "propose_interest",
+        "interest": "我喜欢恐龙。"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  },
+  {
+    "model": "gpt-6-luna",
+    "run": "warm",
+    "totalMs": 4189.399,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 0.28
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 0.42
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 19.969
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 3916.683
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 4187.2
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 4189.3
+      }
+    ],
+    "reply": {
+      "text": "它喜欢吃苹果呀！你还知道它喜欢什么吗？",
+      "tone": "curious",
+      "action": {
+        "type": "none"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  },
+  {
+    "model": "gpt-5.6-luna",
+    "run": "cold",
+    "totalMs": 9025.666,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 1720.119
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 4413.788
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 4428.985
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 8723.832
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 9023.23
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 9025.597
+      }
+    ],
+    "reply": {
+      "text": "你喜欢恐龙呀！我记对了吗？",
+      "tone": "cheerful",
+      "action": {
+        "type": "propose_interest",
+        "interest": "我喜欢恐龙。"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  },
+  {
+    "model": "gpt-5.6-luna",
+    "run": "warm",
+    "totalMs": 1801.637,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 0.078
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 0.091
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 17.357
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 1565.104
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 1798.916
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 1801.57
+      }
+    ],
+    "reply": {
+      "text": "你是说你喜欢吃苹果，还是它喜欢吃苹果呢？",
+      "tone": "curious",
+      "action": {
+        "type": "none"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  },
+  {
+    "model": "gpt-6-luna",
+    "run": "resume",
+    "totalMs": 9906.777,
+    "modelAndValidationMs": 7954.279,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 1722.836
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 1952.097
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 1971.665
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 9558.286
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 9902.58
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 9906.376
+      }
+    ],
+    "reply": {
+      "text": "你喜欢小恐龙呀，我记对了吗？",
+      "tone": "curious",
+      "action": {
+        "type": "propose_interest",
+        "interest": "我喜欢小恐龙。"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  },
+  {
+    "model": "gpt-6-luna",
+    "run": "warm-repeat",
+    "totalMs": 4004.447,
+    "modelAndValidationMs": 4004.071,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 0.203
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 0.22
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 52.788
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 3719.338
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 4001.751
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 4004.291
+      }
+    ],
+    "reply": {
+      "text": "苹果又脆又甜，你最喜欢怎么吃苹果？",
+      "tone": "cheerful",
+      "action": {
+        "type": "none"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  },
+  {
+    "model": "gpt-5.6-luna",
+    "run": "resume",
+    "totalMs": 6638.792,
+    "modelAndValidationMs": 4698.051,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 1723.635
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 1940.671
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 1966.234
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 6263.202
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 6636.231
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 6638.722
+      }
+    ],
+    "reply": {
+      "text": "你喜欢小恐龙呀！我记对了吗？",
+      "tone": "cheerful",
+      "action": {
+        "type": "propose_interest",
+        "interest": "我喜欢小恐龙。"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  },
+  {
+    "model": "gpt-5.6-luna",
+    "run": "warm-repeat",
+    "totalMs": 4891.459,
+    "modelAndValidationMs": 4891.257,
+    "timings": [
+      {
+        "phase": "connectionReady",
+        "elapsedMs": 0.119
+      },
+      {
+        "phase": "threadReady",
+        "elapsedMs": 0.137
+      },
+      {
+        "phase": "turnAccepted",
+        "elapsedMs": 22.316
+      },
+      {
+        "phase": "firstDelta",
+        "elapsedMs": 4679.775
+      },
+      {
+        "phase": "modelCompleted",
+        "elapsedMs": 4889.443
+      },
+      {
+        "phase": "validated",
+        "elapsedMs": 4891.394
+      }
+    ],
+    "reply": {
+      "text": "苹果是一种又甜又脆的水果。",
+      "tone": "cheerful",
+      "action": {
+        "type": "none"
+      }
+    },
+    "rawInterestPreserved": true,
+    "standardSpeed": true,
+    "effort": "low"
+  }
+]
