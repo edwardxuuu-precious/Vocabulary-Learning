@@ -14,7 +14,7 @@ npm.cmd start
 
 打开 [本机页面](http://127.0.0.1:8787)。日常双击 **启动单词游乐园.cmd**，结束时双击 **停止单词游乐园.cmd**。关闭网页不会停止后台服务；修改 `.env` 后先停止再启动。开发命令是 `npm.cmd run dev`，网页位于 [5173](http://127.0.0.1:5173)。
 
-桌面入口：运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-desktop-shortcut.ps1`，会在当前 Windows 桌面创建带大黄蜂图标的 **单词游乐园** 快捷方式。双击自动启动本机服务并打开正式页面；服务已运行时直接打开。项目移动后重新运行安装命令，更新快捷方式路径。
+桌面入口：运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install-desktop-shortcut.ps1`，会在当前 Windows 桌面创建带大黄蜂图标的 **单词游乐园** 快捷方式。双击自动启动本机服务，再用 Windows 默认浏览器打开正式入口 `http://127.0.0.1:8787/`；服务已运行时直接打开。项目移动后重新运行安装命令，更新快捷方式路径。
 
 当前继续在本机使用。云端部署已按用户要求暂缓，未创建AWS资源或修改DNS；草案保留在独立工作区，说明见 [部署核验记录](docs/AWS_DEPLOY.md)。
 
