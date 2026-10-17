@@ -13,6 +13,10 @@ export function prepareExtendedActivity(a:LearningActivity,words:Word[],random:(
     if(a.kind==='chunks'&&material.chunks?.join('').toLowerCase()!==word.term.toLowerCase()||a.kind==='word-morph'&&!words.some(w=>w.term.toLowerCase()===material.source?.toLowerCase()&&material.wordIds.includes(w.id))){a.kind='standard';a.choices=[];delete a.material;return;}
   }
   const term=a.word.term.toLowerCase(),shuffle=(xs:string[])=>{for(let i=xs.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[xs[i],xs[j]]=[xs[j],xs[i]];}return xs;};
+  if(a.kind==='assemble'&&a.material?.origin==='approved-word') {
+    const tiles=a.material.tiles;
+    for(let i=tiles.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[tiles[i],tiles[j]]=[tiles[j],tiles[i]];}
+  }
   if(a.kind==='letter-gap') {const at=Math.floor(random()*term.length);a.spellingBoard=[String(at),...shuffle([...new Set([term[at],...shuffle([...'abcdefghijklmnopqrstuvwxyz']).slice(0,6)])])];}
   if(a.kind==='chunks')a.spellingBoard=shuffle(a.material!.chunks!.map((_,i)=>String(i)));
   if(a.kind==='letter-extra') {const extra=[...'abcdefghijklmnopqrstuvwxyz'].find(c=>!term.includes(c))!;const at=Math.floor(random()*(term.length+1));a.spellingBoard=[term.slice(0,at)+extra+term.slice(at)];}

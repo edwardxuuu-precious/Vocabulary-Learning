@@ -1,11 +1,11 @@
 import { ExtendedLearningGame } from './extended-games';
+import { LearningTopbar } from './learning-topbar';
 import { extendedKinds } from '../shared/game-materials';
 import { useState } from 'react';
 import type { ActivityAction, LearningActivity, LearningSession } from '../shared/contracts';
 import { activityDone, activityTitles } from '../shared/game-plan';
 import { gameAccepted } from '../shared/game-rules';
 import { companionFor } from '../shared/companions';
-import { sessionTaskProgress } from './learning-session';
 import { Mascot } from './mascot';
 import { batchTwoKinds } from '../shared/game-boards';
 import { BatchTwoLearningGame } from './batch-two-games';
@@ -20,7 +20,6 @@ export function ExpandedLearningGame({ activity: a, session, busy: appBusy, play
   if(extendedKinds.has(a.kind))return <ExtendedLearningGame activity={a} session={session} busy={busy} playing={playing} onAction={onAction} onHome={onHome} onPause={onPause} stopAudio={stopAudio}/>;
   if(batchTwoKinds.has(a.kind))return <BatchTwoLearningGame activity={a} session={session} busy={busy} playing={playing} onAction={onAction} onHome={onHome} onPause={onPause} stopAudio={stopAudio}/>;
   const state = session.activityStates?.[a.id] ?? {}, accepted = gameAccepted(state);
-  const progress = sessionTaskProgress(session)!;
   const group = session.activities?.filter(item => item.kind === a.kind && item.groupId === a.groupId) ?? [];
   const matched = new Set(group.filter(item => activityDone(session, item) && session.activityStates?.[item.id]?.outcome === 'correct').map(item => item.wordId));
   const picture = (image: typeof a.word, index: number, covered = false, markCompleted = false) => {
@@ -34,7 +33,7 @@ export function ExpandedLearningGame({ activity: a, session, busy: appBusy, play
   const audio = <button className={`game-audio ${playing?'is-playing':''}`} disabled={busy || accepted} onClick={() => onAction('listen')} aria-label={`${activityTitles[a.kind]}：听英文`}><GameSoundIcon/>{playing ? '播放中' : state.heard ? '再听一遍' : '听一听'}</button>;
   const hint = state.outcome === 'try' ? '再试试，慢慢来' : accepted ? state.outcome === 'practice' ? '练习记好啦' : a.kind === 'bingo' ? matched.size + 1 === a.choices.length ? '宾果！全部点亮啦！' : '这一格点亮啦！' : a.kind === 'repair' ? '连接修好啦！' : a.kind === 'gate' ? '检查完成，开门啦！' : a.kind === 'treasure' ? '找到藏起来的伙伴啦！' : '选对啦！' : '';
   return <main className={`lesson-page game-page game-extra-${a.kind}`}>
-    <nav className="lesson-nav" aria-label="学习导航"><button className="lesson-nav-button" onClick={onHome} aria-label="回到单词游乐园首页">⌂</button><div className="lesson-progress-wrap"><div className="lesson-progress" role="progressbar" aria-label="今日小任务进度" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.completed}><span style={{ width: `${100 * progress.completed / Math.max(1, progress.total)}%` }} /></div><span className="lesson-word-count">{progress.completed + 1} / {progress.total}</span></div><button className="lesson-nav-button" onClick={onPause} aria-label="休息一下">Ⅱ</button></nav>
+<LearningTopbar session={session} onHome={onHome} onPause={onPause} />
     <div className="lesson-guide"><Mascot small character={companionFor(session.id, Math.max(0, session.activities?.findIndex(item => item.id === a.id) ?? 0))} /><h1>{activityTitles[a.kind]}</h1>{session.tasks?.find(task => task.wordId === a.wordId)?.mode === 'review' && <span className="lesson-review">复习</span>}</div>
     <section className="game-stage extra-stage" aria-label={activityTitles[a.kind]}>
       {a.kind === 'bingo' && <>

@@ -34,12 +34,9 @@ Make ONE small adjustment: move the entire three-robot group, its footing, conta
 Keep the quiet upper control area, same soft sky and ivory palette, and floor below the robots. No added items, text, buttons, UI, labels, logos, border or watermark. No change in zoom or character scale. All hands, antennae and boots stay fully visible. This is a subtle leftward composition correction only.
 ```
 
-## 验证与限制
+## 验证边界
 
-- 两张实际图片目视核对左移、机械面罩和完整落地；PNG尺寸正确。
-- 离线React SSR核对2个按钮、同组顺序、“家长空间”文字及原aria-label、busy只禁用儿童按钮、没有旧footer。生产构建含类型检查通过；新JS/CSS及两张PNG本机HTTP200。
-- 16组离线裁切/按钮几何预检，使用人工观察的保守人物范围，未出现按钮相交或人物超出视口。这不是浏览器DOM测量或视觉验收。
-- getTab仍被本聊天Work设置拒绝，未取得实际页面截图或现场点击验收。证据：忽略目录`artifacts/home-v5-qa/`。
+当前资源哈希由静态清单检查，运行与界面验证见 [当前验收](ACCEPTANCE.md)。以下保留在用素材的完整来源提示词，供明确授权后的素材维护；修改仍须家长审核。
 
 ## 编辑输入的基础生成提示词
 

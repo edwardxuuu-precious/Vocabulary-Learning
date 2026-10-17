@@ -19,8 +19,9 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
   const byId = new Map(words.map(word => [word.id, word]));
   const result: LearningActivity[] = [];
   const recent = options.recentKinds ?? [], familiar = new Set(['flip','supply','portal', ...recent]);
-  const availableMembers = tasks.map(task => byId.get(task.wordId)!).filter(Boolean).slice(0, 3);
-  const newKinds = gameRegistry.filter(game => !familiar.has(game.kind) && tasks.some(task => task.steps.some(step => eligibleGames(step, availableMembers, options).some(candidate => candidate.kind === game.kind))));
+  const groups:LearningTask[][]=[];
+  for(const members of options.practiceRounds?[tasks]:[tasks.filter(t=>t.mode==='review'),tasks.filter(t=>t.mode==='new')])for(let i=0;i<members.length;i+=3)groups.push(members.slice(i,i+3));
+  const newKinds = gameRegistry.filter(game => !familiar.has(game.kind) && groups.some(group=>group.some(task=>task.steps.some(step=>eligibleGames(step,group.map(t=>byId.get(t.wordId)!),options).some(candidate=>candidate.kind===game.kind)))));
   const novel = options.forcedKind ?? (options.randomize && newKinds.length ? newKinds[Math.floor(random() * newKinds.length)].kind : undefined);
   const pick = (step: LearningActivity['step'], members: Word[], fallback: LearningActivity['kind'], objective = false): LearningActivity['kind'] => {
     let pool = eligibleGames(step, members, options).filter(game => (!objective || !game.practiceOnly) && (familiar.has(game.kind) || game.kind === novel));
@@ -28,7 +29,7 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
       const forced = pool.find(game => game.kind === options.forcedKind);
       return forced?.kind ?? (pool.some(game => game.kind === fallback) ? fallback : 'standard');
     }
-    if (!options.randomize) return fallback;
+    if (!options.randomize) return pool.some(game=>game.kind===fallback)?fallback:'standard';
     if (pool.some(game => game.kind === novel)) return novel!;
     const weights = pool.map(game => 1 / (1 + recent.filter(kind => kind === game.kind).length));
     let ticket = random() * weights.reduce((sum, value) => sum + value, 0);
@@ -40,7 +41,7 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
     result.push({ id: `${task.wordId}:${step}`, wordId: word.id, step, kind, word: gameWord(word), choices, ...(groupId ? { groupId } : {}) });
   };
   // Preserve review-first scheduling and each word's due-skill order. Distractors are already learned reviews.
-  const reviews = tasks.filter(task => task.mode === 'review');
+  const reviews = tasks.filter(task => task.mode === 'review' && !options.practiceRounds);
   for (let start = 0; start < reviews.length; start += 3) {
     const batch = reviews.slice(start, start + 3), members = batch.map(task => byId.get(task.wordId)!);
     const gateMatches = shuffled(batch.map((_, index) => index % 2 === 0), random);
@@ -55,7 +56,7 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
       if (kind === 'gate') result.at(-1)!.cueWord = choices[(choices.findIndex(choice => choice.id === task.wordId) + (gateMatches[batch.indexOf(task)] ? 0 : 1)) % choices.length];
     }
   }
-  const fresh = tasks.filter(task => task.mode === 'new');
+  const fresh = tasks.filter(task => task.mode === 'new' || options.practiceRounds);
   // Batch at most three words so the child never has to hold an entire large pack in working memory.
   for (let start = 0; start < fresh.length; start += 3) {
     const batch = fresh.slice(start, start + 3);
@@ -71,7 +72,7 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
       unique.push(word);
     }
     // Single/ambiguous-word batches retain the proven basic flow rather than padding with examples.
-    if (unique.length !== batch.length || batch.length < 2) { for (const task of batch) for (const step of task.steps) add(task, step); continue; }
+    if (unique.length !== batch.length || batch.length < 2&&!options.randomize&&!options.forcedKind) { for (const task of batch) for (const step of task.steps) add(task, step); continue; }
     for (const task of batch) if (task.steps.includes('learn')) add(task, 'learn');
     const recognizeKind=pick('recognize',unique,unique.every(w=>w.partOfSpeech==='noun')?'supply':'gate');
     for(const [index,task] of batch.entries())if(task.steps.includes('recognize')){

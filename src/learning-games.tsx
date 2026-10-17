@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { LearningTopbar } from './learning-topbar';
 import type { ActivityAction, LearningActivity, LearningSession } from '../shared/contracts';
 import { activityDone, activityTitles } from '../shared/game-plan';
-import { sessionTaskProgress } from './learning-session';
 import { Mascot } from './mascot';
 import { companionFor } from '../shared/companions';
 import { ExpandedLearningGame } from './expanded-learning-games';
@@ -20,18 +20,13 @@ export function LearningGame({ activity, session, busy: appBusy, playing, onActi
   if (!['flip','supply','portal'].includes(activity.kind)) return <ExpandedLearningGame activity={activity} session={session} busy={busy} playing={playing} onAction={onAction} onHome={onHome} onPause={onPause} stopAudio={stopAudio} />;
   const saved = session.activityStates?.[activity.id] ?? {};
   const accepted = saved.outcome === 'correct' || saved.outcome === 'practice';
-  const progress = sessionTaskProgress(session)!;
   const flipGroup = session.activities?.filter(item => item.kind === 'flip' && item.groupId === activity.groupId) ?? [];
   const finishedCount = flipGroup.filter(item => activityDone(session, item)).length;
   const matched = new Set(flipGroup.filter(item => activityDone(session, item) && session.activityStates?.[item.id]?.outcome === 'correct').map(item => item.wordId));
   const isFlip = activity.kind === 'flip', isSupply = activity.kind === 'supply', isPortal = activity.kind === 'portal';
   const prompt = isFlip ? saved.heard ? '听到的是哪一张？' : '点亮声音卡，找它的图片' : isSupply ? '听一听，把需要的物品送上车' : saved.revealed ? '听一听，和自己说的比一比' : '这个老朋友，英语怎么说？';
   return <main className={`lesson-page game-page game-${activity.kind}`}>
-    <nav className="lesson-nav" aria-label="学习导航">
-      <button className="lesson-nav-button" onClick={onHome} aria-label="回到单词游乐园首页">⌂</button>
-      <div className="lesson-progress-wrap"><div className="lesson-progress" role="progressbar" aria-label="今日小任务进度" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.completed}><span style={{ width: `${100 * progress.completed / Math.max(1, progress.total)}%` }} /></div><span className="lesson-word-count">{progress.completed + 1} / {progress.total}</span></div>
-      <button className="lesson-nav-button" onClick={onPause} aria-label="休息一下">Ⅱ</button>
-    </nav>
+<LearningTopbar session={session} onHome={onHome} onPause={onPause} />
     <div className="lesson-guide"><Mascot small character={companionFor(session.id, Math.max(0, session.activities?.findIndex(item => item.id === activity.id) ?? 0))} /><h1>{activityTitles[activity.kind]}</h1>{session.tasks?.find(task => task.wordId === activity.wordId)?.mode === 'review' && <span className="lesson-review">复习</span>}</div>
     <section className="game-stage" aria-label={activityTitles[activity.kind]}>
       <p className="game-prompt">{prompt}</p>

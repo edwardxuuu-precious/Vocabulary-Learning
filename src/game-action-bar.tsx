@@ -6,6 +6,6 @@ interface Props { busy: boolean; accepted: boolean; onSkip: () => void; primary?
 export function GameActionBar({busy,accepted,onSkip,primary}:Props) {
   return <footer className="game-action-bar" aria-label="本题操作"><div className="game-action-inner">
     {!accepted&&<button className="game-skip" disabled={busy} onClick={onSkip}>这次先跳过</button>}
-    {primary&&<button className="lesson-next game-next" disabled={busy} onClick={primary.action}>{primary.label}<span aria-hidden="true">→</span></button>}
+    {primary&&<button className="lesson-next game-next" disabled={busy} onClick={primary.action}>{accepted ? '继续' : primary.label}<span aria-hidden="true">→</span></button>}
   </div></footer>;
 }

@@ -61,7 +61,7 @@ for(const def of definitions)test(`batch ${def.batch}: ${def.title} integrates, 
 });
 test('reviewed material, current versions, contextual and family switches gate each new random template',()=>{
   for(const def of definitions){const f=fixture(def.kind);try{const words=f.store.read().words,options={familyEnabled:true,contextEnabled:true};assert.ok(eligibleGames(def.step,words,options).some(g=>g.kind===def.kind),def.kind);
-    if(!automaticSpelling.has(def.kind)){const noMaterial=words.map(w=>({...w,gameMaterials:undefined}));assert.ok(!eligibleGames(def.step,noMaterial,options).some(g=>g.kind===def.kind));const stale=structuredClone(words);stale[0].learningVersion=9;assert.ok(!eligibleGames(def.step,stale,options).some(g=>g.kind===def.kind));}
+    if(!automaticSpelling.has(def.kind)){const noMaterial=words.map(w=>({...w,gameMaterials:undefined}));const derived=['assemble','clue'].includes(def.kind);assert.equal(eligibleGames(def.step,noMaterial,options).some(g=>g.kind===def.kind),derived);const stale=structuredClone(words);stale[0].learningVersion=9;assert.ok(!eligibleGames(def.step,stale,{...options,readyMaterialKeys:[]}).some(g=>g.kind===def.kind));}
     if(def.contextOnly)assert.ok(!eligibleGames(def.step,words,{familyEnabled:true}).some(g=>g.kind===def.kind));if(def.familyOnly)assert.ok(!eligibleGames(def.step,words,{contextEnabled:true}).some(g=>g.kind===def.kind));
     const session=f.store.startSession('random',{forcedKind:def.kind,allowedKinds:[def.kind]});assert.ok(new Set(session.activities!.filter(a=>a.kind!=='standard').map(a=>a.kind)).size<=3);
   }finally{f.close();}}

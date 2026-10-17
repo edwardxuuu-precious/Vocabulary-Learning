@@ -45,6 +45,20 @@ test('HTTP learning, persistence state, import, validation, same-origin and secr
   } finally { await app.cleanup(); }
 });
 
+test('manual session HTTP requests can include a complete large selection beyond the old 8KB limit', async () => {
+  const app=await fixture();try{
+    app.store.updateSettings({sessionMinutes:3});
+    app.store.mutate(data=>{const word=data.words[0];for(let i=0;i<220;i++)data.words.push({...word,id:`00000000-0000-4000-8000-${String(i).padStart(12,'0')}`,term:`word${i}`,meaning:`词${i}`});});
+    const ids=app.store.read().words.map(word=>word.id),request={mode:'practice',wordIds:ids};
+    assert.ok(Buffer.byteLength(JSON.stringify(request))>8192);
+    const {response,result}=await app.call('/api/session/start','POST',request);
+    assert.equal(response.status,200);assert.deepEqual(result.wordIds,ids);
+    assert.equal(result.tasks.length,ids.length);assert.ok(result.estimatedMinutes>3);
+    const state=(await app.call('/api/state')).result;
+    assert.deepEqual(state.activeSession.wordIds,ids);
+  }finally{await app.cleanup();}
+});
+
 test('image tasks stay in review until explicit approval; failed replacement preserves old image', async () => {
   let fail = false;
   const app = await fixture({ generateIllustration:async ({outputDir}:{outputDir:string}) => { if (fail) throw Object.assign(new Error('测试生成失败'),{code:'IMAGE_FAILED'}); mkdirSync(outputDir,{recursive:true}); const target=path.join(outputDir,'test.png'); writeFileSync(target,Buffer.from('test-image')); return {filePath:target}; } });
@@ -116,7 +130,7 @@ test('in-flight image success, failure and cancellation cannot reapprove a chang
       if(scenario==='failure')fail();else finish();
       for(let i=0;i<30;i++) {if(!['queued','running'].includes((await app.call('/api/jobs')).result.jobs[0].status))break;await new Promise(resolve=>setTimeout(resolve,5));}
       const state=(await app.call('/api/state')).result,word=state.words[0];
-      assert.equal(word.imageUrl,oldImage,scenario);
+      assert.equal(word.imageUrl,scenario==='interest'?oldImage:'/assets/placeholder.svg',scenario);
       assert.equal(word.assetStatus,scenario==='interest'?'approved':'draft',scenario);
       assert.equal((await app.call('/api/jobs')).result.jobs[0].status,scenario==='cancel'?'cancelled':'error',scenario);
       if(scenario!=='interest')assert.ok(!(await app.call('/api/session/start','POST')).result.wordIds.includes(word.id),scenario);

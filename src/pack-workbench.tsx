@@ -7,6 +7,7 @@ import { partOfSpeechLabels } from '../shared/vocabulary';
 import { imageStatusLabels } from './pack-image-status';
 import { isPreparedImage } from './pack-image-review';
 import { PreparationSteps } from './preparation-steps';
+import { PackEditor } from './pack-editor';
 import './pack-workbench.css';
 
 export function usePackAudio(packs: WordPack[], enabled: boolean) {
@@ -62,6 +63,7 @@ interface WorkbenchProps {
 export function PackWorkbench({ state, statuses, statusErrors, refreshAudio, imageStatuses, imageErrors, refreshImages, reload, report, showImages, onExit, packId, selectPack, handoff, showSettings }: WorkbenchProps) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [creating, setCreating] = useState(() => !state.packs.some(pack => !pack.isSample));
+  const [editingId, setEditingId] = useState('');
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const act = async (action: () => Promise<void>) => {
@@ -89,6 +91,12 @@ export function PackWorkbench({ state, statuses, statusErrors, refreshAudio, ima
   useEffect(() => { window.scrollTo({ top: 0 }); }, [creating, packId]);
   const startNew = () => { setCreating(true); setError(''); };
   const renderPack = (pack: WordPack) => {
+    if (editingId === pack.id) return <article key={pack.id} className="preparation-book"><PackEditor pack={pack} words={state.words} reload={reload} cancel={() => setEditingId('')} saved={deleted => {
+      setEditingId('');
+      if (deleted) { const next = formal.find(item => item.id !== pack.id); selectPack(next?.id ?? ''); setCreating(!next); }
+      else { void refreshAudio(pack.id); void refreshImages(pack.id); }
+      report(deleted ? '词表已删除，历史学习记录已保留。' : '词表已保存；修改和新增的词需重新准备并确认素材。');
+    }} /></article>;
     const audio = statuses[pack.id], ready = packPreparation(pack, state.words, audio);
     const members = state.words.filter(word => word.packId === pack.id);
     const imageStatus = imageStatuses[pack.id], drawing = imageStatus?.status === 'running' || imageStatus?.status === 'queued';
@@ -96,7 +104,11 @@ export function PackWorkbench({ state, statuses, statusErrors, refreshAudio, ima
     const pendingImages = members.some(word => word.assetStatus === 'draft' || word.assetStatus === 'error');
     const labels = { idle: '等待准备', running: '正在准备', ready: '声音已备好', stopped: '已停止，可继续', error: '有声音待补齐' };
     return <article key={pack.id} className="preparation-book" aria-label={`${pack.title}备课进度`}>
-      <div className="preparation-book-title"><div><span className="prep-kicker">{pack.isSample ? '开发示例 · 非正式词表' : '当前词表'}</span><h2>{pack.title}</h2><p>{ready.total} 个单词 · 词表已确认{pack.enabled ? ' · 孩子可学习' : ''}</p></div><details className="prep-word-list"><summary>查看词表</summary><div className="preview-table"><table><thead><tr><th>英文</th><th>中文意思</th><th>词性</th></tr></thead><tbody>{members.map(word => <tr key={word.id}><td>{word.term}</td><td>{word.meaning}</td><td>{word.partOfSpeech ? partOfSpeechLabels[word.partOfSpeech] : '—'}</td></tr>)}</tbody></table></div></details></div>
+      <div className="preparation-book-title"><div>{pack.isSample && <span className="prep-kicker">开发示例 · 非正式词表</span>}<h2>{pack.title}</h2><p>{ready.total} 个单词 · 词表已确认{pack.enabled ? ' · 孩子可学习' : ''}</p></div><button className="prep-secondary" disabled={busy || !!editingId} onClick={() => { setEditingId(pack.id); setError(''); }}>编辑词表</button></div>
+      <section className="prep-next-step" aria-label="审核并交给孩子"><div><span className="prep-kicker">下一步</span><h3>{ready.reviewing ? `审核 ${ready.reviewing} 张图片` : ready.canEnable ? pack.enabled ? '已经交给孩子啦' : ready.approved < ready.total ? `已备好 ${ready.approved} 个词` : '可以交给孩子啦' : !audio ? '正在检查素材' : '素材备好后，来这里审核'}</h3><p>{ready.reviewing ? '核对图片和中文意思，再确认给孩子。' : ready.canEnable ? `${ready.approved} 个词已确认图片和发音${ready.approved < ready.total ? '，其余词可以之后补齐' : ''}。` : !audio ? '正在核对本机发音缓存，请稍等。' : ready.blockedReason}</p></div>
+        <div className="prep-next-actions">{ready.reviewing > 0 ? <><button className="prep-primary" disabled={busy} onClick={() => showImages(pack.id)}>审核图片<span>→</span></button>{ready.canEnable && !pack.enabled && <button className="prep-text-button" disabled={busy} onClick={() => void act(() => handoff(pack.id))}>先学已备好的 {ready.approved} 个词</button>}</> : ready.canEnable ? <><button className="prep-primary" disabled={busy} onClick={() => pack.enabled ? onExit() : void act(() => handoff(pack.id))}>{pack.enabled ? '去孩子首页' : pack.isSample ? '家长开启示例体验' : ready.approved < ready.total ? `先学已备好的 ${ready.approved} 个词` : '给孩子学习'}<span>→</span></button><button className="prep-text-button" disabled={busy} onClick={() => showImages(pack.id)}>查看图片</button></> : <button className="prep-secondary" disabled={busy || !pictured} onClick={() => showImages(pack.id)}>查看图片</button>}</div>
+      </section>
+      <details className="prep-word-list pack-view-list"><summary>查看词表（{members.length}）</summary><div className="preview-table"><table><thead><tr><th>英文</th><th>中文意思</th><th>词性</th></tr></thead><tbody>{members.map(word => <tr key={word.id}><td>{word.term}</td><td>{word.meaning}</td><td>{word.partOfSpeech ? partOfSpeechLabels[word.partOfSpeech] : '—'}</td></tr>)}</tbody></table></div></details>
       <section className="prep-materials" aria-label="声音和图片准备">
         <div className="prep-material"><div className="prep-material-title"><span aria-hidden="true">♫</span><h3>单词发音</h3><strong>{audio ? ready.cached : '…'}<small> / {ready.total}</small></strong></div><progress value={audio ? ready.cached : undefined} max={Math.max(1, ready.total)} aria-label={`${pack.title}发音缓存进度`} /><p role="status">{audio?.status === 'running' && audio.currentTerm ? `正在准备 ${audio.currentTerm}` : audio ? labels[audio.status] : statusErrors[pack.id] ? '状态读取失败' : '正在检查本机缓存'}</p>
           {(audio?.error || statusErrors[pack.id]) && <p className="pack-error" role="alert">{audio?.error || statusErrors[pack.id]} 词表已保留。</p>}
@@ -110,13 +122,10 @@ export function PackWorkbench({ state, statuses, statusErrors, refreshAudio, ima
           <details className="prep-detail"><summary>查看图片进度</summary><p>已确认 {ready.approved} 张，待审核 {ready.reviewing} 张，待准备 {Math.max(0, ready.total - pictured)} 张。{imageStatus?.currentWordId ? `正在画 ${members.find(word => word.id === imageStatus.currentWordId)?.term || '一个单词'}。` : ''}</p></details>
         </div>
       </section>
-      <section className="prep-next-step" aria-label="审核并交给孩子"><div><span className="prep-kicker">下一步</span><h3>{ready.reviewing ? `审核 ${ready.reviewing} 张图片` : ready.canEnable ? pack.enabled ? '已经交给孩子啦' : ready.approved < ready.total ? `已备好 ${ready.approved} 个词` : '可以交给孩子啦' : !audio ? '正在检查素材' : '素材备好后，来这里审核'}</h3><p>{ready.reviewing ? '核对图片和中文意思，再确认给孩子。' : ready.canEnable ? `${ready.approved} 个词已确认图片和发音${ready.approved < ready.total ? '，其余词可以之后补齐' : ''}。` : !audio ? '正在核对本机发音缓存，请稍等。' : ready.blockedReason}</p></div>
-        <div className="prep-next-actions">{ready.reviewing > 0 ? <><button className="prep-primary" disabled={busy} onClick={() => showImages(pack.id)}>审核图片<span>→</span></button>{ready.canEnable && !pack.enabled && <button className="prep-text-button" disabled={busy} onClick={() => void act(() => handoff(pack.id))}>先学已备好的 {ready.approved} 个词</button>}</> : ready.canEnable ? <><button className="prep-primary" disabled={busy} onClick={() => pack.enabled ? onExit() : void act(() => handoff(pack.id))}>{pack.enabled ? '去孩子首页' : pack.isSample ? '家长开启示例体验' : ready.approved < ready.total ? `先学已备好的 ${ready.approved} 个词` : '给孩子学习'}<span>→</span></button><button className="prep-text-button" disabled={busy} onClick={() => showImages(pack.id)}>查看图片</button></> : <button className="prep-secondary" disabled={busy || !pictured} onClick={() => showImages(pack.id)}>查看图片</button>}</div>
-      </section>
     </article>;
   };
   return <div className="pack-workbench">
-    {formal.length > 0 && !creating && <div className="prep-book-switch"><label htmlFor="prep-current-pack">当前词表<select id="prep-current-pack" value={current?.id ?? ''} disabled={busy} onChange={event => { selectPack(event.target.value); setCreating(false); setError(''); }}>{formal.map(pack => <option key={pack.id} value={pack.id}>{pack.title}{pack.enabled ? ' · 已启用' : ''}</option>)}</select></label><button className="prep-secondary" disabled={busy} onClick={startNew}>＋ 新词表</button></div>}
+    {formal.length > 0 && !creating && <div className="prep-book-switch">{formal.length > 1 && <label htmlFor="prep-current-pack">当前词表<select id="prep-current-pack" value={current?.id ?? ''} disabled={busy || !!editingId} onChange={event => { selectPack(event.target.value); setCreating(false); setError(''); }}>{formal.map(pack => <option key={pack.id} value={pack.id}>{pack.title}{pack.enabled ? ' · 已启用' : ''}</option>)}</select></label>}<button className="prep-secondary" disabled={busy || !!editingId} onClick={startNew}>＋ 新词表</button></div>}
     <PreparationSteps active={creating ? 1 : current && (packPreparation(current, state.words, statuses[current.id]).reviewing > 0 || packPreparation(current, state.words, statuses[current.id]).canEnable) ? 3 : 2} pack={creating ? undefined : current} words={state.words} audio={current ? statuses[current.id] : undefined} />
     {error && <div className="pack-error workbench-error" role="alert">{error}</div>}
     {creating ? <EnglishImport spellingEnabled={state.settings.spellingEnabled} hasBooks={formal.length > 0} back={() => setCreating(false)} confirmed={confirmed} packIds={state.packs.map(pack => pack.id)} /> : current && renderPack(current)}

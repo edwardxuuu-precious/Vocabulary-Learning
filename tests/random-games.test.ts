@@ -82,13 +82,13 @@ test('seeded random selection covers every implemented game, caps unfamiliar rul
       assert.ok([...kinds].filter(kind=>!['flip','supply','portal'].includes(kind)).length<=1);
       for(const task of plan.tasks) assert.ok(activities.some(a=>a.wordId===task.wordId&&((a.kind==='standard'&&['listen','sound'].includes(a.step))||gameDefinition(a.kind)?.practiceOnly===false)));
     }
-    assert.deepEqual([...seen].sort(),gameRegistry.filter(game=>!game.batch&&!game.verbOnly&&!game.familyOnly&&game.step!=='spell').map(game=>game.kind).sort());
+    assert.deepEqual([...seen].sort(),gameRegistry.filter(game=>(!game.batch||['assemble','clue'].includes(game.kind))&&!game.verbOnly&&!game.familyOnly&&game.step!=='spell').map(game=>game.kind).sort());
   }finally{f.close();}
 });
-test('eligibility excludes unseen assets, synonyms, one-word games and noun-only games for verbs',()=>{
+test('eligibility excludes unseen assets, synonyms and noun-only games for verbs; single words allow only the safe puzzle',()=>{
   const f=fixture();try{
     const words=dailyLearningPlan(f.store.read()).available;
-    assert.deepEqual(eligibleGames('listen',words.slice(0,1)),[]);
+    assert.deepEqual(eligibleGames('listen',words.slice(0,1)).map(g=>g.kind),['assemble']);
     assert.ok(!eligibleGames('listen',words.slice(0,2)).some(game=>game.kind==='bingo'));
     assert.deepEqual(eligibleGames('listen',words.map((word,index)=>({...word,assetStatus:index?'approved':'review'}))),[]);
     assert.deepEqual(eligibleGames('listen',words.map(word=>({...word,meaning:'同义'}))),[]);

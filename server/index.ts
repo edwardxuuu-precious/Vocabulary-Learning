@@ -1,4 +1,6 @@
 import { readyGameMaterialKeys } from './game-material-readiness.ts';
+import { prepareGameAudio } from './game-audio-preparation.ts';
+import { createPackGameAudio } from './pack-game-audio.ts';
 import { dailyLearningPlan,supplementalLearningPlan } from '../shared/learning.ts';
 import { materialCues,validGameMaterial } from '../shared/game-materials.ts';
 import http from 'node:http';
@@ -81,6 +83,7 @@ export function createApp(options: AppOptions = {}) {
     return '/media/' + relative.split('/').map(encodeURIComponent).join('/');
   }
   const packAudio = createPackAudioManager({ store, integration, dataDir, toMediaUrl });
+  const packGames = createPackGameAudio({store,integration,dataDir,imageAvailable:availableImage});
   const challenges = createChallengeManager({ store, dataDir, imageAvailable: availableImage, services: options.challengeServices });
   const imports = createImportPreparation({ dataDir, enrich: integration.enrichVocabulary });
   function availableImage(url: string) {
@@ -125,7 +128,7 @@ export function createApp(options: AppOptions = {}) {
   }
   function enqueueImage(id: string) {
     const result = store.mutate(data => {
-      const word = data.words.find(w => w.id === id); if (!word) throw new AppError('找不到单词。', 'NOT_FOUND', 404);
+      const word = data.words.find(w => w.id === id && !w.deletedAt); if (!word) throw new AppError('找不到单词。', 'NOT_FOUND', 404);
       const existing = data.jobs.find(j => j.wordId === id && ['queued','running'].includes(j.status)); if (existing) return { job: existing, run: false };
       if (data.jobs.filter(j => ['queued','running'].includes(j.status)).length >= 3) throw new AppError('已有 3 个图片任务，请稍后再试。', 'QUEUE_FULL', 429);
       const snapshot: ImageSnapshot = { term:word.term, meaning:word.meaning, partOfSpeech:word.partOfSpeech, pictureHint:word.pictureHint, assetStatus:word.assetStatus, interests:[...data.profile.interests], interestVersion:data.profile.interestVersion };
@@ -149,6 +152,15 @@ export function createApp(options: AppOptions = {}) {
       const word=data.words.find(w=>w.id===job.wordId),snapshot=imageSnapshots.get(id);
       if(word&&snapshot)restoreImageStatus(word,snapshot,'draft');else if(word?.assetStatus==='generating')word.assetStatus='draft';
     });
+  }
+  async function stopPackPreparation(packId: string) {
+    if (!store.read().packs.some(pack => pack.id === packId && !pack.deletedAt)) throw new AppError('找不到词表。', 'NOT_FOUND', 404);
+    await Promise.all([packAudio.cancel(packId), packImages.cancel(packId)]);
+    if(store.read().packs.some(p=>p.id===packId&&!p.isSample&&!p.deletedAt))await packGames.cancel(packId);
+    const ids = new Set(store.read().words.filter(word => word.packId === packId).map(word => word.id));
+    const jobs = store.read().jobs.filter(job => ids.has(job.wordId) && ['queued', 'running'].includes(job.status));
+    for (const job of jobs) cancelImageJob(job.id);
+    await Promise.all(jobs.map(job => imageRuns.get(job.id)));
   }
   const packImages=createPackImageManager({store,
     runWord:async (id:string)=>{
@@ -176,7 +188,7 @@ export function createApp(options: AppOptions = {}) {
       if (!['GET', 'HEAD'].includes(req.method ?? 'GET')) {
         if ((origin && !allowed.has(origin)) || req.headers['sec-fetch-site'] === 'cross-site') throw new AppError('请求来源不被允许。', 'ORIGIN_FORBIDDEN', 403);
       }
-      if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization'); res.writeHead(204); res.end(); return; }
+      if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization'); res.writeHead(204); res.end(); return; }
       const url = new URL(req.url ?? '/', `http://${host}`), route = url.pathname;
       if (route.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
       if (req.method === 'GET' && route === '/api/health') return json(res, { ok: true, app: 'little-word-playroom', status: 'ok', local: true });
@@ -371,6 +383,12 @@ export function createApp(options: AppOptions = {}) {
           return json(res,action==='cancel'?await packImages.cancel(id):packImages.start(id));
         }
       }
+      const packGameAudioMatch=route.match(/^\/api\/packs\/([^/]+)\/game-audio(\/cancel)?$/);
+      if(packGameAudioMatch){
+        const id=decodeURIComponent(packGameAudioMatch[1]);
+        if(req.method==='GET'&&!packGameAudioMatch[2])return json(res,await packGames.getStatus(id));
+        if(req.method==='POST'){assessmentGrants.require(req.headers.authorization);return json(res,packGameAudioMatch[2]?await packGames.cancel(id):await packGames.start(id));}
+      }
       const packAudioMatch = route.match(/^\/api\/packs\/([^/]+)\/audio(\/cancel)?$/);
       if (packAudioMatch) {
         const id = decodeURIComponent(packAudioMatch[1]);
@@ -378,19 +396,30 @@ export function createApp(options: AppOptions = {}) {
         if (req.method === 'POST') return json(res, packAudioMatch[2] ? await packAudio.cancel(id) : await packAudio.start(id));
       }
       const packMatch = route.match(/^\/api\/packs\/([^/]+)$/);
+      if (req.method === 'DELETE' && packMatch) {
+        const id = decodeURIComponent(packMatch[1]);
+        await stopPackPreparation(id); store.deletePack(id); return json(res, await state());
+      }
       if (req.method === 'PATCH' && packMatch) {
         const id = decodeURIComponent(packMatch[1]), body = await readJson(req);
+        if(body.prepareGames!==undefined){if(body.prepareGames!==true||body.enabled!==true)throw new AppError('游戏准备请求无效。');assessmentGrants.require(req.headers.authorization);}
+        if (body.rows !== undefined || body.title !== undefined) {
+          if (body.enabled !== undefined) throw new AppError('请先保存词表，再单独确认交给孩子学习。');
+          await stopPackPreparation(id); store.updatePack(id, body); return json(res, await state());
+        }
         if (body.enabled === true) {
-          const pack = store.read().packs.find(item => item.id === id);
+          const pack = store.read().packs.find(item => item.id === id && !item.deletedAt);
           if (!pack) throw new AppError('找不到词表。', 'NOT_FOUND', 404);
           if (!pack.isSample) {
-            const words = store.read().words.filter(word => word.packId === id && word.assetStatus === 'approved');
+            const words = store.read().words.filter(word => word.packId === id && !word.deletedAt && word.assetStatus === 'approved');
             if (!words.length) throw new AppError('请先准备并确认至少一张单词图片。', 'PACK_IMAGES_PENDING');
             const audio = await packAudio.getStatus(id);
             if (words.some(word => !audio.words.some(item => item.wordId === word.id && item.cached))) throw new AppError('可学习单词的发音还没有缓存好，请先补齐发音。', 'PACK_AUDIO_PENDING');
           }
         }
-        store.enablePack(id, body.enabled); return json(res, await state());
+        store.enablePack(id, body.enabled);
+        if(body.prepareGames===true)await packGames.start(id);
+        return json(res, await state());
       }
       const materialMatch=route.match(/^\/api\/words\/([^/]+)\/game-materials\/([^/]+)(?:\/(prepare))?$/);
       if(req.method==='POST'&&materialMatch){
@@ -404,15 +433,9 @@ export function createApp(options: AppOptions = {}) {
           if(!word||material.wordVersion!==(word.learningVersion??0)||!material.wordIds.includes(word.id)||material.tiles.some(t=>t.imageUrl&&!availableImage(t.imageUrl))||material.wordIds.some(id=>!store.read().words.some(w=>w.id===id&&(w.learningVersion??0)===material.wordVersions[id]&&w.assetStatus==='approved')))throw new AppError('素材或词义已经变化，请重新预览。','GAME_MATERIAL_STALE',409);
           const controller=new AbortController();ttsControllers.add(controller);const cancel=()=>{if(!res.writableEnded)controller.abort();};res.on('close',cancel);
           try{
-            for(const cue of cues){
-              if(controller.signal.aborted||closed)throw new AppError('音频准备已停止。','CANCELLED',409);
-              if(await integration.getCachedSpeech({...cue,tone:'clear',dataDir}))continue;
-              const status=(await serviceStatus()).tts;if(!status?.configured||status.provider!=='elevenlabs')throw new AppError('请先配置ElevenLabs；仅准备已包含的免费额度，其他服务不会替代。','GAME_MATERIAL_SERVICE',503);
-              let charge:string|undefined;
-              const audio=await integration.synthesizeSpeech({...cue,tone:'clear',dataDir,freeOnly:true,signal:controller.signal,beforeRequest:()=>{charge=store.reserve('tts',integration.estimateTtsCost(cue.text),cue.text.length);}});
-              if(charge)store.settle(charge,audio.costCny,audio.mode==='local'?0:cue.text.length);
-              if(!audio.filePath)throw new AppError('音频没有准备完成，请检查服务状态。','GAME_MATERIAL_AUDIO_PENDING',409);
-            }
+            const check=()=>{const data=store.read(),current=data.words.find(w=>w.id===word.id);if(closed||!current||current.imageUrl!==word.imageUrl||current.meaning!==word.meaning||current.term!==word.term||material.wordIds.some(id=>!data.words.some(w=>w.id===id&&(w.learningVersion??0)===material.wordVersions[id]&&w.assetStatus==='approved')))throw new AppError('素材已经变化或准备已停止。','GAME_MATERIAL_STALE',409);};
+            const verified=(await serviceStatus()).tts??{configured:false,available:false,status:'unavailable',detail:'朗读尚未配置'};
+            await prepareGameAudio({word,kind,material,integration:{...integration,ttsStatus:()=>verified},store,dataDir,signal:controller.signal,check});
             return json(res,{ready:true});
           }finally{res.off('close',cancel);ttsControllers.delete(controller);}
         }
@@ -420,6 +443,11 @@ export function createApp(options: AppOptions = {}) {
         store.approveGameMaterial(decodeURIComponent(materialMatch[1]),kind,body.material,availableImage);return json(res,await state());
       }
       const wordMatch = route.match(/^\/api\/words\/([^/]+)$/);
+      if (req.method === 'DELETE' && wordMatch) {
+        const id = decodeURIComponent(wordMatch[1]), word = store.read().words.find(word => word.id === id && !word.deletedAt);
+        if (!word) throw new AppError('找不到单词。', 'NOT_FOUND', 404);
+        await stopPackPreparation(word.packId); store.deleteWord(id); return json(res, await state());
+      }
       if (req.method === 'PATCH' && wordMatch) {
         const id = decodeURIComponent(wordMatch[1]), body = await readJson(req), data = store.read();
         const word = data.words.find(item => item.id === id), pack = data.packs.find(item => item.id === word?.packId);
@@ -440,7 +468,7 @@ export function createApp(options: AppOptions = {}) {
         return json(res, { jobs: store.read().jobs });
       }
       if (req.method === 'POST' && route === '/api/session/start') {
-        const input=await readJson(req,8192,true),data=store.read(),daily=dailyLearningPlan(data,store.clock()),ids=Array.isArray(input.wordIds)?input.wordIds:(daily.tasks.length?daily.tasks:supplementalLearningPlan(data,store.clock()).tasks).map(t=>t.wordId);
+        const input=await readJson(req,1_000_000,true),data=store.read(),daily=dailyLearningPlan(data,store.clock()),ids=Array.isArray(input.wordIds)?input.wordIds:(daily.tasks.length?daily.tasks:supplementalLearningPlan(data,store.clock()).tasks).map(t=>t.wordId);
         const readyMaterialKeys=await readyGameMaterialKeys(data.words,data.words.filter(w=>ids.includes(w.id)),availableImage,async cue=>!!await integration.getCachedSpeech({...cue,tone:'clear',dataDir}));
         return json(res,store.startSession('random',{...options.learningGames,readyMaterialKeys},input));
       }
@@ -448,7 +476,7 @@ export function createApp(options: AppOptions = {}) {
       if (req.method === 'POST' && route === '/api/session/assessment-practice') { store.assessmentPractice(await readJson(req, 4096)); return json(res, await state()); }
       if (req.method === 'POST' && route === '/api/attempts') { const attempt = store.attempt(await readJson(req)); return json(res, attempt); }
       if (req.method === 'PATCH' && route === '/api/session') { store.updateSession(await readJson(req)); return json(res, await state()); }
-      if (req.method === 'POST' && route === '/api/restore') { if (controllers.size || chatController || liveVoice.busy() || packAudio.busy() || packImages.busy() || challenges.busy()) throw new AppError('请先取消正在进行的任务，再恢复备份。'); store.restoreBackup(await readJson(req, 60_000_000)); assessmentGrants.clear(); await dialogue.reset(); return json(res, await state()); }
+      if (req.method === 'POST' && route === '/api/restore') { if (controllers.size || chatController || liveVoice.busy() || packAudio.busy() || packGames.busy() || packImages.busy() || challenges.busy()) throw new AppError('请先取消正在进行的任务，再恢复备份。'); store.restoreBackup(await readJson(req, 60_000_000)); assessmentGrants.clear(); await dialogue.reset(); return json(res, await state()); }
       if (route.startsWith('/api/')) throw new AppError('没有这个接口。', 'NOT_FOUND', 404);
       if (!['GET','HEAD'].includes(req.method ?? '')) throw new AppError('不支持该操作。', 'METHOD_NOT_ALLOWED', 405);
       const decoded = decodeURIComponent(route);
@@ -478,7 +506,7 @@ export function createApp(options: AppOptions = {}) {
     reserve: seconds => store.reserve('stt', integration.estimateSttCost(seconds), seconds),
     settle: (id, seconds) => store.settle(id, seconds === 0 ? 0 : integration.estimateSttCost(seconds), seconds),
   });
-  return { server, store, dataDir, close: async () => { closed = true; claimPreparation();chatController?.abort(); for(const controller of ttsControllers)controller.abort();await Promise.all([packAudio.close(),packImages.close(),imports.close(),challenges.close()]);await dialogue.close(); liveVoice.close(); for (const c of controllers.values()) c.abort();await Promise.allSettled(imageRuns.values()); await new Promise<void>((resolve, reject) => { if (!server.listening) return resolve(); server.close(error => error ? reject(error) : resolve()); server.closeIdleConnections(); }); store.close(); } };
+  return { server, store, dataDir, close: async () => { closed = true; claimPreparation();chatController?.abort(); for(const controller of ttsControllers)controller.abort();await Promise.all([packAudio.close(),packGames.close(),packImages.close(),imports.close(),challenges.close()]);await dialogue.close(); liveVoice.close(); for (const c of controllers.values()) c.abort();await Promise.allSettled(imageRuns.values()); await new Promise<void>((resolve, reject) => { if (!server.listening) return resolve(); server.close(error => error ? reject(error) : resolve()); server.closeIdleConnections(); }); store.close(); } };
 }
 
 function publicMessage(error: unknown) {

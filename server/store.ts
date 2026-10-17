@@ -7,7 +7,7 @@ import { dailyLearningPlan, learningDay, selectedLearningTasks, supplementalLear
 import { learningEncounters } from '../shared/learning-history.ts';
 import { childGrowth, recordBadgeAwards } from '../shared/growth.ts';
 import { badgeById, badgeCatalog } from '../shared/badge-catalog.ts';
-import { partsOfSpeech } from '../shared/vocabulary.ts';
+import { partsOfSpeech, packContentRevision } from '../shared/vocabulary.ts';
 import { activityDone, buildActivities, currentActivity } from '../shared/game-plan.ts';
 import { validGameSession } from './game-validation.ts';
 import { assessmentAction, createAssessment, validateAssessmentData } from './assessments.ts';
@@ -204,7 +204,7 @@ export class Store {
   }
   state(integrations: IntegrationStatus): AppState {
     const data = this.read(), month = monthKey(this.clock()), charges = data.charges.filter(c => c.month === month);
-    return { profile: data.profile, settings: data.settings, packs: data.packs, words: data.words, progress: data.progress, attempts: data.attempts,
+    return { profile: data.profile, settings: data.settings, packs: data.packs.filter(pack => !pack.deletedAt), words: data.words.filter(word => !word.deletedAt), progress: data.progress, attempts: data.attempts,
       assessments: data.assessments, assessmentAttempts: data.assessmentAttempts, assessmentProgress: data.assessmentProgress, assessmentPractices: data.assessmentPractices,
       activeSession: this.activeLearningSession(data),
       resumableSessions: data.sessions.filter(s => !s.completedAt && !s.suspendedAt).reverse().sort((a, b) => Number(b.id === data.activeLearningSessionId) - Number(a.id === data.activeLearningSessionId) || (b.lastResumedAt ?? b.startedAt).localeCompare(a.lastResumedAt ?? a.startedAt)),
@@ -253,7 +253,7 @@ export class Store {
   }
   enablePack(id: string, enabled: unknown) {
     this.mutate(data => {
-      const pack = data.packs.find(p => p.id === id); if (!pack) throw new AppError('找不到词表。', 'NOT_FOUND', 404);
+      const pack = data.packs.find(p => p.id === id && !p.deletedAt); if (!pack) throw new AppError('找不到词表。', 'NOT_FOUND', 404);
       if (typeof enabled !== 'boolean') throw new AppError('enabled 需要布尔值。');
       pack.enabled = enabled;
       if (enabled && !pack.isSample) {
@@ -263,16 +263,66 @@ export class Store {
       }
     });
   }
+  updatePack(id: string, body: Record<string, unknown>) {
+    return this.mutate(data => {
+      const pack = data.packs.find(pack => pack.id === id && !pack.deletedAt);
+      if (!pack) throw new AppError('找不到词表。', 'NOT_FOUND', 404);
+      if (body.revision !== packContentRevision(pack, data.words)) throw new AppError('词表内容已被修改，请关闭编辑并重新打开。', 'PACK_CONTENT_CHANGED', 409);
+      if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 80) throw new AppError('词表名称需要 1–80 个字。');
+      const checked = validateRows(body.rows);
+      if (checked.errors.length) throw new AppError(checked.errors.join(' '));
+      const rows = body.rows as (ImportRow & { id?: unknown })[], existing = data.words.filter(word => word.packId === id && !word.deletedAt);
+      const ids = rows.flatMap(row => row.id === undefined ? [] : [row.id]);
+      if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !existing.some(word => word.id === id))) throw new AppError('词条已变化，请重新打开词表。', 'PACK_CONTENT_CHANGED', 409);
+      pack.title = body.title.trim();
+      for (const word of existing) if (!ids.includes(word.id)) this.removeWord(data, word);
+      checked.rows.forEach((row, index) => {
+        const word = existing.find(word => word.id === rows[index].id);
+        if (word) this.changeWord(data, word, { ...row, partOfSpeech: row.partOfSpeech ?? null });
+        else data.words.push({ ...row, id: randomUUID(), packId: id, imageTheme: existing[0]?.imageTheme, imageUrl: '/assets/placeholder.svg', imageSource: 'builtin', assetStatus: 'draft' });
+      });
+      pack.confirmedAt = this.clock().toISOString();
+    });
+  }
+  private removeWord(data: StoredData, word: Word) {
+    // Retain ids, evidence and private recordings for historical references and backup validation.
+    word.deletedAt = this.clock().toISOString(); word.assetStatus = 'draft';
+    for (const session of data.sessions) if (!session.completedAt && !session.suspendedAt && session.wordIds.includes(word.id)) session.suspendedAt = this.clock().toISOString();
+  }
+  deleteWord(id: string) {
+    this.mutate(data => {
+      const word = data.words.find(word => word.id === id && !word.deletedAt);
+      if (!word) throw new AppError('找不到单词。', 'NOT_FOUND', 404);
+      this.removeWord(data, word);
+    });
+  }
+  deletePack(id: string) {
+    this.mutate(data => {
+      const pack = data.packs.find(pack => pack.id === id && !pack.deletedAt);
+      if (!pack) throw new AppError('找不到词表。', 'NOT_FOUND', 404);
+      pack.deletedAt = this.clock().toISOString(); pack.enabled = false;
+      for (const word of data.words) if (word.packId === id && !word.deletedAt) this.removeWord(data, word);
+    });
+  }
+  private changeWord(data: StoredData, word: Word, body: Record<string, unknown>) {
+    const proposed = { ...word, ...body };
+    if (proposed.partOfSpeech === null) delete proposed.partOfSpeech;
+    const checked = validateRows([proposed]); if (checked.errors.length) throw new AppError(checked.errors.join(' '));
+    const row = checked.rows[0];
+    const changed = ['term', 'meaning', 'partOfSpeech', 'pictureHint'].some(key => row[key as keyof ImportRow] !== word[key as keyof Word]);
+    if (!changed) return;
+    if (body.assetStatus === 'approved') throw new AppError('请先保存词义，再重新准备并确认图片。');
+    if ((row.term !== word.term || row.meaning !== word.meaning || row.partOfSpeech !== word.partOfSpeech) && body.pictureHint === undefined) { delete row.pictureHint; delete row.usageNote; }
+    delete word.partOfSpeech; delete word.pictureHint; delete word.usageNote; delete word.error; delete word.gameMaterials;
+    Object.assign(word, row); word.assetStatus = 'draft'; word.imageUrl = '/assets/placeholder.svg'; word.imageSource = 'builtin';
+    word.learningResetAt = this.clock().toISOString(); word.learningVersion = (word.learningVersion ?? 0) + 1;
+    data.progress = data.progress.filter(progress => progress.wordId !== word.id);
+  }
   updateWord(id: string, body: Record<string, unknown>, availableImage: (url: string) => boolean) {
     this.mutate(data => {
-      const word = data.words.find(w => w.id === id); if (!word) throw new AppError('找不到单词。', 'NOT_FOUND', 404);
-      const changed = ['term', 'meaning', 'partOfSpeech', 'pictureHint'].some(key => body[key] !== undefined && body[key] !== word[key as keyof Word]);
-      if (changed) {
-        const checked = validateRows([{ ...word, ...body }]); if (checked.errors.length) throw new AppError(checked.errors.join(' '));
-        // A corrected sense cannot retain an old scene instruction unless the parent explicitly supplies a new one.
-        if ((body.meaning !== undefined && body.meaning !== word.meaning || body.partOfSpeech !== undefined && body.partOfSpeech !== word.partOfSpeech || body.term !== undefined && body.term !== word.term) && body.pictureHint === undefined) { delete checked.rows[0].pictureHint; delete checked.rows[0].usageNote; delete word.pictureHint; delete word.usageNote; }
-        Object.assign(word, checked.rows[0]); word.assetStatus = 'draft'; word.learningResetAt = this.clock().toISOString(); word.learningVersion = (word.learningVersion ?? 0) + 1; data.progress = data.progress.filter(p => p.wordId !== id);
-      }
+      const word = data.words.find(w => w.id === id && !w.deletedAt); if (!word) throw new AppError('找不到单词。', 'NOT_FOUND', 404);
+      this.changeWord(data, word, body);
+      if (data.words.some(other => other.id !== id && !other.deletedAt && other.packId === word.packId && other.term.toLowerCase() === word.term.toLowerCase())) throw new AppError('词表中已有相同的英文，请合并重复词。');
       if (body.assetStatus !== undefined) {
         if (!['approved','draft','review'].includes(String(body.assetStatus))) throw new AppError('图片状态无效。');
         if (body.assetStatus === 'approved' && (word.imageUrl === '/assets/placeholder.svg' || !availableImage(word.imageUrl))) throw new AppError('请先生成或提供可用的图片，再批准。');
@@ -282,11 +332,11 @@ export class Store {
   }
   approveGameMaterial(wordId:string,kind:string,input:unknown,availableImage:(url:string)=>boolean) {
     return this.mutate(data=>{
-      const word=data.words.find(w=>w.id===wordId),material=structuredClone(input) as import('../shared/contracts.ts').GameMaterial;
+      const word=data.words.find(w=>w.id===wordId&&!w.deletedAt),material=structuredClone(input) as import('../shared/contracts.ts').GameMaterial;
       if(!word||!extendedKinds.has(kind)||!validGameMaterial(kind,material)||material.wordVersion!==(word.learningVersion??0)||!material.wordIds.includes(wordId))throw new AppError('素材格式或所见词义版本已变化，请重新预览。','GAME_MATERIAL_INVALID');
-      if(material.wordIds.some(id=>!data.words.some(w=>w.id===id&&w.assetStatus==='approved'&&(w.learningVersion??0)===material.wordVersions[id]))||material.tiles.some(t=>t.imageUrl&&!availableImage(t.imageUrl)))throw new AppError('关联词义或图片已变化，请重新备课。','GAME_MATERIAL_STALE',409);
+      if(material.wordIds.some(id=>!data.words.some(w=>w.id===id&&!w.deletedAt&&w.assetStatus==='approved'&&(w.learningVersion??0)===material.wordVersions[id]))||material.tiles.some(t=>t.imageUrl&&!availableImage(t.imageUrl)))throw new AppError('关联词义或图片已变化，请重新备课。','GAME_MATERIAL_STALE',409);
       if(kind==='chunks'&&material.chunks!.join('').toLowerCase()!==word.term.toLowerCase()||kind==='word-morph'&&!data.words.some(w=>material.wordIds.includes(w.id)&&w.term.toLowerCase()===material.source?.toLowerCase()))throw new AppError('字块或起始词与目标不一致。');
-      material.approvedAt=this.clock().toISOString();word.gameMaterials={...word.gameMaterials,[kind]:material};return word;
+      material.approvedAt=this.clock().toISOString();if(material.origin==='proposal')delete material.origin;word.gameMaterials={...word.gameMaterials,[kind]:material};return word;
     });
   }
   reviewPackImages(packId: string, selections: unknown, availableImage: (url: string) => boolean): Word[] {
@@ -355,16 +405,16 @@ export class Store {
       if (mode === 'recommended' && !plan.tasks.length) { plan = supplementalLearningPlan(data, this.clock()); practiceOnly = true; }
       if (mode === 'relearn' || mode === 'practice') {
         const ids = body.wordIds;
-        if (!Array.isArray(ids) || !ids.length || ids.length > 5 || new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !plan.available.some(word => word.id === id))) throw new AppError('请选择1–5个已经准备好的单词。', 'SESSION_WORDS');
+        const availableIds = new Set(plan.available.map(word => word.id));
+        if (!Array.isArray(ids) || !ids.length || new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !availableIds.has(id))) throw new AppError('请选择至少一个已经准备好的单词，不能重复选择。', 'SESSION_WORDS');
         const tasks = selectedLearningTasks(data, ids, mode), taskCount = tasks.reduce((sum, task) => sum + task.steps.length, 0);
-        if (taskCount > plan.taskLimit) throw new AppError('这些词超过本轮时长，请少选几个；已选单词不会被省略。', 'SESSION_BUDGET');
-        plan = { ...plan, tasks, taskCount, estimatedMinutes: Math.ceil(taskCount * SECONDS_PER_LEARNING_TASK / 60) };
+        plan = { ...plan, tasks, taskCount, taskLimit: Math.max(plan.taskLimit, taskCount), estimatedMinutes: Math.ceil(taskCount * SECONDS_PER_LEARNING_TASK / 60) };
       }
       const session: LearningSession = { id: randomUUID(), mode: mode as LearningSession['mode'], practiceOnly, ...(typeof body.requestId === 'string' ? {requestId: body.requestId} : {}), exposures: [], wordIds: [...new Set(plan.tasks.map(task => task.wordId))], completedWordIds: [], startedAt: this.clock().toISOString(), rewardGranted: false, goalVersion:1, tasks: clone(plan.tasks), completedSteps: {}, taskLimit: plan.taskLimit, estimatedMinutes: plan.estimatedMinutes };
       if (withGames || session.goalVersion === 1) {
         session.gameSeed = randomUUID();
         const recentKinds = data.sessions.slice(-6).flatMap(previous => previous.activities?.filter(activity => activityDone(previous, activity)).map(activity => activity.kind) ?? []);
-        session.activities = buildActivities(plan.tasks, plan.available, seededRandom(session.gameSeed), { recentKinds, familyEnabled: data.settings.familyGamesEnabled === true, contextEnabled:data.settings.contextGamesEnabled===true, ...gameOptions, randomize: withGames === 'random' }); session.activityStates = {};
+        session.activities = buildActivities(plan.tasks, plan.available, seededRandom(session.gameSeed), { recentKinds, familyEnabled: data.settings.familyGamesEnabled === true, contextEnabled:data.settings.contextGamesEnabled===true, ...gameOptions, practiceRounds:session.practiceOnly===true, randomize: withGames === 'random' }); session.activityStates = {};
         if(!withGames)for(const a of session.activities){a.kind='standard';if(!isGoalCheckpoint(a.step))a.choices=[];delete a.groupId;delete a.cueWord;delete a.targets;delete a.direction;delete a.routeStart;delete a.routeCells;delete a.letterGrid;delete a.material;delete a.spellingBoard;}
         if(!withGames)session.activities.sort((a,b)=>session.tasks!.findIndex(t=>t.wordId===a.wordId)-session.tasks!.findIndex(t=>t.wordId===b.wordId)||session.tasks!.find(t=>t.wordId===a.wordId)!.steps.indexOf(a.step)-session.tasks!.find(t=>t.wordId===b.wordId)!.steps.indexOf(b.step));
       }
@@ -555,11 +605,11 @@ export function validateBackup(input: unknown): { data: StoredData; files: { pat
   const media = (url: unknown) => { if (typeof url !== 'string') return false; if (/^\/assets\/(?:placeholder\.svg|words\/[a-z-]+\.svg)$/.test(url)) return true; try { return url.startsWith('/media/') && safeRelative(decodeURIComponent(url.slice(7))); } catch { return false; } };
   if (!text(d.profile.nickname,30) || d.profile.interests.length > 8 || d.profile.interests.some((x:unknown) => !text(x,40)) || !count(d.profile.interestVersion) || typeof d.profile.onboardingCompleted !== 'boolean') throw new AppError('备份孩子资料无效。');
   if ((d.settings.contextGamesEnabled !== undefined && typeof d.settings.contextGamesEnabled !== 'boolean') || d.settings.familyGamesEnabled !== undefined && typeof d.settings.familyGamesEnabled !== 'boolean' || Object.entries(defaults).some(([key,val]) => typeof d.settings[key] !== typeof val) || Object.values(d.settings).some(val => typeof val === 'number' && (!Number.isFinite(val) || val < 0)) || !count(d.settings.dailyNewWords,20) || d.settings.dailyNewWords < 1 || !count(d.settings.dailyReviewWords,50) || !count(d.settings.sessionMinutes,30) || d.settings.sessionMinutes < 3 || d.settings.monthlyBudgetCny > 10000) throw new AppError('备份设置无效。');
-  if (d.packs.length > 20000 || !unique(d.packs) || d.packs.some((p:any) => !text(p.title,80) || !date(p.createdAt) || typeof p.enabled !== 'boolean' || (p.isSample !== undefined && typeof p.isSample !== 'boolean') || (p.confirmedAt !== undefined && !date(p.confirmedAt)))) throw new AppError('备份词表无效。');
+  if (d.packs.length > 20000 || !unique(d.packs) || d.packs.some((p:any) => !text(p.title,80) || !date(p.createdAt) || typeof p.enabled !== 'boolean' || (p.isSample !== undefined && typeof p.isSample !== 'boolean') || (p.confirmedAt !== undefined && !date(p.confirmedAt)) || (p.deletedAt !== undefined && (!date(p.deletedAt) || p.enabled)))) throw new AppError('备份词表无效。');
   const packIds = new Set(d.packs.map((p:any) => p.id));
-  if (d.words.length > 20000 || !unique(d.words) || d.words.some((w:any) => !packIds.has(w.packId) || !['approved','draft','review','error','generating'].includes(w.assetStatus) || !['builtin','codex','upload'].includes(w.imageSource) || validateRows([w]).errors.length || !media(w.imageUrl) || (w.imageTheme !== undefined && (!text(w.imageTheme,80) || !/^[a-z0-9-]+$/.test(w.imageTheme))) || (w.error !== undefined && !text(w.error,2000)) || (w.learningResetAt !== undefined && !date(w.learningResetAt)) || (w.learningVersion !== undefined && !count(w.learningVersion)))) throw new AppError('备份单词或素材路径无效。');
+  if (d.words.length > 20000 || !unique(d.words) || d.words.some((w:any) => !packIds.has(w.packId) || !['approved','draft','review','error','generating'].includes(w.assetStatus) || !['builtin','codex','upload'].includes(w.imageSource) || validateRows([w]).errors.length || !media(w.imageUrl) || (w.imageTheme !== undefined && (!text(w.imageTheme,80) || !/^[a-z0-9-]+$/.test(w.imageTheme))) || (w.error !== undefined && !text(w.error,2000)) || (w.learningResetAt !== undefined && !date(w.learningResetAt)) || (w.learningVersion !== undefined && !count(w.learningVersion)) || (w.deletedAt !== undefined && (!date(w.deletedAt) || w.assetStatus !== 'draft')))) throw new AppError('备份单词或素材路径无效。');
   const wordIds = new Set(d.words.map((w:any) => w.id));
-  if(d.words.some((w:any)=>w.gameMaterials!==undefined&&(!w.gameMaterials||typeof w.gameMaterials!=='object'||Array.isArray(w.gameMaterials)||Object.entries(w.gameMaterials).some(([kind,m])=>!validGameMaterial(kind,m)))))throw new AppError('备份游戏素材无效。');
+  if(d.words.some((w:any)=>w.gameMaterials!==undefined&&(!w.gameMaterials||typeof w.gameMaterials!=='object'||Array.isArray(w.gameMaterials)||Object.entries(w.gameMaterials).some(([kind,m])=>!validGameMaterial(kind,m)||(m as any).origin==='proposal'))))throw new AppError('备份游戏素材无效。');
   if (d.progress.length > 100000 || d.progress.some((p:any) => !p || !wordIds.has(p.wordId) || !SKILLS.includes(p.skill) || !count(p.stage,5) || !date(p.dueAt) || !count(p.successes) || !count(p.attempts))) throw new AppError('备份学习进度无效。');
   if (new Set(d.progress.map((p:any) => `${p.wordId}:${p.skill}`)).size !== d.progress.length) throw new AppError('备份学习进度重复。');
   if (d.sessions.length > 100000 || !unique(d.sessions) || d.sessions.some((s:any) => !Array.isArray(s.wordIds) || !Array.isArray(s.completedWordIds) || s.wordIds.some((id:unknown) => typeof id !== 'string' || !wordIds.has(id)) || s.completedWordIds.some((id:unknown) => !s.wordIds.includes(id)) || new Set(s.wordIds).size !== s.wordIds.length || new Set(s.completedWordIds).size !== s.completedWordIds.length || !date(s.startedAt) || (s.completedAt !== undefined && !date(s.completedAt)) || (s.suspendedAt !== undefined && (!date(s.suspendedAt) || s.completedAt !== undefined || s.rewardGranted)) || typeof s.rewardGranted !== 'boolean')) throw new AppError('备份学习会话无效。');
@@ -603,7 +653,7 @@ export function validateBackup(input: unknown): { data: StoredData; files: { pat
   if (files.length > 20000 || files.some(f => { if (!f || typeof f.path !== 'string' || !safeRelative(f.path) || typeof f.content !== 'string' || f.content.length > 30_000_000 || !/^[A-Za-z0-9+/]*={0,2}$/.test(f.content) || seenPaths.has(f.path.toLowerCase())) return true; seenPaths.add(f.path.toLowerCase()); totalBytes += f.content.length; return totalBytes > 55_000_000; })) throw new AppError('备份素材格式不正确、路径重复或总量过大。');
   const pick = (object: Record<string,unknown>, keys:string[]) => Object.fromEntries(keys.filter(key => object[key] !== undefined).map(key => [key,object[key]]));
   const clean = { version: 1, ...assessmentData, ...{practiceRecordings:(d.practiceRecordings??[]).map((r:PracticeRecording)=>({...pick(r as unknown as Record<string,unknown>,['id','sessionId','activityId','kind','step','mode','round','createdAt','seconds','bytes','sha256','status']),word:pick(r.word as unknown as Record<string,unknown>,['id','term','meaning','imageUrl','learningVersion'])}))}, profile: pick(d.profile,['nickname','interests','interestVersion','onboardingCompleted']), settings:pick(d.settings,[...Object.keys(defaults),'familyGamesEnabled','contextGamesEnabled']),
-    packs:d.packs.map((p:any)=>pick(p,['id','title','enabled','createdAt','isSample','confirmedAt'])), words:d.words.map((w:any)=>pick(w,['id','packId','term','meaning','partOfSpeech','pictureHint','usageNote','imageTheme','imageUrl','assetStatus','imageSource','error','learningResetAt','learningVersion','gameMaterials'])),
+    packs:d.packs.map((p:any)=>pick(p,['id','title','enabled','createdAt','isSample','confirmedAt','deletedAt'])), words:d.words.map((w:any)=>pick(w,['id','packId','term','meaning','partOfSpeech','pictureHint','usageNote','imageTheme','imageUrl','assetStatus','imageSource','error','learningResetAt','learningVersion','gameMaterials','deletedAt'])),
     progress:d.progress.map((p:any)=>pick(p,['wordId','skill','stage','dueAt','successes','attempts'])), attempts:d.attempts.map((a:any)=>pick(a,['id','wordId','sessionId','skill','step','learningVersion','correct','hinted','practiceOnly','source','createdAt','activityId','oralStatus','sessionPracticeOnly'])),
     sessions:d.sessions.map((s:any)=>({...pick(s,['id','wordIds','completedWordIds','startedAt','completedAt','suspendedAt','rewardGranted','taskLimit','estimatedMinutes','gameSeed','mode','practiceOnly','requestId','lastResumedAt','goalVersion']),...(s.exposures === undefined ? {} : {exposures:s.exposures.map((entry:any)=>pick(entry,['wordId','learningVersion','introducedAt']))}),...(s.tasks === undefined ? {} : {tasks:s.tasks.map((task:any)=>pick(task,['wordId','mode','steps'])),completedSteps:Object.fromEntries(Object.entries(s.completedSteps).map(([id,steps])=>[id,steps]))}),...(s.activities === undefined ? {} : {activities:s.activities.map((activity:any)=>({...pick(activity,['id','wordId','step','kind','groupId','direction','routeStart','routeCells','letterGrid','material','spellingBoard']),word:pick(activity.word,['id','term','meaning','imageUrl','learningVersion']),choices:activity.choices.map((word:any)=>pick(word,['id','term','meaning','imageUrl','learningVersion'])),...(activity.targets ? {targets:activity.targets.map((word:any)=>pick(word,['id','term','meaning','imageUrl','learningVersion']))} : {}),...(activity.cueWord ? {cueWord:pick(activity.cueWord,['id','term','meaning','imageUrl','learningVersion'])} : {})})),activityStates:Object.fromEntries(Object.entries(s.activityStates).map(([id,state])=>[id,pick(state as Record<string,unknown>,activityStateKeys)]))})})), stickers:d.stickers,
     jobs:d.jobs.map((j:any)=>pick(j,['id','wordId','status','error','imageUrl','createdAt'])), charges:d.charges.map((c:any)=>pick(c,['id','month','reserved','actual','kind','units'])) } as unknown as StoredData;

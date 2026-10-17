@@ -21,8 +21,8 @@ export function createPackImageManager(options: PackImageOptions) {
   let active: Batch | undefined, closed = false, pumping: Promise<void> | undefined, scheduled: NodeJS.Immediate | undefined;
   function snapshot(packId: string): Snapshot {
     const data = store.read();
-    if (!data.packs.some(pack => pack.id === packId)) throw new AppError('找不到这本词表。', 'PACK_IMAGE_NOT_FOUND', 404);
-    const words = data.words.filter(word => word.packId === packId);
+    if (!data.packs.some(pack => pack.id === packId && !pack.deletedAt)) throw new AppError('找不到这本词表。', 'PACK_IMAGE_NOT_FOUND', 404);
+    const words = data.words.filter(word => word.packId === packId && !word.deletedAt);
     return { words, fingerprint: JSON.stringify([packId, data.profile.interestVersion, data.profile.interests, words.map(word => [word.id,word.term,word.meaning,word.learningVersion])]) };
   }
   function check(batch: Batch) {

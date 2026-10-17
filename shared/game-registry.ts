@@ -26,7 +26,7 @@ export const gameRegistry: readonly GameDefinition[] = [
   { kind: 'route', number: 38, title: '词义寻路', step: 'listen', minWords: 2, practiceOnly: true },
   { kind: 'letter-path', number: 41, title: '字母路径', step: 'spell', minWords: 2, practiceOnly: true },
   { kind: 'variants', number: 11, title: '同词异图', step: 'sound', minWords: 2, practiceOnly: true, batch: 3 },
-  { kind: 'assemble', number: 13, title: '词义拼图', step: 'listen', minWords: 2, practiceOnly: true, batch: 3 },
+  { kind: 'assemble', number: 13, title: '词义拼图', step: 'listen', minWords: 1, practiceOnly: true, batch: 3 },
   { kind: 'detective', number: 14, title: '易混侦探', step: 'sound', minWords: 2, practiceOnly: true, batch: 3 },
   { kind: 'opposites', number: 15, title: '反义跷跷板', step: 'listen', minWords: 2, practiceOnly: true, batch: 3 },
   { kind: 'sort', number: 16, title: '单词分拣站', step: 'listen', minWords: 2, practiceOnly: true, batch: 3 },
@@ -35,7 +35,7 @@ export const gameRegistry: readonly GameDefinition[] = [
   { kind: 'paint', number: 19, title: '颜色工坊', step: 'listen', minWords: 2, practiceOnly: true, batch: 3 },
   { kind: 'position', number: 20, title: '位置摆摆乐', step: 'listen', minWords: 2, practiceOnly: true, batch: 3 },
   { kind: 'pantomime', number: 25, title: '无声哑剧', step: 'recall', minWords: 2, practiceOnly: true, batch: 3 },
-  { kind: 'clue', number: 27, title: '听线索猜词', step: 'recall', minWords: 2, practiceOnly: true, batch: 4, contextOnly: true },
+  { kind: 'clue', number: 27, title: '听线索猜词', step: 'recall', minWords: 1, practiceOnly: true, batch: 4, contextOnly: true },
   { kind: 'cloze', number: 28, title: '口头补空', step: 'recall', minWords: 2, practiceOnly: true, batch: 4, contextOnly: true },
   { kind: 'story', number: 31, title: '图片故事排序', step: 'listen', minWords: 2, practiceOnly: true, batch: 4, contextOnly: true },
   { kind: 'program', number: 32, title: '动作编程', step: 'listen', minWords: 2, practiceOnly: true, batch: 4, contextOnly: true },
@@ -60,11 +60,12 @@ export const gameDefinition = (kind: string) => gameRegistry.find(game => game.k
 export const recallGame = (kind: string) => kind === 'portal' || kind === 'missing';
 export function eligibleGames(step: LearningStep, words: Word[], options: Pick<GamePlanOptions,'familyEnabled'|'contextEnabled'|'allowedKinds'|'readyMaterialKeys'> = {}) {
   if (words.some(word => word.assetStatus !== 'approved' || word.imageUrl === '/assets/placeholder.svg') || new Set(words.map(word => word.term.toLowerCase())).size !== words.length || new Set(words.map(word => word.meaning.trim())).size !== words.length || new Set(words.map(word => word.imageUrl)).size !== words.length) return [];
-  return gameRegistry.filter(game => (!options.allowedKinds||options.allowedKinds.includes(game.kind)) && (game.step === step || (step==='recognize'||step==='read')&&game.otherSteps?.includes(step)) && (game.step!=='spell'||words.every(word=>/^[a-z]{2,6}$/i.test(word.term))) && words.length >= game.minWords && (!game.nounOnly || words.every(word => word.partOfSpeech === 'noun')) && (!game.verbOnly || words.every(word => word.partOfSpeech === 'verb')) && (!game.familyOnly || options.familyEnabled) && (!game.contextOnly || options.contextEnabled) && (!game.batch || automaticSpelling.has(game.kind) ? !game.batch || words.every(word=>/^[a-z]{2,6}$/i.test(word.term)) : (pairedGame(game.kind)?words.slice(0,1):words).some(word=>!!readyMaterial(word,game.kind,words)&&(!options.readyMaterialKeys||options.readyMaterialKeys.includes(`${word.id}:${game.kind}`)))) && (game.kind !== 'letter-path' || words.every(word => /^[a-z]{2,6}$/i.test(word.term))));
+  const approvedMeaningOnly=words.every(word=>!word.gameMaterials?.clue);
+  return gameRegistry.filter(game => (!options.allowedKinds||options.allowedKinds.includes(game.kind)) && (game.step === step || (step==='recognize'||step==='read')&&game.otherSteps?.includes(step)) && (game.step!=='spell'||words.every(word=>/^[a-z]{2,6}$/i.test(word.term))) && words.length >= game.minWords && (!game.nounOnly || words.every(word => word.partOfSpeech === 'noun')) && (!game.verbOnly || words.every(word => word.partOfSpeech === 'verb')) && (!game.familyOnly || options.familyEnabled) && (!game.contextOnly || options.contextEnabled || game.kind==='clue'&&approvedMeaningOnly) && (!game.batch || automaticSpelling.has(game.kind) ? !game.batch || words.every(word=>/^[a-z]{2,6}$/i.test(word.term)) : (pairedGame(game.kind)?words.slice(0,1):words).some(word=>!!readyMaterial(word,game.kind,words)&&(!options.readyMaterialKeys||options.readyMaterialKeys.includes(`${word.id}:${game.kind}`)))) && (game.kind !== 'letter-path' || words.every(word => /^[a-z]{2,6}$/i.test(word.term))));
 }
 export function seededRandom(seed: string) {
   let state = 2166136261;
   for (const ch of seed) state = Math.imul(state ^ ch.charCodeAt(0), 16777619);
   return () => { state += 0x6d2b79f5; let value = Math.imul(state ^ state >>> 15, 1 | state); value ^= value + Math.imul(value ^ value >>> 7, 61 | value); return ((value ^ value >>> 14) >>> 0) / 4294967296; };
 }
-export interface GamePlanOptions { randomize?: boolean; recentKinds?: string[]; forcedKind?: GameKind; familyEnabled?: boolean; contextEnabled?: boolean; allowedKinds?: GameKind[]; readyMaterialKeys?:string[] }
+export interface GamePlanOptions { randomize?: boolean; recentKinds?: string[]; forcedKind?: GameKind; familyEnabled?: boolean; contextEnabled?: boolean; allowedKinds?: GameKind[]; readyMaterialKeys?:string[]; practiceRounds?:boolean }

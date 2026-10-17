@@ -36,6 +36,7 @@ export function validGameSession(session: LearningSession, wordIds: Set<string>,
     }else if(item.routeStart!==undefined||item.routeCells!==undefined)return false;
     if(item.kind==='letter-path' ? typeof item.letterGrid!=='string'||!/^[a-z]{25}$/.test(item.letterGrid)||!/^[a-z]{2,6}$/i.test(item.word.term)||!findLetterPath(item.letterGrid,item.word.term) : item.letterGrid!==undefined)return false;
     if(extendedKinds.has(item.kind)) {
+      if(item.material?.origin==='proposal')return false;
       if(automaticSpelling.has(item.kind)?!/^[a-z]{2,6}$/i.test(item.word.term):!validGameMaterial(item.kind,item.material))return false;
       if(['story','program','combine'].includes(item.kind)&&item.targets!.some(w=>!item.material!.answer.some(id=>item.material!.tiles.find(t=>t.id===id)?.wordId===w.id)))return false;
       if(item.material&&item.material.wordVersion!==(item.targets?.[0]??item.word).learningVersion)return false;

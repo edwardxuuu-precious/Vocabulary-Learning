@@ -37,7 +37,8 @@ export function WordIntroduction({ word, active, busy, audioEnabled, speak, getP
     resume(); document.addEventListener('visibilitychange', resume); window.addEventListener('pagehide', leave);
     return () => { clearStart(); controller.cancel(); document.removeEventListener('visibilitychange', resume); window.removeEventListener('pagehide', leave); };
   }, [active, controller]);
-  const index = introductionPhases.indexOf(state.phase), showMeaning = index >= 1, showPicture = index >= 3, ready = state.phase === 'ready';
+  const index = introductionPhases.indexOf(state.phase), showMeaning = index >= 1, showPicture = index >= 3;
+  const phaseLabels = { english: audioEnabled ? '听英文' : '看看英文', meaning: '看看意思', 'english-again': audioEnabled ? '再听英文' : '再看英文', picture: '看看图片', summary: '一起回顾', ready: '准备开始练习' };
   return <div className="word-introduction" data-phase={state.phase} data-waiting={state.waiting || undefined}>
     <div className="introduction-scene">
       <div className="lesson-word" data-phrase={/\s/.test(word.term.trim()) || undefined} style={{ '--intro-word-length': Math.max(1, ...word.term.trim().split(/\s+/).map(token => [...token].length)) } as CSSProperties}>
@@ -50,7 +51,7 @@ export function WordIntroduction({ word, active, busy, audioEnabled, speak, getP
       {showPicture && <div className="lesson-picture introduction-picture"><img src={word.imageUrl} alt={word.meaning} /></div>}
     </div>
     <div className="introduction-controls">
-      <div className="introduction-dots" role="img" aria-label={ready ? '讲解结束，准备开始练习' : `讲解第${Math.min(index + 1, 5)}步，共5步`}>{introductionPhases.slice(0, 5).map((phase, i) => <i key={phase} className={i <= index ? 'is-done' : ''} />)}</div>
+      <p className="introduction-phase" role="status"><span aria-hidden="true" />{phaseLabels[state.phase]}</p>
       {state.audioFailed && <p className="introduction-message" role="status">{audioEnabled ? '声音暂时没能播放，画面会自动继续。' : '声音已关闭，画面会自动继续。'}</p>}
       {state.transitionFailed && <p className="introduction-message" role="status">小任务暂时没接上，请重新连接。</p>}
       <div className="introduction-actions">

@@ -117,6 +117,8 @@ test('editing a meaning preserves raw history but reopens the approved word as a
     f.store.updateWord(wordId,{meaning:'青苹果'},()=>true);
     const changed=f.store.read().words.find(word=>word.id===wordId)!;
     assert.equal(changed.learningResetAt,f.now().toISOString());assert.equal(changed.learningVersion,1);assert.equal(changed.assetStatus,'draft');assert.equal(f.store.read().progress.length,0);assert.equal(f.store.read().attempts.length,1);
+    assert.throws(()=>f.store.updateWord(wordId,{assetStatus:'approved'},()=>true),/图片/);
+    f.store.mutate(data=>{const word=data.words.find(word=>word.id===wordId)!;word.imageUrl='/assets/words/apple.svg';word.assetStatus='review';}); // Simulated replacement image, not a cloud-service verification.
     f.store.updateWord(wordId,{assetStatus:'approved'},()=>true);
     const plan=dailyLearningPlan(f.store.read(),f.now());assert.equal(plan.tasks[0].wordId,wordId);assert.equal(plan.tasks[0].mode,'new');assert.deepEqual(plan.tasks[0].steps,['learn','recognize','listen','sound','read','recall']);
     const newSession=f.store.startSession();assert.notEqual(newSession.id,oldSession.id);

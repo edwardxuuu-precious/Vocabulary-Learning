@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $taskRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$taskIcon = Join-Path $PSScriptRoot 'desktop\playroom.ico'
+$taskIcon = Join-Path $PSScriptRoot 'desktop\playroom-simple.ico'
 $taskLauncher = Join-Path $PSScriptRoot 'launch-desktop.ps1'
 if (-not (Test-Path -LiteralPath $taskIcon -PathType Leaf)) { throw 'The application icon is missing.' }
 if (-not (Test-Path -LiteralPath $taskLauncher -PathType Leaf)) { throw 'The desktop launcher is missing.' }

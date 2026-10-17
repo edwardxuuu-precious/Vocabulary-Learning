@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { LearningTopbar } from './learning-topbar';
 import type { ActivityAction, GameWord, LearningActivity, LearningSession } from '../shared/contracts';
 import { activityDone, activityTitles } from '../shared/game-plan';
 import { adjacentCell, pairedGame } from '../shared/game-boards';
 import { gameAccepted } from '../shared/game-rules';
 import { companionFor } from '../shared/companions';
-import { sessionTaskProgress } from './learning-session';
 import { Mascot } from './mascot';
 import { GameActionBar, GameSoundIcon } from './game-action-bar';
 import { OralPractice } from './oral-practice';
@@ -28,7 +28,7 @@ export function BatchTwoLearningGame({activity:a,session,busy:appBusy,playing,on
   const busy=appBusy||oralBusy;
   const saved=session.activityStates?.[a.id]??{},scene=session.activityStates?.[`${a.wordId}:sound`];
   const state=a.kind==='associate'&&a.step==='recall'&&!saved.selectedIds&&scene?.composed ? {...saved,selectedIds:scene.selectedIds,composed:true} : saved;
-  const accepted=gameAccepted(state),locked=busy||accepted,progress=sessionTaskProgress(session)!;
+  const accepted=gameAccepted(state),locked=busy||accepted;
   const chosen=state.selectedIds??[],heard=!!state.heard,painted=!!state.drawing&&/[1-4]/.test(state.drawing);
   const audio=<button className={`game-audio ${playing?'is-playing':''}`} disabled={locked} onClick={()=>onAction('listen')} aria-label={`${activityTitles[a.kind]}：听英文`}><GameSoundIcon/><span>{playing?'正在播放':pairedGame(a.kind)?'听两个单词':heard?'再听一遍':'听一听'}</span></button>;
   const image=(word:GameWord,className='')=><img className={className} src={word.imageUrl} alt={word.meaning}/>;
@@ -48,7 +48,7 @@ export function BatchTwoLearningGame({activity:a,session,busy:appBusy,playing,on
     a.kind==='quiz'&&!state.handedOver?{label:painted?'交给家长猜':'用手势出题',action:()=>onAction('hand-over',painted?'drawing':'gesture')}:
     a.kind==='quiz'&&state.handedOver&&!state.revealed?{label:'一起揭晓',action:()=>onAction('reveal')}:undefined;
   return <main className={`lesson-page game-page batch-page batch-${a.kind}`}>
-    <nav className="lesson-nav" aria-label="学习导航"><button className="lesson-nav-button" onClick={onHome} aria-label="回到单词游乐园首页">⌂</button><div className="lesson-progress-wrap"><div className="lesson-progress" role="progressbar" aria-label="今日小任务进度" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.completed}><span style={{width:`${100*progress.completed/Math.max(1,progress.total)}%`}}/></div><span className="lesson-word-count">{progress.completed+1} / {progress.total}</span></div><button className="lesson-nav-button" onClick={onPause} aria-label="休息一下">Ⅱ</button></nav>
+<LearningTopbar session={session} onHome={onHome} onPause={onPause} />
     <div className="lesson-guide"><Mascot small character={companionFor(session.id,Math.max(0,session.activities?.findIndex(item=>item.id===a.id)??0))}/><h1>{activityTitles[a.kind]}</h1></div>
     <section className="game-stage batch-stage" aria-label={activityTitles[a.kind]}>
       {pairedGame(a.kind)&&<><p className="game-prompt">{a.kind==='queue'?'按听到的顺序，选出两张图':'找出刚才听到的两个朋友'}</p>

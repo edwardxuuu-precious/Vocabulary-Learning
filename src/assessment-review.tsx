@@ -3,6 +3,7 @@ import type { AppState, AssessmentGrant, AssessmentItem, AssessmentResult } from
 import { assessmentLabels, assessmentResultLabels } from '../shared/assessment';
 import { api, errorMessage } from './api';
 import { ParentGate } from './parent-gate';
+import { PlaybackIcon } from './playback-icon';
 
 export const proposalLabels = { matched: '回答相符', practice: '需要练习', unclear: '无法判断' };
 const statuses = { queued: '等待转写', transcribing: '正在转写', grading: 'Codex 初判中', review: '待家长核验', failed: '待处理', interrupted: '已中断' };
@@ -41,7 +42,7 @@ export function AssessmentReviewCenter({ state, grant, onGrant, reload, onExit }
         return <article className="assessment-review-item" key={key}>
           <label className="assessment-review-select"><input type="checkbox" checked={checked} disabled={busy} onChange={event => setSelected(previous => { const next = { ...previous }; if (event.target.checked) next[key] = defaultResult(item); else delete next[key]; return next; })} /><strong>{item.word.term} · {item.word.meaning}</strong></label>
           <p>{assessmentLabels[item.dimension]} · 作答 {new Date(item.response!.answeredAt).toLocaleString('zh-CN')} · 第 {item.response!.version} 版</p>
-          <div className="assessment-review-audio">{recording?.status === 'ready' && !item.reviews?.length ? <button disabled={busy} onClick={() => hear(session.id, item.id)}>▶ 回听原音</button> : <span>{recording?.status === 'missing' ? '原音缺失，待重测' : recording?.status === 'purge-pending' ? '原音待清理' : recording?.status === 'deleted' ? '核验后原音已删除' : '本题未录音'}</span>}{audio?.id === key && <audio src={audio.url} controls autoPlay />}</div>
+          <div className="assessment-review-audio">{recording?.status === 'ready' && !item.reviews?.length ? <button disabled={busy} onClick={() => hear(session.id, item.id)}><PlaybackIcon size={20}/> 回听原音</button> : <span>{recording?.status === 'missing' ? '原音缺失，待重测' : recording?.status === 'purge-pending' ? '原音待清理' : recording?.status === 'deleted' ? '核验后原音已删除' : '本题未录音'}</span>}{audio?.id === key && <audio src={audio.url} controls autoPlay />}</div>
           <p><strong>转写：</strong>{item.transcript?.text || (item.transcript ? '（未识别出内容）' : '尚未转写')}</p><p><strong>Codex 建议：</strong>{item.proposal ? `${proposalLabels[item.proposal.verdict]} · ${item.proposal.reason}` : '尚无建议，可直接根据原音核验'}</p>
           {item.reviews?.length ? <p>家长已确认：{assessmentResultLabels[item.reviews.at(-1)!.result]} · {new Date(item.reviews.at(-1)!.at).toLocaleString('zh-CN')} · 可改判</p> : <p>尚未写入口头正式成绩</p>}
           <label>家长结论 <select aria-label={`${item.word.term}${assessmentLabels[item.dimension]}家长结论`} disabled={busy} value={selected[key] ?? defaultResult(item)} onChange={event => setSelected(previous => ({ ...previous, [key]: event.target.value as AssessmentResult }))}>{(['correct', 'incorrect', 'hinted', 'unconfirmed', 'skipped'] as const).map(result => <option key={result} value={result}>{assessmentResultLabels[result]}</option>)}</select></label>

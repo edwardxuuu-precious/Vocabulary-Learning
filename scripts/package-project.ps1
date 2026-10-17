@@ -39,7 +39,7 @@ try {
         Assert-TaskChild $taskFile.FullName $taskRoot
         if ($taskFile.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Package inputs must not contain links.' }
         $taskRelative = $taskFile.FullName.Substring($taskRoot.Length + 1).Replace('\', '/')
-        if ($taskRelative -match '(^|/)(\.schema|archive|legacy)(/|$)') { continue }
+        if ($taskRelative -match '(^|/)\.schema(/|$)') { continue }
         if ($taskRelative -match '(^|/)(\.env($|\.)|auth\.json$)|\.(sqlite(-wal|-shm)?|log|mp3|wav|webm|zip)$') {
             if ($taskRelative -ne '.env.example') { throw ('Unexpected private/generated file in package inputs: ' + $taskRelative) }
         }
@@ -52,7 +52,7 @@ try {
     $taskManifest = [ordered]@{
         formatVersion = 1; name = $taskPackage.name; version = $taskPackage.version
         createdAt = (Get-Date).ToString('o'); source = 'local working-tree snapshot'
-        excluded = @('.env', 'data', 'node_modules', 'dist', 'artifacts', 'Work_Progress', '.git', 'docs/archive', 'scripts/legacy', 'server/integrations/.schema')
+        excluded = @('.env', 'data', 'node_modules', 'dist', 'artifacts', 'Work_Progress', '.git', 'server/integrations/.schema')
         files = $taskEntries
     }
     [IO.File]::WriteAllText((Join-Path $taskStage 'PROJECT_MANIFEST.json'), ($taskManifest | ConvertTo-Json -Depth 6), $taskUtf8)
@@ -81,7 +81,7 @@ try {
     foreach ($taskDirectory in $taskDirectories) {
         $taskCurrentPaths += @(Get-ChildItem -LiteralPath (Join-Path $taskRoot $taskDirectory) -Recurse -Force -File | ForEach-Object { $_.FullName.Substring($taskRoot.Length + 1).Replace('\', '/') })
     }
-    $taskCurrentPaths = @($taskCurrentPaths | Where-Object { $_ -notmatch '(^|/)(\.schema|archive|legacy)(/|$)' } | Sort-Object -Unique)
+    $taskCurrentPaths = @($taskCurrentPaths | Where-Object { $_ -notmatch '(^|/)\.schema(/|$)' } | Sort-Object -Unique)
     $taskSnapshotPaths = @($taskEntries | ForEach-Object { $_.path } | Sort-Object -Unique)
     if (Compare-Object $taskCurrentPaths $taskSnapshotPaths) { throw 'Source inventory changed during packaging; retry after other work stops.' }
     foreach ($taskEntry in $taskEntries) {

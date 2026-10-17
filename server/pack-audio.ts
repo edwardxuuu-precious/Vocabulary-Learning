@@ -21,9 +21,9 @@ export function createPackAudioManager(options: PackAudioOptions) {
   const outcomes = new Map<string, Outcome>();
   const input = (text: string, signal?: AbortSignal): TtsInput => ({ text, locale: 'en-US', tone: 'clear', dataDir, ...(signal ? { signal } : {}) });
   function snapshot(packId: string): Snapshot {
-    const data = store.read(), pack = data.packs.find(item => item.id === packId);
+    const data = store.read(), pack = data.packs.find(item => item.id === packId && !item.deletedAt);
     if (!pack) throw new AppError('找不到这本词表。', 'PACK_AUDIO_NOT_FOUND', 404);
-    const words = data.words.filter(word => word.packId === packId);
+    const words = data.words.filter(word => word.packId === packId && !word.deletedAt);
     // Picture approval, labels and enablement can proceed in parallel; only the audio input/membership matters.
     return { pack, words, fingerprint: JSON.stringify([pack.id, words.map(word => [word.id, word.term])]) };
   }

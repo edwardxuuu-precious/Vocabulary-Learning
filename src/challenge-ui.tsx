@@ -1,7 +1,7 @@
 import type { AssessmentDimension, AssessmentSession } from '../shared/contracts';
 import { assessmentDimensions } from '../shared/assessment';
 
-export type ChallengeIconName = 'flag' | 'mic' | 'stop' | 'arrow' | 'back' | 'pause' | 'refresh' | 'check' | 'book' | 'picture' | 'translate' | 'star' | 'play';
+export type ChallengeIconName = 'flag' | 'mic' | 'stop' | 'arrow' | 'back' | 'pause' | 'refresh' | 'check' | 'book' | 'picture' | 'translate' | 'star' | 'play' | 'down';
 export function ChallengeIcon({ name }: { name: ChallengeIconName }) {
   const shapes = {
     flag: <><path d="M5 21V3m0 1c4-4 10 4 14 0v10c-4 4-10-4-14 0" /></>,
@@ -17,6 +17,7 @@ export function ChallengeIcon({ name }: { name: ChallengeIconName }) {
     translate: <><path d="M3 5h11M8 3v2m-4 4 7 7M12 5c0 6-4 9-9 11m11 4 4-11 4 11m-6-4h4" /></>,
     star: <path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" />,
     play: <path d="m9 5 11 7-11 7Z" fill="currentColor" stroke="none" />,
+    down: <path d="m6 9 6 6 6-6" />,
   };
   return <svg className="quest-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{shapes[name]}</svg>;
 }
@@ -26,8 +27,8 @@ export const challengeStages: Record<AssessmentDimension, { name: string; title:
   'en-zh': { name: '英文 → 中文', title: '用中文说说它的意思', instruction: '这个英文词，是什么意思呢？', icon: 'translate', color: 'purple' },
   look: { name: '看词选图', title: '找到它的图片', instruction: '看清英文，选出对应的图片。', icon: 'picture', color: 'green' },
 };
-export function ChallengeRoute({ session }: { session?: AssessmentSession }) {
-  const dimensions = assessmentDimensions.filter(dimension => !session || session.items.some(item => item.dimension === dimension));
+export function ChallengeRoute({ session, dimensions: planned }: { session?: AssessmentSession; dimensions?: AssessmentDimension[] }) {
+  const dimensions = assessmentDimensions.filter(dimension => session ? session.items.some(item => item.dimension === dimension) : !planned || planned.includes(dimension));
   const active = session?.items.find(item => !item.response)?.dimension;
   return <ol className="quest-route" aria-label="挑战关卡">{dimensions.map((dimension, index) => {
     const stage = challengeStages[dimension], complete = Boolean(session && session.items.filter(item => item.dimension === dimension).every(item => item.response));

@@ -2,7 +2,7 @@
 
 当前引用由 `shared/visual-theme.ts`、`shared/companions.ts`、`shared/learning-backgrounds.ts` 固定；文件哈希见 [ASSETS.json](ASSETS.json)。
 
-- 首页使用 [v5 横竖场景](home-courtyard-v5.md)。v3/v4、旧基地和旧头像已移出静态目录，归档清单在工作区 `docs/archive/retired-static-assets-20261017.json`。
+- 首页使用 [v5 横竖场景](home-courtyard-v5.md)。旧图不再参与构建；历史来源用 Git 追溯，原素材恢复清单留在本机整理任务证据中。
 - [20 位伙伴及提示词](companion-library.md)、[扩展人物完整生成记录](companion-library-prompts.json)。
 - [三套稳定学习背景](CHILD_GROWTH.md)、[背景完整提示词](learning-background-prompts.json)。
 - 以下保留三位原始角色完整提示词；新单词图遵守家长审核与词义优先，不因主题变更重画已批准词图。

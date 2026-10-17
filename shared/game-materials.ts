@@ -1,4 +1,5 @@
 import type { GameKind, GameMaterial, Word } from './contracts.ts';
+import { derivedWordMaterial } from './game-material-builder.ts';
 
 export const batchThreeKinds = ['variants','assemble','detective','opposites','sort','odd','parts','paint','position','pantomime'] as const;
 export const batchFourKinds = ['clue','cloze','story','program','combine','sentence-repair','negative','intersection','information','assign'] as const;
@@ -22,11 +23,13 @@ const cue = (v:any) => v&&Object.keys(v).every(k=>['text','locale'].includes(k))
 
 /** Shape validation is separate from the parent's semantic review. No relation is inferred by AI. */
 export function validGameMaterial(kind:string, m:any):m is GameMaterial {
-  if(!extendedKinds.has(kind)||!m||typeof m!=='object'||Array.isArray(m)||Object.keys(m).some(k=>!['version','wordVersion','approvedAt','instruction','prompt','tiles','answer','slots','placements','clues','sentence','blank','source','chunks','count','wordIds','wordVersions','acceptedSlots'].includes(k)))return false;
-  if(m.version!==1||!Number.isInteger(m.wordVersion)||m.wordVersion<0||typeof m.approvedAt!=='string'||m.approvedAt.length>40||!Number.isFinite(Date.parse(m.approvedAt))||!text(m.instruction)||!Array.isArray(m.wordIds)||m.wordIds.length>12||new Set(m.wordIds).size!==m.wordIds.length||m.wordIds.some((v:unknown)=>!id(v)))return false;
+  if(!extendedKinds.has(kind)||!m||typeof m!=='object'||Array.isArray(m)||Object.keys(m).some(k=>!['version','wordVersion','approvedAt','origin','instruction','prompt','tiles','answer','slots','placements','clues','sentence','blank','source','chunks','count','wordIds','wordVersions','acceptedSlots'].includes(k)))return false;
+  if(m.origin!==undefined&&!['approved-word','proposal'].includes(m.origin))return false;
+  if(m.approvedAt===undefined?!m.origin:typeof m.approvedAt!=='string'||m.approvedAt.length>40||!Number.isFinite(Date.parse(m.approvedAt)))return false;
+  if(m.version!==1||!Number.isInteger(m.wordVersion)||m.wordVersion<0||!text(m.instruction)||!Array.isArray(m.wordIds)||m.wordIds.length>12||new Set(m.wordIds).size!==m.wordIds.length||m.wordIds.some((v:unknown)=>!id(v)))return false;
   if(!m.wordVersions||typeof m.wordVersions!=='object'||Array.isArray(m.wordVersions)||Object.keys(m.wordVersions).length!==m.wordIds.length||m.wordIds.some((id:string)=>!Number.isInteger(m.wordVersions[id])||m.wordVersions[id]<0))return false;
   if(m.prompt!==undefined&&!cue(m.prompt)||!Array.isArray(m.tiles)||m.tiles.length>12||!m.tiles.length||new Set(m.tiles.map((t:any)=>t?.id)).size!==m.tiles.length)return false;
-  if(m.tiles.some((t:any)=>!t||Object.keys(t).some(k=>!['id','label','imageUrl','text','wordId','color','motion'].includes(k))||!id(t.id)||!text(t.label,100)||t.imageUrl!==undefined&&!materialMedia(t.imageUrl)||t.text!==undefined&&!text(t.text,80)||t.wordId!==undefined&&!m.wordIds.includes(t.wordId)||t.color!==undefined&&!/^#[a-f0-9]{6}$/i.test(t.color)||t.motion!==undefined&&!['run','jump','wave','turn','sit','stand'].includes(t.motion)))return false;
+  if(m.tiles.some((t:any)=>!t||Object.keys(t).some(k=>!['id','label','imageUrl','fragment','text','wordId','color','motion'].includes(k))||!id(t.id)||!text(t.label,100)||t.imageUrl!==undefined&&!materialMedia(t.imageUrl)||t.fragment!==undefined&&(!Number.isInteger(t.fragment)||t.fragment<0||t.fragment>3||!t.imageUrl||kind!=='assemble')||t.text!==undefined&&!text(t.text,80)||t.wordId!==undefined&&!m.wordIds.includes(t.wordId)||t.color!==undefined&&!/^#[a-f0-9]{6}$/i.test(t.color)||t.motion!==undefined&&!['run','jump','wave','turn','sit','stand'].includes(t.motion)))return false;
   const ids=new Set(m.tiles.map((t:any)=>t.id));
   if(!Array.isArray(m.answer)||!m.answer.length||m.answer.length>12||m.answer.some((v:unknown)=>!ids.has(v)))return false;
   if(m.slots!==undefined&&(!Array.isArray(m.slots)||!m.slots.length||m.slots.length>12||new Set(m.slots.map((s:any)=>s?.id)).size!==m.slots.length||m.slots.some((s:any)=>!s||Object.keys(s).some(k=>!['id','label','symbol','x','y'].includes(k))||!id(s.id)||!text(s.label,80)||s.symbol!==undefined&&!text(s.symbol,8)||s.x!==undefined&&(!Number.isFinite(s.x)||s.x<0||s.x>100)||s.y!==undefined&&(!Number.isFinite(s.y)||s.y<0||s.y>100))))return false;
@@ -52,6 +55,6 @@ export function validGameMaterial(kind:string, m:any):m is GameMaterial {
 export function materialCues(m:GameMaterial) {return [{text:m.instruction,locale:'zh-CN' as const},...(m.prompt?[m.prompt]:[]),...(m.clues??[]).map(c=>({text:c.text,locale:c.locale}))];}
 export function readyMaterial(word:Word,kind:string,words:Word[]) {
   if(kind==='pantomime'&&word.partOfSpeech!=='verb')return;
-  const m=word.gameMaterials?.[kind as GameKind];
-  return m&&validGameMaterial(kind,m)&&m.wordVersion===(word.learningVersion??0)&&m.wordIds.every(id=>words.some(w=>w.id===id&&w.assetStatus==='approved'&&(w.learningVersion??0)===m.wordVersions[id]))?m:undefined;
+  const m=word.gameMaterials?.[kind as GameKind]??derivedWordMaterial(word,kind);
+  return !word.deletedAt&&m&&m.origin!=='proposal'&&validGameMaterial(kind,m)&&m.wordVersion===(word.learningVersion??0)&&m.wordIds.every(id=>words.some(w=>w.id===id&&!w.deletedAt&&w.assetStatus==='approved'&&(w.learningVersion??0)===m.wordVersions[id]))?m:undefined;
 }

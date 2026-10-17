@@ -101,12 +101,35 @@ test('relearn includes the full introduction; practice skips known introductions
   }finally{f.close();}
 });
 
-test('selection validation never truncates requests and rejects unavailable words, duplicate ids, excessive budgets and conflicting retry ids', () => {
+test('manual rounds keep every selected word beyond count and time recommendations through restore and completion', () => {
+  const f=fixture();try{
+    f.store.updateSettings({sessionMinutes:3});
+    f.store.mutate(data=>{const word=data.words[0];for(const term of ['book','desk','pen','chair'])data.words.push({...word,id:`extra-${term}`,term,meaning:`补充${term}`});});
+    const ids=f.store.read().words.map(word=>word.id).reverse();
+    for(const mode of ['practice','relearn'] as const){
+      const session=f.store.startSession('random',{}, {mode,wordIds:ids,requestId:`request-unlimited-${mode}`});
+      assert.equal(ids.length,16);assert.deepEqual(session.wordIds,ids);
+      assert.deepEqual(session.tasks!.map(task=>task.wordId),ids);
+      assert.ok(session.estimatedMinutes!>3);
+      assert.equal(session.activities!.length,session.tasks!.reduce((sum,task)=>sum+task.steps.length,0));
+      for(const task of session.tasks!)assert.deepEqual(session.activities!.filter(a=>a.wordId===task.wordId).map(a=>a.step),task.steps);
+      assert.doesNotThrow(()=>validateBackup(f.store.exportBackup()));
+      f.store.restoreBackup(f.store.exportBackup());f.restart();
+      assert.deepEqual(f.store.state(status).activeSession!.wordIds,ids);
+      assert.equal(start(f.store,{mode,wordIds:ids,requestId:`request-unlimited-${mode}`}).id,session.id);
+    }
+    const basic=start(f.store,{mode:'relearn',wordIds:ids});finish(f.store,basic);
+    assert.deepEqual(f.store.read().sessions.at(-1)!.completedWordIds,ids);
+    assert.deepEqual(f.store.read().progress,[],'additional practice never invents mastery');
+  }finally{f.close();}
+});
+
+test('selection validation rejects unavailable words, empty or duplicate ids and conflicting retry ids', () => {
   const f=fixture(); try {
     f.store.updateSettings({sessionMinutes:3});
-    assert.throws(()=>start(f.store,{mode:'relearn',wordIds:['starter-apple','starter-banana']}),/超过本轮/);
+    assert.throws(()=>start(f.store,{mode:'relearn',wordIds:[]}),/至少一个/);
     assert.equal(f.store.read().sessions.length,0);
-    assert.throws(()=>start(f.store,{mode:'practice',wordIds:['starter-apple','starter-apple']}),/1–5/);
+    assert.throws(()=>start(f.store,{mode:'practice',wordIds:['starter-apple','starter-apple']}),/不能重复/);
     f.store.enablePack('b',false);assert.throws(()=>start(f.store,{mode:'practice',wordIds:['starter-moon']}),/准备好/);
     start(f.store,{mode:'relearn',wordIds:['starter-apple'],requestId:'request-conflict'});
     assert.throws(()=>start(f.store,{mode:'practice',wordIds:['starter-apple'],requestId:'request-conflict'}),/另一轮/);

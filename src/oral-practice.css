@@ -6,11 +6,28 @@
 .oral-practice .oral-record,.oral-practice .oral-complete { display:flex; align-items:center; justify-content:center; gap:10px; min-height:54px; padding:12px 20px; border:1.5px solid #a9bce7; border-radius:17px; color:#465db0; background:#eff3ff; font-size:18px; font-weight:650; }
 .oral-practice .oral-record.is-recording { background:#fff0f0; color:#ac5262; border-color:#dda3ad; }
 .oral-practice .oral-replay { display:flex; align-items:center; justify-content:center; gap:5px; min-width:48px; padding:10px; border:1px solid #c5d5e8; border-radius:15px; background:#f4f9ff; color:#5877a1; }
-.oral-replay span { font-size:25px; }
+.oral-replay svg { flex-shrink:0; }
 .oral-practice .oral-skip { background:transparent; border:0; padding:4px 8px; min-height:36px; font-size:13px; color:#7e8da5; text-decoration:underline; text-underline-offset:4px; }
 .oral-practice button:disabled { opacity:.6; cursor:default; }
 .oral-message { margin:0; font-size:14px; color:#697e9e; text-align:center; line-height:1.5; }
 .oral-practice.is-compact { padding:10px 16px; gap:8px; }
+.recall-practice { width:min(100%,510px); min-width:0; display:flex; flex-direction:column; align-items:center; gap:18px; container-type:inline-size; padding:26px 22px; box-sizing:border-box; border:1.5px solid #dce8f8; border-radius:30px; background:#ffffffe3; box-shadow:0 7px 0 #d9e6f466; }
+.recall-stage-label { display:flex; align-items:center; justify-content:center; gap:10px; color:#526f9d; font-size:19px; font-weight:750; }
+.recall-word { align-self:stretch; margin:0; padding:16px 10px; border-radius:22px; color:#294873; background:#eff5ff; text-align:center; font-size:clamp(28px,min(15cqi,calc(155cqi / var(--recall-word-length))),68px); line-height:1.3; overflow-wrap:anywhere; text-wrap:balance; }
+.recall-word.is-speaking { color:#3f55c6; background:#e4eaff; animation:recall-word-glow .9s ease-in-out infinite; }
+@keyframes recall-word-glow { 0%,100% { text-shadow:0 0 0 #8496ff00; box-shadow:0 0 0 0 #9aafff00; } 50% { color:#6941c9; text-shadow:0 0 14px #99aaff88; box-shadow:0 0 0 5px #a1b2ff44; } }
+.recall-demo-rounds { display:flex; gap:14px; }
+.recall-demo-rounds>span { display:flex; align-items:center; justify-content:center; gap:5px; min-width:70px; min-height:48px; border:2px solid #dce5f5; border-radius:16px; background:#f7faff; color:#91a2be; }
+.recall-demo-rounds b { font-size:20px; }
+.recall-demo-rounds .is-current { color:#5263c2; border-color:#97a9ed; background:#edf0ff; }
+.recall-demo-rounds .is-done { color:#33826e; border-color:#a7d8c6; background:#edfaf3; }
+.recall-demo-status { margin:0; color:#607698; font-size:17px; line-height:1.5; text-align:center; }
+.recall-listen-again { display:flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:8px 14px; border:0; border-radius:14px; background:#edf3ff; color:#536f9d; font-family:inherit; font-size:16px; cursor:pointer; }
+.recall-listen-again:disabled { opacity:.6; cursor:default; }
+.recall-practice .oral-practice { background:transparent; padding:0; }
+.recall-practice>.recall-skip { min-height:36px; padding:4px 8px; border:0; background:transparent; color:#7e8da5; font-size:13px; text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
+@media(max-width:620px) { .recall-practice { gap:14px; padding:20px 16px; border-radius:24px; } .recall-stage-label { font-size:18px; } .lesson-recall .lesson-practice .lesson-picture { width:min(100%,250px); } }
+@media(prefers-reduced-motion:reduce) { .recall-word.is-speaking { animation:none; outline:3px solid #b5c0f5; outline-offset:2px; } }
 .practice-history-list { display:grid; gap:12px; margin-top:20px; }
 .practice-history-list article { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:16px; border:1px solid #e1e8f3; border-radius:16px; background:#f8faff; }
 .practice-history-list article>div { display:flex; flex-direction:column; gap:6px; }

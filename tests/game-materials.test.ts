@@ -23,8 +23,8 @@ test('all 50 registered mechanisms are distinct, every extra material is bounded
 });
 test('cache and approved image readiness gate random selection without generation and duplicate cue checks are shared',async()=>{
   const {words}=extendedDemo('cloze'),seen:string[]=[];
-  const ready=await readyGameMaterialKeys(words,words,()=>true,async cue=>{seen.push(cue.text);return true;});assert.deepEqual(ready,[`${words[0].id}:cloze`]);assert.ok(seen.includes('I see a cat'));
-  const missing=await readyGameMaterialKeys(words,words,()=>true,async cue=>cue.text!=='I see a cat');assert.deepEqual(missing,[]);
+  const ready=await readyGameMaterialKeys(words,words,()=>true,async cue=>{seen.push(cue.text);return true;});assert.ok(ready.includes(`${words[0].id}:cloze`));assert.equal(ready.length,7);assert.ok(seen.includes('I see a cat'));
+  const missing=await readyGameMaterialKeys(words,words,()=>true,async cue=>cue.text!=='I see a cat');assert.ok(!missing.includes(`${words[0].id}:cloze`));assert.equal(missing.length,6);
   assert.ok(!eligibleGames('recall',words,{contextEnabled:true,readyMaterialKeys:[]}).some(g=>g.kind==='cloze'));
   const variants=extendedDemo('variants');assert.deepEqual(await readyGameMaterialKeys(variants.words,variants.words,()=>false,async()=>{throw Error('must not read audio for missing image');}),[]);
 });

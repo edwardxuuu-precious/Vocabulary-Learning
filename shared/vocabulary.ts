@@ -1,4 +1,9 @@
-import type { ImportRow, PartOfSpeech, Word } from './contracts.ts';
+import type { ImportRow, PartOfSpeech, Word, WordPack } from './contracts.ts';
+
+/** Content revision excludes image preparation so background jobs do not invalidate an open editor. */
+export function packContentRevision(pack: WordPack, words: Word[]) {
+  return JSON.stringify([pack.title, words.filter(word => word.packId === pack.id && !word.deletedAt).map(word => [word.id, word.term, word.meaning, word.partOfSpeech, word.pictureHint, word.usageNote, word.learningVersion ?? 0])]);
+}
 
 export const partOfSpeechLabels: Record<PartOfSpeech, string> = {
   noun: '名词', verb: '动词', adjective: '形容词', adverb: '副词', pronoun: '代词',
