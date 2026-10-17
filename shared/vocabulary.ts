@@ -14,8 +14,10 @@ export function isEnrichedRow(row: ImportRow) {
 export function wordGamePlan(word: Pick<Word, 'term' | 'partOfSpeech'>, spellingEnabled = false) {
   return [
     { step: 'learn' as const, title: word.partOfSpeech === 'verb' ? '看看这个动作' : word.partOfSpeech === 'adjective' ? '看看它的样子' : '认识新朋友' },
+    { step: 'recognize' as const, title: '看英文，认意思' },
     { step: 'listen' as const, title: '听声音，找图片' },
     { step: 'sound' as const, title: '哪个声音是它？' },
+    { step: 'read' as const, title: '看英文，自己读' },
     { step: 'recall' as const, title: '自己说一说' },
     ...(spellingEnabled && /^[a-z]+$/i.test(word.term) ? [{ step: 'spell' as const, title: '把字母排排队' }] : []),
   ];

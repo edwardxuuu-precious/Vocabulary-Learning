@@ -1,3 +1,5 @@
+import { currentActivity } from '../shared/game-plan.ts';
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
@@ -17,6 +19,7 @@ function completePlannedWords(store:Store) {
   const session = store.startSession();
   for (const task of session.tasks!) for (const step of task.steps) {
     if ((store.read().sessions.find(s => s.id === session.id)?.completedSteps?.[task.wordId] ?? []).includes(step)) continue;
+    if(step==='recognize'||step==='read'){const saved=store.read().sessions.find(s=>s.id===session.id)!;finishGoalFixture(store,saved,currentActivity(saved)!);continue;}
     if (step !== 'learn' && !store.read().attempts.some(a => a.sessionId === session.id && a.wordId === task.wordId && a.step === step && (a.correct || a.practiceOnly))) store.attempt(attempt(session.id,task.wordId,step === 'sound' ? 'listen' : step,{step,practiceOnly:step === 'recall'}));
     store.updateSession({completedStep:{wordId:task.wordId,step}});
   }

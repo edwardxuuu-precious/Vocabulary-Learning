@@ -1,3 +1,4 @@
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync,rmSync } from 'node:fs';
@@ -56,9 +57,9 @@ test('material approval requires parent grant, cached cues and current word vers
 test('server stores a wrong check and a later correct check once each without progression or duplicate retries',()=>{
   const dir=mkdtempSync(join(tmpdir(),'game-material-retry-')),store=new Store(dir);
   try{store.enablePack('starter',true);store.mutate(d=>{d.words=extendedDemo('variants').words;});const session=store.startSession('random',{forcedKind:'variants',allowedKinds:['variants']});
-    while(currentActivity(store.read().sessions.at(-1)!)!.kind!=='variants'){const a=currentActivity(store.read().sessions.at(-1)!)!;if(a.step!=='learn')store.attempt({sessionId:session.id,wordId:a.wordId,step:a.step,skill:a.step==='sound'?'listen':a.step,correct:false,hinted:true,practiceOnly:true,source:'click'});store.updateSession({completedStep:{wordId:a.wordId,step:a.step}});}
+    while(currentActivity(store.read().sessions.at(-1)!)!.kind!=='variants'){const a=currentActivity(store.read().sessions.at(-1)!)!;if(finishGoalFixture(store,store.read().sessions.at(-1)!,a))continue;if(a.step!=='learn')store.attempt({sessionId:session.id,wordId:a.wordId,step:a.step,skill:a.step==='sound'?'listen':a.step,correct:false,hinted:true,practiceOnly:true,source:'click'});store.updateSession({completedStep:{wordId:a.wordId,step:a.step}});}
     const a=currentActivity(store.read().sessions.at(-1)!)!,event=(action:ActivityAction,id?:string)=>store.activityEvent({sessionId:session.id,activityId:a.id,action,...(id?{selectedId:id}:{})});event('listen');event('tap',a.material!.answer[0]);event('submit');event('submit');event('reset');for(const id of a.material!.answer)event('tap',id);event('submit');event('submit');
-    const attempts=store.read().attempts.filter(row=>row.activityId===a.id);assert.equal(attempts.length,2);assert.equal(attempts[0].correct,false);assert.equal(attempts[1].correct,true);assert.ok(attempts.every(row=>row.practiceOnly));assert.equal(attempts[1].hinted,true);assert.equal(store.read().progress.length,0);assert.doesNotThrow(()=>validateBackup(store.exportBackup()));
+    const attempts=store.read().attempts.filter(row=>row.activityId===a.id);assert.equal(attempts.length,2);assert.equal(attempts[0].correct,false);assert.equal(attempts[1].correct,true);assert.ok(attempts.every(row=>row.practiceOnly));assert.equal(attempts[1].hinted,true);assert.equal(store.read().progress.filter(p=>p.skill!=='recognize').length,0);assert.doesNotThrow(()=>validateBackup(store.exportBackup()));
   }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 

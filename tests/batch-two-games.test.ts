@@ -1,3 +1,4 @@
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -23,6 +24,7 @@ const active=(store:Store)=>store.read().sessions.at(-1)!;
 const event=(store:Store,a:LearningActivity,action:ActivityAction,selectedId?:string)=>store.activityEvent({sessionId:active(store).id,activityId:a.id,action,...(selectedId===undefined?{}:{selectedId})});
 function finish(store:Store,a:LearningActivity) {
   const session=active(store),state=session.activityStates?.[a.id]??{},kind=a.kind;
+  if(finishGoalFixture(store,session,a))return;
   if(kind==='standard') {
     if(a.step!=='learn')store.attempt({sessionId:session.id,wordId:a.wordId,skill:a.step==='sound'?'listen':a.step,step:a.step,correct:true,hinted:false,practiceOnly:a.step==='recall',source:'click'});
     store.updateSession({completedStep:{wordId:a.wordId,step:a.step}});return;
@@ -60,7 +62,7 @@ for(const definition of gameRegistry.filter(game=>batchTwoKinds.has(game.kind)))
     for(let i=0;i<40&&currentActivity(active(f.store));i++){finish(f.store,currentActivity(active(f.store))!);assert.doesNotThrow(()=>validateBackup(f.store.exportBackup()));}
     assert.equal(currentActivity(active(f.store)),undefined);f.store.updateSession({complete:true});f.store.updateSession({complete:true});assert.equal(f.store.read().stickers.length,1);
     const records=f.store.read().attempts.filter(attempt=>active(f.store).activities!.find(a=>a.id===attempt.activityId)?.kind===definition.kind);
-    assert.ok(records.length>=2);assert.ok(records.every(row=>row.practiceOnly));assert.ok(f.store.read().progress.every(row=>row.skill==='listen'&&row.stage<=1));
+    assert.ok(records.length>=2);assert.ok(records.every(row=>row.practiceOnly));assert.ok(f.store.read().progress.every(row=>['recognize','listen'].includes(row.skill)&&row.stage<=1));
     assert.equal(active(f.store).completedWordIds.length,first.wordIds.length);
   }finally{f.close();}
 });

@@ -8,7 +8,7 @@ $taskStage = Join-Path $taskOutput ('.staging-' + [guid]::NewGuid().ToString('N'
 $taskZip = Join-Path $taskOutput 'little-word-playroom.zip'
 $taskTempZip = Join-Path $taskOutput ('.package-' + [guid]::NewGuid().ToString('N') + '.zip')
 $taskUtf8 = New-Object System.Text.UTF8Encoding($false)
-$taskRootFiles = @('.env.example', '.gitignore', 'AGENTS.md', 'README.md', 'package.json', 'package-lock.json', 'index.html', 'tsconfig.json', 'vite.config.ts')
+$taskRootFiles = @('.env.example', '.gitattributes', '.gitignore', 'AGENTS.md', 'README.md', 'package.json', 'package-lock.json', 'index.html', 'tsconfig.json', 'vite.config.ts')
 $taskRootFiles += @(Get-ChildItem -LiteralPath $taskRoot -File -Filter '*.cmd' | ForEach-Object { $_.Name })
 $taskDirectories = @('src', 'server', 'shared', 'public', 'scripts', 'tests', 'docs')
 

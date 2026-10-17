@@ -1,0 +1,3 @@
+*.sh text eol=lf
+# Preserve the exact approved asset bytes used by docs/ASSETS.json.
+public/assets/** -text

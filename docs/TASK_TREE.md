@@ -14,6 +14,8 @@
 | 随机游戏 | 50种实现，按技能/词数/素材/设置筛选，固定选项与草稿，刷新恢复，多目标按实际计步 | `shared/game-registry.ts`、`shared/game-plan.ts`、`server/game-validation.ts` |
 | 游戏界面 | 阶段操作栏、短屏布局、折叠体验工具；亲子和拼写默认关闭 | `docs/GAME_UI_DESIGN.md` |
 | 学习调度 | 新词按批推进、每日额度含未完成预留；跨批到期优先、逐题预算、积压减新词、旧会话冻结 | `shared/learning.ts`、`src/learning-session.ts` |
+| 认听读目标 | 每个新词固定认/听/读，按目标随机游戏；分别记录认词答题、听辨及已录/跳过朗读；到期弱项优先，录音不自动判对 | `shared/learning-goals.ts`、`shared/goal-game-rules.ts`、`src/goal-games.tsx`、`server/store.ts` |
+| 桌面启动 | Windows 大黄蜂图标快捷方式，自动启动或复用正式本机服务，启动错误可见；移动项目后可重装 | `scripts/install-desktop-shortcut.ps1`、`scripts/launch-desktop.ps1`、`scripts/desktop/playroom.ico` |
 | 口头练习录音 | 三遍跟读、全部口头游戏（含哑剧/线索/补空/信息差）与口头复习接入，私有本机保存与刷新恢复，家长授权回听，不自动判对 | `src/oral-practice.tsx`、`server/practice-recordings.ts`、`shared/oral-practice.ts` |
 | 麦克风错误提示 | 区分网页拒绝、系统拦截、未找到设备及设备占用；网页已允许时不再误报未授权；Chrome 真实开麦及暂停取消已验证，授权失败仍可重试或跳过 | `src/microphone-access.ts`、`src/browser-recording.ts` |
 | 自主挑战 | 四关路线与机甲伙伴界面；中译英显示中文文字、直接录音；最多5词20项、免PIN提交，文件转写与Codex初判，家长版本化集中核验 | `server/challenges.ts`、`server/assessments.ts`、`src/child-challenge.tsx` |
@@ -43,6 +45,8 @@
 - [x] 精简项目包完成逐项哈希核验、独立解压安装、构建和隔离启动验证；含口头练习录音、128枚奖章与人物简介。交付路径和验证边界见README与ACCEPTANCE，早期未验证快照仅留在任务证据目录。
 
 ## 待验证与后续
+
+- 暂缓：用户决定继续本地运行，不部署AWS。未创建云端资源或修改DNS，云端草案仅保留在独立工作区，不纳入当前本机版本；见`AWS_DEPLOY.md`。
 
 - [x] 机制库剩余30种分三批实现；逐项界面、恢复、录音、素材审核与抽选验证，独立8803/8804/8805体验。
 - [ ] 为正式词书逐项确认额外异图、关系、动作与熟悉词句；示例材料不代替家长审核。

@@ -1,3 +1,4 @@
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -26,11 +27,13 @@ const session = (store: Store) => store.read().sessions.at(-1)!;
 const event = (store: Store, activity: LearningActivity, action: ActivityAction, selectedId?: string) => store.activityEvent({ sessionId: session(store).id, activityId: activity.id, action, ...(selectedId ? { selectedId } : {}) });
 function advanceStandard(store: Store) {
   const active = session(store), activity = currentActivity(active)!;
+  if(finishGoalFixture(store,active,activity))return;
   assert.equal(activity.kind, 'standard');
   if (activity.step !== 'learn') store.attempt({ sessionId: active.id, wordId: activity.wordId, step: activity.step, skill: activity.step === 'sound' ? 'listen' : activity.step, correct: true, hinted: false, practiceOnly: activity.step === 'recall', source: 'click' });
   store.updateSession({ completedStep: { wordId: activity.wordId, step: activity.step } });
 }
 function finishGame(store: Store, activity: LearningActivity) {
+  if(finishGoalFixture(store,session(store),activity))return;
   if (activity.kind === 'portal') { event(store, activity, 'reveal'); event(store, activity, 'skip'); }
   else { event(store, activity, 'listen'); event(store, activity, 'choose', activity.wordId); }
   event(store, activity, 'next');
@@ -44,10 +47,10 @@ test('games replace existing steps within the daily budget and expose all learne
   const f = fixture(); try {
     const plan = dailyLearningPlan(f.store.read()); const activities = buildActivities(plan.tasks, plan.available, () => .3);
     assert.equal(activities.length, plan.taskCount); assert.ok(activities.length <= plan.taskLimit);
-    assert.deepEqual(activities.map(a => a.kind), ['standard','standard','standard','supply','supply','supply','flip','flip','flip','portal','portal','portal']);
+    assert.deepEqual(activities.map(a => a.kind), ['standard','standard','standard','supply','supply','supply','supply','supply','supply','flip','flip','flip','portal','portal','portal','portal','portal','portal']);
     assert.equal(new Set(activities.map(a => a.id)).size, activities.length);
     const firstPortal = activities.findIndex(a => a.kind === 'portal'); assert.ok(firstPortal - activities.findIndex(a => a.wordId === activities[firstPortal].wordId && a.step === 'learn') >= 3);
-    f.store.updateSettings({ sessionMinutes: 3 }); const short = dailyLearningPlan(f.store.read()); assert.equal(short.taskCount, 4); assert.ok(buildActivities(short.tasks, short.available).every(a => a.kind === 'standard'));
+    f.store.updateSettings({ sessionMinutes: 3 }); const short = dailyLearningPlan(f.store.read()); assert.equal(short.taskCount, 6); assert.ok(buildActivities(short.tasks, short.available).every(a => a.kind === 'standard'));
   } finally { f.close(); }
 });
 test('ambiguous or one-word batches never pad games with unrelated or sample words; verbs retain listening', () => {
@@ -64,7 +67,7 @@ test('game order, server-graded answers and a frozen cross-word position survive
     const first = f.store.startSession(true); advanceStandard(f.store);
     assert.equal(restoreLearningPosition(f.store.state(statuses))?.wordId, first.wordIds[1]);
     assert.throws(() => event(f.store, first.activities!.find(a => a.kind === 'flip')!, 'listen'), /当前/);
-    advanceStandard(f.store); advanceStandard(f.store); const supply = currentActivity(session(f.store))!;
+    advanceStandard(f.store); advanceStandard(f.store); while(['recognize','read'].includes(currentActivity(session(f.store))!.step))advanceStandard(f.store); const supply = currentActivity(session(f.store))!;
     assert.equal(supply.kind, 'supply'); assert.throws(() => event(f.store, supply, 'choose', supply.wordId), /先点/);
     assert.throws(() => f.store.updateSession({ completedStep: { wordId: supply.wordId, step: supply.step } }), /游戏/);
     assert.throws(() => f.store.attempt({ sessionId: first.id, wordId: supply.wordId, step: supply.step, skill: 'listen', correct: true, hinted: false, source: 'click' }), /游戏/);
@@ -86,16 +89,16 @@ test('every flip pair including the final remaining picture and every portal are
     assert.ok(data.progress.every(p => p.stage === 1));
     assert.equal(wordLearningOverview(f.store.state(statuses)).filter(row => row.available).reduce((sum, row) => sum + row.listen.independent, 0), 3);
     f.store.updateSession({ complete: true }); assert.equal(f.store.read().stickers.length, 1); assert.equal(f.store.state(statuses).activeSession, null); assert.equal(f.store.state(statuses).lastCompletedSession!.id, session(f.store).id);
-    const backup = f.store.exportBackup(); assert.equal(validateBackup(backup).data.sessions[0].activities!.length, 12);
-    f.tomorrow(); const next = f.store.startSession(true); assert.ok(next.tasks!.every(task => task.mode === 'review')); assert.ok(next.activities!.every(a => a.kind === 'standard')); assert.ok(next.activities!.every(a => a.step === 'sound'));
+    const backup = f.store.exportBackup(); assert.equal(validateBackup(backup).data.sessions[0].activities!.length, 18);
+    f.tomorrow(); const next = f.store.startSession(true); assert.ok(next.tasks!.every(task => task.mode === 'review')); assert.ok(next.activities!.filter(a=>a.step==='sound').every(a => a.kind === 'standard')); assert.ok(next.activities!.every(a => ['sound','recognize','read'].includes(a.step)));
   } finally { f.close(); }
 });
 test('audio failure and skip cannot penalize progress or become independent evidence, and portal reveal persists', () => {
   const f = fixture(); try {
-    f.store.startSession(true); while (currentActivity(session(f.store))!.kind === 'standard') advanceStandard(f.store);
+    f.store.startSession(true); while (currentActivity(session(f.store))!.kind === 'standard'||['recognize','read'].includes(currentActivity(session(f.store))!.step)) advanceStandard(f.store);
     const supply = currentActivity(session(f.store))!; event(f.store, supply, 'listen'); event(f.store, supply, 'audio-failed'); event(f.store, supply, 'choose', supply.wordId);
-    assert.equal(f.store.read().attempts.at(-1)!.practiceOnly, true); assert.equal(f.store.read().progress.length, 0); event(f.store, supply, 'next');
-    while (currentActivity(session(f.store))!.kind !== 'portal') finishGame(f.store, currentActivity(session(f.store))!);
+    assert.equal(f.store.read().attempts.at(-1)!.practiceOnly, true); assert.equal(f.store.read().progress.filter(p=>p.skill!=='recognize').length, 0); event(f.store, supply, 'next');
+    while (currentActivity(session(f.store))!.kind !== 'portal'||currentActivity(session(f.store))!.step!=='recall') finishGame(f.store, currentActivity(session(f.store))!);
     const portal = currentActivity(session(f.store))!; event(f.store, portal, 'reveal'); f.restart();
     assert.equal(session(f.store).activityStates![portal.id].revealed, true); assert.throws(() => event(f.store, portal, 'next'), /完成/);
     event(f.store, portal, 'skip'); event(f.store, portal, 'next'); assert.equal(f.store.read().attempts.at(-1)!.skill, 'recall'); assert.equal(f.store.read().attempts.at(-1)!.correct, false);
@@ -126,9 +129,9 @@ test('backup rejects forged game order, option snapshots, states and completed p
 });
 test('existing in-progress planned and legacy sessions retain their old order when game-enabled API resumes', () => {
   const f = fixture(); try {
-    const old = f.store.startSession(); assert.equal(f.store.startSession(true).activities, undefined);
+    const old = f.store.startSession(); f.store.mutate(d=>{const s=d.sessions[0];delete s.goalVersion;delete s.activities;delete s.activityStates;delete s.gameSeed;}); assert.equal(f.store.startSession(true).activities, undefined);
     assert.deepEqual(f.store.startSession(true).tasks, old.tasks);
-    f.store.mutate(data => { const item = data.sessions[0]; delete item.tasks; delete item.completedSteps; delete item.taskLimit; delete item.estimatedMinutes; });
+    f.store.mutate(data => { const item = data.sessions[0]; delete item.goalVersion; delete item.activities; delete item.activityStates; delete item.gameSeed; delete item.tasks; delete item.completedSteps; delete item.taskLimit; delete item.estimatedMinutes; });
     assert.equal(f.store.startSession(true).activities, undefined); assert.equal(f.store.startSession(true).tasks, undefined);
   } finally { f.close(); }
 });
@@ -139,9 +142,9 @@ test('HTTP start enables games, ignores forged correctness, and cache-only misse
   const base = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
   const call = (url: string, body: unknown) => fetch(base + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   try {
-    const started = await (await call('/api/session/start', {})).json() as LearningSession; assert.ok(started.gameSeed); assert.ok(started.activities!.every(a => a.kind === 'standard' || gameDefinition(a.kind))); assert.equal(started.activities!.length,12);
+    const started = await (await call('/api/session/start', {})).json() as LearningSession; assert.ok(started.gameSeed); assert.ok(started.activities!.every(a => a.kind === 'standard' || gameDefinition(a.kind))); assert.equal(started.activities!.length,18);
     for (const route of ['/api/speech/tts','/api/speech/tts/stream']) { const response = await call(route, { text: 'apple', locale: 'en-US', tone: 'clear', cacheOnly: true }); assert.equal(response.status, 409); assert.equal((await response.json()).code, 'AUDIO_CACHE_MISSING'); }
-    while (currentActivity(session(app.store))!.kind === 'standard') advanceStandard(app.store);
+    while (currentActivity(session(app.store))!.kind === 'standard'||['recognize','read'].includes(currentActivity(session(app.store))!.step)) advanceStandard(app.store);
     const game = currentActivity(session(app.store))!;
     const response = await call('/api/session/activity', { sessionId: started.id, activityId: game.id, action: 'choose', selectedId: game.wordId, correct: true }); assert.equal(response.status, 400);
     assert.equal(synthesis, 0); assert.equal(app.store.read().charges.length, 0);

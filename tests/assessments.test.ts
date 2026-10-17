@@ -152,7 +152,7 @@ test('weak practice joins the task budget, freezes old plans, records participat
     f.store.updateSettings({ sessionMinutes: 3, dailyNewWords: 8 });
     const plan = dailyLearningPlan(f.store.read(), f.now());
     assert.ok(plan.tasks.some(task => task.steps.some(step => practiceDimension(step))));
-    assert.ok(plan.taskCount <= 4); assert.equal(plan.fresh.length, 0);
+    assert.ok(plan.taskCount <= 6); assert.equal(plan.fresh.length, 0);
     const session = f.store.startSession(true), activity = session.activities![0];
     const dimension = practiceDimension(activity.step)!;
     assert.ok(dimension);

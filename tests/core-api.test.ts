@@ -153,15 +153,17 @@ test('HTTP planned completion requires ordered evidence and recorded follow-alon
   const app=await fixture();
   try{
     await app.call('/api/settings','PATCH',{dailyNewWords:1});const session=(await app.call('/api/session/start','POST')).result,wordId=session.wordIds[0];
-    assert.deepEqual(session.tasks[0].steps,['learn','listen','sound','recall']);
+    assert.deepEqual(session.tasks[0].steps,['learn','recognize','listen','sound','read','recall']);
     assert.equal((await app.call('/api/session','PATCH',{completedWordId:wordId})).response.status,400);
     assert.equal((await app.call('/api/session','PATCH',{completedStep:{wordId,step:'learn'}})).response.status,200);
+    for(const action of ['skip','next'])assert.equal((await app.call('/api/session/activity','POST',{sessionId:session.id,activityId:`${wordId}:recognize`,action})).response.status,200);
     const input={sessionId:session.id,wordId,skill:'listen',step:'listen',correct:false,hinted:false,source:'click'};
     await app.call('/api/attempts','POST',input);
     assert.equal((await app.call('/api/session','PATCH',{completedStep:{wordId,step:'listen'}})).result.code,'SESSION_STEP_EVIDENCE');
     await app.call('/api/attempts','POST',{...input,correct:true,hinted:true});await app.call('/api/session','PATCH',{completedStep:{wordId,step:'listen'}});
     assert.equal((await app.call('/api/session','PATCH',{completedStep:{wordId,step:'sound'}})).result.code,'SESSION_STEP_EVIDENCE');
     await app.call('/api/attempts','POST',{...input,step:'sound',practiceOnly:true});await app.call('/api/session','PATCH',{completedStep:{wordId,step:'sound'}});
+    for(const action of ['skip','next'])await app.call('/api/session/activity','POST',{sessionId:session.id,activityId:`${wordId}:read`,action});
     await app.call('/api/attempts','POST',{...input,skill:'recall',step:'recall',source:'speech',hinted:true,practiceOnly:true});await app.call('/api/session','PATCH',{completedStep:{wordId,step:'recall'}});
     await app.call('/api/session','PATCH',{complete:true});await app.call('/api/session','PATCH',{complete:true});
     const state=(await app.call('/api/state')).result;assert.equal(state.stickers.length,1);assert.deepEqual(state.lastCompletedSession.completedWordIds,[wordId]);assert.deepEqual(state.lastCompletedSession.completedSteps[wordId],session.tasks[0].steps);assert.equal(state.progress.length,1);assert.equal(state.progress[0].stage,0);
@@ -180,6 +182,7 @@ test('HTTP hub modes, retry keys and explicit session ids keep switched rounds i
     const chosen=(await app.call('/api/session/start','POST',{mode:'practice',wordIds:['starter-moon'],requestId:'http-request-custom'})).result;
     assert.equal(chosen.tasks[0].steps[0],'learn');
     for(const step of chosen.tasks[0].steps){
+      if(step==='recognize'||step==='read'){for(const action of ['skip','next'])assert.equal((await app.call('/api/session/activity','POST',{sessionId:chosen.id,activityId:`starter-moon:${step}`,action})).response.status,200);continue;}
       if(step!=='learn')await app.call('/api/attempts','POST',{sessionId:chosen.id,wordId:'starter-moon',step,skill:step==='sound'?'listen':step,correct:true,hinted:false,source:'click',practiceOnly:step==='recall'});
       assert.equal((await app.call('/api/session','PATCH',{sessionId:chosen.id,completedStep:{wordId:'starter-moon',step}})).response.status,200);
     }

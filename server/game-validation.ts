@@ -17,7 +17,7 @@ export function validGameSession(session: LearningSession, wordIds: Set<string>,
   for (const item of session.activities) {
     if (!item || item.id !== `${item.wordId}:${item.step}` || !planned.includes(item.id) || !snapshot(item.word) || item.word.id !== item.wordId || item.kind !== 'standard' && !gameDefinition(item.kind) || !Array.isArray(item.choices) || item.choices.length > 3 || item.choices.some(choice => !snapshot(choice))) return false;
     if (item.groupId !== undefined && (!['flip','repair','bingo','queue','collect','route','letter-sort','story','program','combine','quantity'].includes(item.kind) || typeof item.groupId !== 'string' || item.groupId.length > 80)) return false;
-    if (item.kind === 'portal' && (item.step !== 'recall' || item.choices.length)) return false;
+    if (item.kind === 'portal' && (!['recall','read'].includes(item.step) || item.choices.length)) return false;
     const definition = gameDefinition(item.kind);
     if (definition && definition.step !== item.step && !definition.otherSteps?.includes(item.step) || ['flip','repair','bingo','queue','collect','route','letter-sort','story','program','combine','quantity'].includes(item.kind) && !item.groupId) return false;
     if (definition && item.kind !== 'portal') {

@@ -1,6 +1,6 @@
 import { validGameMaterial, extendedKinds } from '../shared/game-materials.ts';
 import { DatabaseSync } from 'node:sqlite';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { dailyLearningPlan, learningDay, selectedLearningTasks, supplementalLearningPlan, SECONDS_PER_LEARNING_TASK } from '../shared/learning.ts';
@@ -17,6 +17,7 @@ import { seededRandom, recallGame, gameDefinition, type GamePlanOptions } from '
 import { activityStateKeys, gameActions, transitionGame, gameAccepted } from '../shared/game-rules.ts';
 import { pairedGame } from '../shared/game-boards.ts';
 import { validPracticeRecordings } from '../shared/oral-practice.ts';
+import { isGoalCheckpoint } from '../shared/learning-goals.ts';
 import type { PracticeRecording } from '../shared/contracts.ts';
 import type { AppState, ChildProfile, Settings, Word, WordPack, SkillProgress, LearningAttempt, LearningSession, IllustrationJob, IntegrationStatus, ImportRow, Skill, LearningStep, ImageReviewSelection } from '../shared/contracts.ts';
 
@@ -33,8 +34,8 @@ export interface StoredData extends AssessmentData {
 }
 const DAY = 86_400_000;
 const INTERVALS = [1, 3, 7, 14, 30];
-const SKILLS: Skill[] = ['listen', 'recall', 'spell'];
-const STEPS: LearningStep[] = ['learn', 'listen', 'sound', 'recall', 'spell', ...assessmentDimensions.map(practiceStep)];
+const SKILLS: Skill[] = ['recognize', 'listen', 'read', 'recall', 'spell'];
+const STEPS: LearningStep[] = ['learn', 'recognize', 'listen', 'sound', 'read', 'recall', 'spell', ...assessmentDimensions.map(practiceStep)];
 const stepSkill = (step: LearningStep): Skill | undefined => step === 'sound' ? 'listen' : step === 'learn' || practiceDimension(step) ? undefined : step as Skill;
 const completedStepsFor = (session: LearningSession, wordId: string): LearningStep[] => session.completedSteps && Object.hasOwn(session.completedSteps, wordId) ? session.completedSteps[wordId] : [];
 const stepEvidence = (attempts: LearningAttempt[], sessionId: string, wordId: string, step: LearningStep) => step === 'learn' || attempts.some(a => a.sessionId === sessionId && a.wordId === wordId && a.step === step && a.skill === stepSkill(step) && (a.correct || a.practiceOnly));
@@ -42,6 +43,14 @@ const defaults: Settings = { dailyNewWords: 3, dailyReviewWords: 6, sessionMinut
 export const localDay = learningDay;
 export const monthKey = (date = new Date()) => localDay(date).slice(0, 7);
 const clone = <T>(value: T): T => structuredClone(value);
+function hasPracticeAudio(data:StoredData,dataDir:string,sessionId:string,activityId:string,version:number){
+  return (data.practiceRecordings??[]).some(r=>{
+    if(r.sessionId!==sessionId||r.activityId!==activityId||r.status!=='ready'||r.word.learningVersion!==version)return false;
+    const root=path.join(dataDir,'practice-recordings'),file=path.join(root,r.id+'.wav');
+    if(!existsSync(file)||!realpathSync(file).startsWith(realpathSync(root)+path.sep))return false;
+    const bytes=readFileSync(file);return bytes.length===r.bytes&&createHash('sha256').update(bytes).digest('hex')===r.sha256;
+  });
+}
 
 function seed(now: Date): StoredData {
   const rows = [['apple','苹果'],['banana','香蕉'],['cat','猫'],['dog','狗'],['ball','球'],['car','汽车'],['sun','太阳'],['moon','月亮'],['fish','鱼'],['bird','鸟'],['jump','跳跃'],['run','跑步']];
@@ -302,7 +311,7 @@ export class Store {
   assessmentAction(id: string, body: Record<string, unknown>, imageAvailable: (url: string) => boolean = () => true) { return this.mutate(data => assessmentAction(data, id, body, this.clock(), imageAvailable)); }
   assessmentPractice(body: Record<string, unknown>) {
     return this.mutate(data => {
-      if (Object.keys(body).some(key => !['sessionId', 'wordId', 'dimension', 'learningVersion'].includes(key)) || !assessmentDimensions.includes(body.dimension as any)) throw new AppError('弱项练习请求无效。');
+      if (Object.keys(body).some(key => !['sessionId', 'wordId', 'dimension', 'learningVersion','oralStatus'].includes(key)) || body.oralStatus!==undefined&&!['recorded','skipped'].includes(String(body.oralStatus)) || !assessmentDimensions.includes(body.dimension as any)) throw new AppError('弱项练习请求无效。');
       const session = data.sessions.find(session => session.id === body.sessionId), dimension = body.dimension as import('../shared/contracts.ts').AssessmentDimension;
       const word = data.words.find(word => word.id === body.wordId), step = practiceStep(dimension);
       const id = `${body.sessionId}:${body.wordId}:${dimension}`;
@@ -310,7 +319,9 @@ export class Store {
       if (!session || session.completedAt || session.suspendedAt || !session.tasks || !word || word.assetStatus !== 'approved' || !data.packs.some(pack => pack.id === word.packId && pack.enabled) || (word.learningVersion ?? 0) !== body.learningVersion) throw new AppError('这道弱项练习已经变化。', 'ASSESSMENT_PRACTICE_STALE', 409);
       const task = session.tasks.find(task => task.wordId === word.id), done = completedStepsFor(session, word.id), activity = currentActivity(session);
       if (!task || task.steps[done.length] !== step || (session.activities ? activity?.id !== `${word.id}:${step}` : session.wordIds.find(id => !session.completedWordIds.includes(id)) !== word.id)) throw new AppError('请先完成当前小任务。', 'SESSION_STEP_ORDER', 409);
-      (data.assessmentPractices ??= []).push({ id, sessionId: session.id, wordId: word.id, learningVersion: word.learningVersion ?? 0, dimension, createdAt: this.clock().toISOString() });
+      const oral=dimension==='read'||dimension==='zh-en',recorded=oral&&hasPracticeAudio(data,this.dataDir,session.id,`${word.id}:${step}`,word.learningVersion??0);
+      if(body.oralStatus==='recorded'&&!recorded)throw new AppError('请先保存录音，或者明确选择跳过。','READ_RECORDING_REQUIRED',409);
+      (data.assessmentPractices ??= []).push({ id, sessionId: session.id, wordId: word.id, learningVersion: word.learningVersion ?? 0, dimension, createdAt: this.clock().toISOString(),...(oral?{oralStatus:body.oralStatus==='skipped'||!recorded?'skipped' as const:'recorded' as const}:{}) });
       session.completedSteps = { ...session.completedSteps, [word.id]: [...done, step] };
       if (done.length + 1 === task.steps.length && !session.completedWordIds.includes(word.id)) session.completedWordIds.push(word.id);
       return session;
@@ -349,11 +360,13 @@ export class Store {
         if (taskCount > plan.taskLimit) throw new AppError('这些词超过本轮时长，请少选几个；已选单词不会被省略。', 'SESSION_BUDGET');
         plan = { ...plan, tasks, taskCount, estimatedMinutes: Math.ceil(taskCount * SECONDS_PER_LEARNING_TASK / 60) };
       }
-      const session: LearningSession = { id: randomUUID(), mode: mode as LearningSession['mode'], practiceOnly, ...(typeof body.requestId === 'string' ? {requestId: body.requestId} : {}), exposures: [], wordIds: [...new Set(plan.tasks.map(task => task.wordId))], completedWordIds: [], startedAt: this.clock().toISOString(), rewardGranted: false, tasks: clone(plan.tasks), completedSteps: {}, taskLimit: plan.taskLimit, estimatedMinutes: plan.estimatedMinutes };
-      if (withGames) {
+      const session: LearningSession = { id: randomUUID(), mode: mode as LearningSession['mode'], practiceOnly, ...(typeof body.requestId === 'string' ? {requestId: body.requestId} : {}), exposures: [], wordIds: [...new Set(plan.tasks.map(task => task.wordId))], completedWordIds: [], startedAt: this.clock().toISOString(), rewardGranted: false, goalVersion:1, tasks: clone(plan.tasks), completedSteps: {}, taskLimit: plan.taskLimit, estimatedMinutes: plan.estimatedMinutes };
+      if (withGames || session.goalVersion === 1) {
         session.gameSeed = randomUUID();
         const recentKinds = data.sessions.slice(-6).flatMap(previous => previous.activities?.filter(activity => activityDone(previous, activity)).map(activity => activity.kind) ?? []);
         session.activities = buildActivities(plan.tasks, plan.available, seededRandom(session.gameSeed), { recentKinds, familyEnabled: data.settings.familyGamesEnabled === true, contextEnabled:data.settings.contextGamesEnabled===true, ...gameOptions, randomize: withGames === 'random' }); session.activityStates = {};
+        if(!withGames)for(const a of session.activities){a.kind='standard';if(!isGoalCheckpoint(a.step))a.choices=[];delete a.groupId;delete a.cueWord;delete a.targets;delete a.direction;delete a.routeStart;delete a.routeCells;delete a.letterGrid;delete a.material;delete a.spellingBoard;}
+        if(!withGames)session.activities.sort((a,b)=>session.tasks!.findIndex(t=>t.wordId===a.wordId)-session.tasks!.findIndex(t=>t.wordId===b.wordId)||session.tasks!.find(t=>t.wordId===a.wordId)!.steps.indexOf(a.step)-session.tasks!.find(t=>t.wordId===b.wordId)!.steps.indexOf(b.step));
       }
       if (!session.wordIds.length) return session;
       data.sessions.push(session); data.activeLearningSessionId = session.id; return session;
@@ -368,6 +381,7 @@ export class Store {
       if (body.practiceOnly !== undefined && typeof body.practiceOnly !== 'boolean') throw new AppError('体验模式格式无效。');
       if (body.step !== undefined && (!STEPS.includes(body.step as LearningStep) || stepSkill(body.step as LearningStep) !== body.skill)) throw new AppError('答题步骤与学习技能不匹配。');
       const step = (body.step ?? body.skill) as LearningStep;
+      if(isGoalCheckpoint(step))throw new AppError('请通过认读任务提交结果，朗读完成需要已保存的录音。','GAME_EVIDENCE');
       if (session.activities?.some(activity => activity.wordId === body.wordId && activity.step === step && activity.kind !== 'standard')) throw new AppError('请通过游戏提交本题结果。', 'GAME_EVIDENCE');
       const attempt: LearningAttempt = { id: typeof body.id === 'string' && body.id.length <= 100 ? body.id : randomUUID(), wordId: String(body.wordId), sessionId: session.id, skill: body.skill as Skill, step, learningVersion: data.words.find(word => word.id === body.wordId)?.learningVersion ?? 0, correct: body.correct, hinted: body.hinted, source: body.source as LearningAttempt['source'], practiceOnly: body.practiceOnly === true || (body.skill === 'spell' && !data.settings.spellingEnabled), createdAt: this.clock().toISOString() };
       return this.saveAttempt(data, attempt);
@@ -375,7 +389,7 @@ export class Store {
   }
   private saveAttempt(data: StoredData, attempt: LearningAttempt) {
       const existing = data.attempts.find(item => item.id === attempt.id); if (existing) return existing;
-      if (data.sessions.find(session => session.id === attempt.sessionId)?.practiceOnly) attempt.practiceOnly = true;
+      if (data.sessions.find(session => session.id === attempt.sessionId)?.practiceOnly) {attempt.practiceOnly = true;attempt.sessionPracticeOnly=true;}
       const advancedToday = data.attempts.some(a => a.wordId === attempt.wordId && (a.learningVersion ?? 0) === attempt.learningVersion && a.skill === attempt.skill && a.correct && !a.hinted && !a.practiceOnly && localDay(new Date(a.createdAt)) === localDay(this.clock()));
       data.attempts.push(attempt);
       // A supported practice attempt is evidence of participation, never a scheduling fact.
@@ -392,7 +406,7 @@ export class Store {
       const session = data.sessions.find(item => item.id === body.sessionId);
       if (!session || session.suspendedAt || !session.activities || typeof body.activityId !== 'string' || !gameActions.includes(body.action as any) || body.selectedId !== undefined && typeof body.selectedId !== 'string' || Object.keys(body).some(key => !['sessionId','activityId','action','selectedId'].includes(key))) throw new AppError('游戏请求无效。', 'GAME_INVALID');
       const activity = session.activities.find(item => item.id === body.activityId);
-      if (!activity || activity.kind === 'standard') throw new AppError('这不是当前游戏。', 'GAME_INVALID');
+      if (!activity || activity.kind === 'standard'&&!isGoalCheckpoint(activity.step)) throw new AppError('这不是当前游戏。', 'GAME_INVALID');
       // Network retries of a finished game cannot create another attempt or reward.
       if (activityDone(session, activity)) return session;
       if (session.completedAt || currentActivity(session)?.id !== activity.id) throw new AppError('请先完成当前小任务。', 'GAME_ORDER', 409);
@@ -403,13 +417,17 @@ export class Store {
       const members=pairedGame(activity.kind) ? session.activities.filter(item=>item.kind===activity.kind&&item.groupId===activity.groupId) : [activity];
       const scene=activity.kind==='associate'&&activity.step==='recall' ? session.activityStates?.[`${activity.wordId}:sound`] : undefined;
       const previous=session.activityStates?.[activity.id] ?? (scene?.composed ? { selectedIds:scene.selectedIds,composed:true } : {});
+      if(activity.step==='read'&&['finish','reveal','listen-option'].includes(String(body.action))){
+        const hasAudio=hasPracticeAudio(data,this.dataDir,session.id,activity.id,activity.word.learningVersion);
+        if(!hasAudio)throw new AppError('请先录音并保存；麦克风暂不可用时可以选择跳过。','READ_RECORDING_REQUIRED',409);
+      }
       let transition: ReturnType<typeof transitionGame>;
       try { transition = transitionGame(activity, previous, body.action as any, body.selectedId as string | undefined); }
       catch (error) { throw new AppError(error instanceof Error ? error.message : '游戏请求无效。', 'GAME_EVIDENCE'); }
       for(const member of members) {
         if (transition.attempt) {
-          const input = transition.attempt, answerKey = ['practice','yes','no','extended-ok','extended-try'].includes(input.key)||/^(pair|letters)-[\d-]+$/.test(input.key) ? input.key : String(activity.choices.findIndex(choice => choice.id === input.key));
-          this.saveAttempt(data, { id: `${session.id}:game:${session.activities.indexOf(member)}:${answerKey}`, activityId: member.id, wordId: member.wordId, sessionId: session.id, skill: member.step === 'recall' ? 'recall' : member.step === 'spell' ? 'spell' : 'listen', step: member.step, learningVersion: member.word.learningVersion, correct: input.correct, hinted: input.hinted, practiceOnly: input.practiceOnly, source: 'click', createdAt: this.clock().toISOString() });
+          const input = transition.attempt, answerKey = ['practice','yes','no','extended-ok','extended-try'].includes(input.key)||input.key.startsWith('goal-')||/^(pair|letters)-[\d-]+$/.test(input.key) ? input.key : String(activity.choices.findIndex(choice => choice.id === input.key));
+          this.saveAttempt(data, { id: `${session.id}:game:${session.activities.indexOf(member)}:${answerKey}`, activityId: member.id, wordId: member.wordId, sessionId: session.id, skill: stepSkill(member.step)!, step: member.step, learningVersion: member.word.learningVersion, correct: input.correct, hinted: input.hinted, practiceOnly: input.practiceOnly, source: member.step==='read'&&input.key==='goal-recorded'?'speech':'click', ...(member.step==='read'?{oralStatus:input.key==='goal-recorded'?'recorded' as const:'skipped' as const}:{}), createdAt: this.clock().toISOString() });
         }
         if (transition.complete) {
           session.completedSteps = { ...session.completedSteps, [member.wordId]: [...completedStepsFor(session, member.wordId), member.step] };
@@ -435,7 +453,7 @@ export class Store {
         if (!done.includes(step)) {
           const activity = currentActivity(session);
           if (session.completedAt || (session.activities ? activity?.wordId !== task.wordId || activity?.step !== step : session.wordIds.find(id => !session.completedWordIds.includes(id)) !== task.wordId) || task.steps[done.length] !== step) throw new AppError('请先完成当前单词的前一步。', 'SESSION_STEP_ORDER');
-          if (activity && activity.kind !== 'standard') throw new AppError('请通过当前游戏完成这一题。', 'GAME_EVIDENCE');
+          if (activity && (activity.kind !== 'standard'||isGoalCheckpoint(activity.step))) throw new AppError('请通过当前游戏完成这一题。', 'GAME_EVIDENCE');
           if (practiceDimension(step) || !stepEvidence(data.attempts, session.id, task.wordId, step)) throw new AppError('请先完成这一题，或选择跟着练习。', 'SESSION_STEP_EVIDENCE');
           session.completedSteps = { ...session.completedSteps, [task.wordId]: [...done, step] };
           if (step === 'learn') {
@@ -542,7 +560,7 @@ export function validateBackup(input: unknown): { data: StoredData; files: { pat
   if (d.words.length > 20000 || !unique(d.words) || d.words.some((w:any) => !packIds.has(w.packId) || !['approved','draft','review','error','generating'].includes(w.assetStatus) || !['builtin','codex','upload'].includes(w.imageSource) || validateRows([w]).errors.length || !media(w.imageUrl) || (w.imageTheme !== undefined && (!text(w.imageTheme,80) || !/^[a-z0-9-]+$/.test(w.imageTheme))) || (w.error !== undefined && !text(w.error,2000)) || (w.learningResetAt !== undefined && !date(w.learningResetAt)) || (w.learningVersion !== undefined && !count(w.learningVersion)))) throw new AppError('备份单词或素材路径无效。');
   const wordIds = new Set(d.words.map((w:any) => w.id));
   if(d.words.some((w:any)=>w.gameMaterials!==undefined&&(!w.gameMaterials||typeof w.gameMaterials!=='object'||Array.isArray(w.gameMaterials)||Object.entries(w.gameMaterials).some(([kind,m])=>!validGameMaterial(kind,m)))))throw new AppError('备份游戏素材无效。');
-  if (d.progress.length > 60000 || d.progress.some((p:any) => !p || !wordIds.has(p.wordId) || !SKILLS.includes(p.skill) || !count(p.stage,5) || !date(p.dueAt) || !count(p.successes) || !count(p.attempts))) throw new AppError('备份学习进度无效。');
+  if (d.progress.length > 100000 || d.progress.some((p:any) => !p || !wordIds.has(p.wordId) || !SKILLS.includes(p.skill) || !count(p.stage,5) || !date(p.dueAt) || !count(p.successes) || !count(p.attempts))) throw new AppError('备份学习进度无效。');
   if (new Set(d.progress.map((p:any) => `${p.wordId}:${p.skill}`)).size !== d.progress.length) throw new AppError('备份学习进度重复。');
   if (d.sessions.length > 100000 || !unique(d.sessions) || d.sessions.some((s:any) => !Array.isArray(s.wordIds) || !Array.isArray(s.completedWordIds) || s.wordIds.some((id:unknown) => typeof id !== 'string' || !wordIds.has(id)) || s.completedWordIds.some((id:unknown) => !s.wordIds.includes(id)) || new Set(s.wordIds).size !== s.wordIds.length || new Set(s.completedWordIds).size !== s.completedWordIds.length || !date(s.startedAt) || (s.completedAt !== undefined && !date(s.completedAt)) || (s.suspendedAt !== undefined && (!date(s.suspendedAt) || s.completedAt !== undefined || s.rewardGranted)) || typeof s.rewardGranted !== 'boolean')) throw new AppError('备份学习会话无效。');
   if (d.sessions.some((s:any) => s.mode !== undefined && !['recommended','relearn','practice'].includes(s.mode) || s.practiceOnly !== undefined && typeof s.practiceOnly !== 'boolean' || s.mode && s.mode !== 'recommended' && s.practiceOnly !== true || s.requestId !== undefined && (typeof s.requestId !== 'string' || !/^[a-zA-Z0-9-]{8,100}$/.test(s.requestId)) || s.lastResumedAt !== undefined && !date(s.lastResumedAt) || s.exposures !== undefined && (!Array.isArray(s.exposures) || s.exposures.length > 20000 || new Set(s.exposures.map((entry:any)=>entry?.wordId)).size !== s.exposures.length || s.exposures.some((entry:any)=>!entry || !wordIds.has(entry.wordId) || !count(entry.learningVersion) || !date(entry.introducedAt))))) throw new AppError('备份学习模式或接触记录无效。');
@@ -569,6 +587,10 @@ export function validateBackup(input: unknown): { data: StoredData; files: { pat
   if(d.practiceRecordings!==undefined&&(!validPracticeRecordings(d.practiceRecordings)||d.practiceRecordings.some((r:PracticeRecording)=>!sessionIds.has(r.sessionId)||!wordIds.has(r.word.id)||!media(r.word.imageUrl)||!d.sessions.some((s:LearningSession)=>s.id===r.sessionId&&(s.activities?s.activities.some(a=>a.id===r.activityId&&a.wordId===r.word.id&&a.kind===r.kind&&a.step===r.step&&a.word.term===r.word.term&&a.word.meaning===r.word.meaning&&(a.word.learningVersion??0)===(r.word.learningVersion??0)):s.wordIds.includes(r.word.id)&&r.activityId===`${r.word.id}:${r.step}`)))))throw new AppError('备份口头练习录音记录无效。');
   const assessmentData = validateAssessmentData(d, media);
   if (d.attempts.length > 1_000_000 || !unique(d.attempts) || d.attempts.some((a:any) => !wordIds.has(a.wordId) || !sessionIds.has(a.sessionId) || !SKILLS.includes(a.skill) || !['click','speech','keyboard'].includes(a.source) || typeof a.correct !== 'boolean' || typeof a.hinted !== 'boolean' || (a.practiceOnly !== undefined && typeof a.practiceOnly !== 'boolean') || (a.learningVersion !== undefined && !count(a.learningVersion)) || (a.activityId !== undefined && !text(a.activityId,120)) || (a.step !== undefined && (!STEPS.includes(a.step) || stepSkill(a.step) !== a.skill)) || !date(a.createdAt))) throw new AppError('备份答题记录无效。');
+  if(d.sessions.some((s:LearningSession)=>s.goalVersion!==undefined&&(s.goalVersion!==1||s.tasks?.some(t=>t.mode==='new'&&!['learn','recognize','listen','sound','read','recall'].every(step=>t.steps.includes(step as LearningStep))))))throw new AppError('备份认听读目标不完整。');
+  if(d.attempts.some((a:LearningAttempt)=>a.sessionPracticeOnly!==undefined&&(a.sessionPracticeOnly!==true||!a.practiceOnly||!d.sessions.some((session:LearningSession)=>session.id===a.sessionId&&session.practiceOnly))))throw new AppError('备份额外练习来源无效。');
+  if(d.progress.some((p:SkillProgress)=>p.skill==='read')||d.attempts.some((a:LearningAttempt)=>a.skill==='read'&&(a.oralStatus===undefined||a.correct||!a.practiceOnly)))throw new AppError('朗读保存只能记练习，不能直接写正式成绩。');
+  if(d.attempts.some((a:LearningAttempt)=>a.oralStatus!==undefined&&(a.skill!=='read'||a.step!=='read'||!['recorded','skipped'].includes(a.oralStatus)||a.correct||!a.practiceOnly||a.oralStatus==='recorded'&&!((d.practiceRecordings??[]) as PracticeRecording[]).some(r=>r.sessionId===a.sessionId&&r.activityId===a.activityId&&r.word.id===a.wordId&&r.word.learningVersion===(a.learningVersion??0)))))throw new AppError('备份朗读证据无效。');
   const evidenceKeys = new Set<string>(d.attempts.filter((a:LearningAttempt) => a.step && (a.correct || a.practiceOnly)).map((a:LearningAttempt) => JSON.stringify([a.sessionId,a.wordId,a.step])));
   for (const practice of assessmentData.assessmentPractices) evidenceKeys.add(JSON.stringify([practice.sessionId, practice.wordId, practiceStep(practice.dimension)]));
   if (d.sessions.some((session:LearningSession) => session.tasks?.some(task => completedStepsFor(session,task.wordId).some(step => step !== 'learn' && !evidenceKeys.has(JSON.stringify([session.id,task.wordId,step])))))) throw new AppError('备份完成步骤缺少答题或练习记录。');
@@ -582,8 +604,8 @@ export function validateBackup(input: unknown): { data: StoredData; files: { pat
   const pick = (object: Record<string,unknown>, keys:string[]) => Object.fromEntries(keys.filter(key => object[key] !== undefined).map(key => [key,object[key]]));
   const clean = { version: 1, ...assessmentData, ...{practiceRecordings:(d.practiceRecordings??[]).map((r:PracticeRecording)=>({...pick(r as unknown as Record<string,unknown>,['id','sessionId','activityId','kind','step','mode','round','createdAt','seconds','bytes','sha256','status']),word:pick(r.word as unknown as Record<string,unknown>,['id','term','meaning','imageUrl','learningVersion'])}))}, profile: pick(d.profile,['nickname','interests','interestVersion','onboardingCompleted']), settings:pick(d.settings,[...Object.keys(defaults),'familyGamesEnabled','contextGamesEnabled']),
     packs:d.packs.map((p:any)=>pick(p,['id','title','enabled','createdAt','isSample','confirmedAt'])), words:d.words.map((w:any)=>pick(w,['id','packId','term','meaning','partOfSpeech','pictureHint','usageNote','imageTheme','imageUrl','assetStatus','imageSource','error','learningResetAt','learningVersion','gameMaterials'])),
-    progress:d.progress.map((p:any)=>pick(p,['wordId','skill','stage','dueAt','successes','attempts'])), attempts:d.attempts.map((a:any)=>pick(a,['id','wordId','sessionId','skill','step','learningVersion','correct','hinted','practiceOnly','source','createdAt','activityId'])),
-    sessions:d.sessions.map((s:any)=>({...pick(s,['id','wordIds','completedWordIds','startedAt','completedAt','suspendedAt','rewardGranted','taskLimit','estimatedMinutes','gameSeed','mode','practiceOnly','requestId','lastResumedAt']),...(s.exposures === undefined ? {} : {exposures:s.exposures.map((entry:any)=>pick(entry,['wordId','learningVersion','introducedAt']))}),...(s.tasks === undefined ? {} : {tasks:s.tasks.map((task:any)=>pick(task,['wordId','mode','steps'])),completedSteps:Object.fromEntries(Object.entries(s.completedSteps).map(([id,steps])=>[id,steps]))}),...(s.activities === undefined ? {} : {activities:s.activities.map((activity:any)=>({...pick(activity,['id','wordId','step','kind','groupId','direction','routeStart','routeCells','letterGrid','material','spellingBoard']),word:pick(activity.word,['id','term','meaning','imageUrl','learningVersion']),choices:activity.choices.map((word:any)=>pick(word,['id','term','meaning','imageUrl','learningVersion'])),...(activity.targets ? {targets:activity.targets.map((word:any)=>pick(word,['id','term','meaning','imageUrl','learningVersion']))} : {}),...(activity.cueWord ? {cueWord:pick(activity.cueWord,['id','term','meaning','imageUrl','learningVersion'])} : {})})),activityStates:Object.fromEntries(Object.entries(s.activityStates).map(([id,state])=>[id,pick(state as Record<string,unknown>,activityStateKeys)]))})})), stickers:d.stickers,
+    progress:d.progress.map((p:any)=>pick(p,['wordId','skill','stage','dueAt','successes','attempts'])), attempts:d.attempts.map((a:any)=>pick(a,['id','wordId','sessionId','skill','step','learningVersion','correct','hinted','practiceOnly','source','createdAt','activityId','oralStatus','sessionPracticeOnly'])),
+    sessions:d.sessions.map((s:any)=>({...pick(s,['id','wordIds','completedWordIds','startedAt','completedAt','suspendedAt','rewardGranted','taskLimit','estimatedMinutes','gameSeed','mode','practiceOnly','requestId','lastResumedAt','goalVersion']),...(s.exposures === undefined ? {} : {exposures:s.exposures.map((entry:any)=>pick(entry,['wordId','learningVersion','introducedAt']))}),...(s.tasks === undefined ? {} : {tasks:s.tasks.map((task:any)=>pick(task,['wordId','mode','steps'])),completedSteps:Object.fromEntries(Object.entries(s.completedSteps).map(([id,steps])=>[id,steps]))}),...(s.activities === undefined ? {} : {activities:s.activities.map((activity:any)=>({...pick(activity,['id','wordId','step','kind','groupId','direction','routeStart','routeCells','letterGrid','material','spellingBoard']),word:pick(activity.word,['id','term','meaning','imageUrl','learningVersion']),choices:activity.choices.map((word:any)=>pick(word,['id','term','meaning','imageUrl','learningVersion'])),...(activity.targets ? {targets:activity.targets.map((word:any)=>pick(word,['id','term','meaning','imageUrl','learningVersion']))} : {}),...(activity.cueWord ? {cueWord:pick(activity.cueWord,['id','term','meaning','imageUrl','learningVersion'])} : {})})),activityStates:Object.fromEntries(Object.entries(s.activityStates).map(([id,state])=>[id,pick(state as Record<string,unknown>,activityStateKeys)]))})})), stickers:d.stickers,
     jobs:d.jobs.map((j:any)=>pick(j,['id','wordId','status','error','imageUrl','createdAt'])), charges:d.charges.map((c:any)=>pick(c,['id','month','reserved','actual','kind','units'])) } as unknown as StoredData;
   if (d.lastCompletedLearningSessionId !== undefined) clean.lastCompletedLearningSessionId = d.lastCompletedLearningSessionId;
   if (d.activeLearningSessionId !== undefined) clean.activeLearningSessionId = d.activeLearningSessionId;

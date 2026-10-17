@@ -1,3 +1,5 @@
+import { finishGoalFixture } from './helpers/goal-steps.ts';
+import { currentActivity } from '../shared/game-plan.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -15,6 +17,7 @@ function fixture(){
 }
 function completeWord(store:Store,session:LearningSession,wordId:string){
   for(const step of session.tasks!.find(task=>task.wordId===wordId)!.steps){
+    if(step==='recognize'||step==='read'){const saved=store.read().sessions.find(s=>s.id===session.id)!;finishGoalFixture(store,saved,currentActivity(saved)!);continue;}
     if(step!=='learn')store.attempt({sessionId:session.id,wordId,step,skill:step==='sound'?'listen':step,correct:true,hinted:false,practiceOnly:step==='recall',source:'click'});
     store.updateSession({completedStep:{wordId,step}});
   }

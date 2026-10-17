@@ -203,14 +203,16 @@ test('isolated voice → interest proposal → explicit confirmation → enabled
     await json('/api/attempts','POST',{...attempt,skill:'recall',correct:true,hinted:true});assert.equal(app.store.read().progress.find(progress=>progress.skill==='recall')!.stage,0);
     assert.equal((await json('/api/session','PATCH',{completedWordId:wordId})).status,400);
     assert.equal((await json('/api/session','PATCH',{completedStep:{wordId,step:'learn'}})).status,200);
+    for(const action of ['skip','next'])assert.equal((await json('/api/session/activity','POST',{sessionId:session.id,activityId:`${wordId}:recognize`,action})).status,200);
     assert.equal((await json('/api/session','PATCH',{completedStep:{wordId,step:'listen'}})).status,200);
     assert.equal((await json('/api/session','PATCH',{completedStep:{wordId,step:'sound'}})).status,400,'the listening answer is not evidence for a different exercise');
     await json('/api/attempts','POST',{...attempt,id:'flow-sound',step:'sound',correct:true});
     assert.equal(app.store.read().progress.find(progress=>progress.skill==='listen')!.stage,1,'same-day exercises never advance a second level');
     assert.equal((await json('/api/session','PATCH',{completedStep:{wordId,step:'sound'}})).status,200);
+    for(const action of ['skip','next'])assert.equal((await json('/api/session/activity','POST',{sessionId:session.id,activityId:`${wordId}:read`,action})).status,200);
     assert.equal((await json('/api/session','PATCH',{completedStep:{wordId,step:'recall'}})).status,200);
     await json('/api/session','PATCH',{complete:true});await json('/api/session','PATCH',{complete:true});
-    assert.equal(app.store.read().attempts.length,4);assert.equal(app.store.read().stickers.length,1);assert.equal(app.store.read().charges.length,1);
+    assert.equal(app.store.read().attempts.length,6);assert.equal(app.store.read().stickers.length,1);assert.equal(app.store.read().charges.length,1);
   }finally{await app.closeFixture();}
 });
 

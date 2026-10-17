@@ -78,12 +78,14 @@ function select(kind: string) {
   if (kind === 'random'&&batch<3) return;
   if(kind==='random')kind=gameRegistry[Math.floor(Math.random()*gameRegistry.length)].kind;
   policy.forcedKind=kind as GameKind;
-  app.store.mutate(data=>{ if(kind==='mimic')data.words=data.words.filter(word=>word.partOfSpeech==='verb'); if(extendedKinds.has(kind))data.words=extendedDemo(kind as GameKind).words; data.settings.familyGamesEnabled=kind==='quiz'||kind==='information'; data.settings.contextGamesEnabled=extendedKinds.has(kind); data.settings.spellingEnabled=kind==='letter-path'||allGames.find(g=>g.kind===kind)?.step==='spell'; data.settings.sessionMinutes=15; });
+  app.store.mutate(data=>{ if(kind==='mimic')data.words=data.words.filter(word=>word.partOfSpeech==='verb'); if(extendedKinds.has(kind))data.words=extendedDemo(kind as GameKind).words; data.settings.familyGamesEnabled=selected!=='random'&&(kind==='quiz'||kind==='information'); data.settings.contextGamesEnabled=selected!=='random'&&extendedKinds.has(kind); data.settings.spellingEnabled=selected!=='random'&&(kind==='letter-path'||allGames.find(g=>g.kind===kind)?.step==='spell'); data.settings.sessionMinutes=15; });
+  if(selected==='random')policy.forcedKind=undefined;
   const session = app.store.startSession('random', policy);
   if(selected==='random')return;
   for (let i = 0; i < 30; i++) {
     const active = app.store.read().sessions.find(item => item.id === session.id)!, activity = currentActivity(active);
-    if (!activity || activity.kind === kind) break;
+    if (!activity || activity.kind === kind&&activity.step===allGames.find(g=>g.kind===kind)?.step) break;
+    if(activity.step==='recognize'||activity.step==='read'){for(const action of ['skip','next'])app.store.activityEvent({sessionId:session.id,activityId:activity.id,action});continue;}
     if (activity.kind === 'standard') {
       if (activity.step !== 'learn') app.store.attempt({ sessionId:session.id,wordId:activity.wordId,step:activity.step,skill:activity.step==='sound'?'listen':activity.step,correct:false,hinted:true,practiceOnly:true,source:'click' });
       app.store.updateSession({ completedStep:{wordId:activity.wordId,step:activity.step} });

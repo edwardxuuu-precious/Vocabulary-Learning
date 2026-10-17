@@ -26,20 +26,20 @@ function practice(wordId: string, skill: Skill, createdAt: string): LearningAtte
 test('fresh words retain the full lesson and fit the task estimate, including optional spelling', () => {
   const state = fixture();
   const plan = dailyLearningPlan(state, now);
-  assert.equal(plan.fresh.length, 3); assert.equal(plan.taskLimit, 13); assert.equal(plan.taskCount, 12);
+  assert.equal(plan.fresh.length, 3); assert.equal(plan.taskLimit, 20); assert.equal(plan.taskCount, 18);
   assert.equal(plan.reductionReason, null);
-  assert.ok(plan.tasks.every(task => task.mode === 'new' && task.steps.join(',') === 'learn,listen,sound,recall'));
+  assert.ok(plan.tasks.every(task => task.mode === 'new' && task.steps.join(',') === 'learn,recognize,listen,sound,read,recall'));
   state.settings.spellingEnabled = true;
   const spelling = dailyLearningPlan(state, now);
-  assert.equal(spelling.fresh.length, 2); assert.equal(spelling.taskCount, 10); assert.equal(spelling.reductionReason, 'task-budget');
-  assert.deepEqual(newWordSteps({ term: 'ice cream' }, true), ['learn', 'listen', 'sound', 'recall']);
+  assert.equal(spelling.fresh.length, 2); assert.equal(spelling.taskCount, 14); assert.equal(spelling.reductionReason, 'task-budget');
+  assert.deepEqual(newWordSteps({ term: 'ice cream' }, true), ['learn', 'recognize', 'listen', 'sound', 'read', 'recall']);
 });
 
 test('old words start directly at due skills and listening questions vary without exposing a learn page', () => {
   const state = fixture(); due(state, 0, 'listen', 2); due(state, 1, 'listen', 3);
   const plan = dailyLearningPlan(state, now);
   assert.deepEqual([...plan.tasks.slice(0, 2)].sort((a,b)=>a.wordId.localeCompare(b.wordId)).map(task => [task.mode, task.steps]), [['review', ['listen']], ['review', ['sound']]]);
-  assert.equal(plan.fresh.length, 2); assert.equal(plan.taskCount, 10);
+  assert.equal(plan.fresh.length, 3); assert.equal(plan.taskCount, 20);
   assert.ok(plan.taskCount <= plan.taskLimit);
 });
 
@@ -61,7 +61,7 @@ test('short daily budgets prioritize review and never cut a new lesson into unfi
   assert.equal(dailyLearningPlan(state, now).fresh.length, 1);
   due(state, 0);
   const plan = dailyLearningPlan(state, now);
-  assert.equal(plan.taskLimit, 4); assert.equal(plan.review.length, 1); assert.equal(plan.fresh.length, 0);
+  assert.equal(plan.taskLimit, 6); assert.equal(plan.review.length, 1); assert.equal(plan.fresh.length, 0);
   assert.equal(plan.taskCount, 1); assert.equal(plan.reductionReason, 'task-budget');
 });
 
@@ -72,7 +72,7 @@ test('review is ordered by active due skill, excludes disabled assets and never 
   state.words[2].assetStatus = 'review';
   const plan = dailyLearningPlan(state, now);
   assert.deepEqual(plan.review.map(word => word.id), ['w1', 'w0']);
-  assert.deepEqual(plan.tasks[1].steps, ['listen', 'spell']);
+  assert.deepEqual(plan.tasks[1].steps, ['spell', 'listen']);
   assert.equal(new Set(plan.tasks.map(task => task.wordId)).size, plan.tasks.length);
   state.packs[0].enabled = false;
   assert.equal(dailyLearningPlan(state, now).taskCount, 0);
@@ -83,9 +83,9 @@ test('unassessed oral history cannot drag a future listening review back into to
   due(state, 0, 'listen', 4, '2026-10-30T02:00:00Z');
   state.progress.push({ wordId: 'w0', skill: 'recall', stage: 0, dueAt: '2026-10-01T00:00:00Z', successes: 0, attempts: 12 });
   state.attempts.push(practice('w0', 'recall', '2026-10-14T00:00:00Z'));
-  assert.ok(!dailyLearningPlan(state, now).due.some(word => word.id === 'w0'));
+  assert.ok(dailyLearningPlan(state, now).tasks.filter(task=>task.wordId==='w0').every(task=>task.steps.every(step=>step!=='listen'&&step!=='sound'&&step!=='recall')));
   const row = wordLearningOverview(state, now)[0];
-  assert.equal(row.due, false); assert.equal(row.nextDue, Date.parse('2026-10-30T02:00:00Z'));
+  assert.equal(row.due,true); assert.equal(row.nextDue,Date.parse('2026-10-15T00:00:00Z'));
   assert.equal(row.recall.independent, 0); assert.equal(row.practiceOnly, 1);
 });
 
@@ -94,11 +94,11 @@ test('only-practised words get a later short listening check without inventing p
   const original = structuredClone(state);
   const plan = dailyLearningPlan(state, now);
   assert.equal(plan.tasks[0].wordId, 'w0'); assert.equal(plan.tasks[0].mode, 'review');
-  assert.deepEqual(plan.tasks[0].steps, ['listen']); assert.ok(!plan.fresh.some(word => word.id === 'w0'));
+  assert.deepEqual(plan.tasks[0].steps, ['listen','recognize','read']); assert.ok(!plan.fresh.some(word => word.id === 'w0'));
   assert.deepEqual(state, original);
   assert.equal(wordLearningOverview(state, now)[0].recall.independent, 0);
   state.attempts[0].createdAt = now.toISOString();
-  assert.ok(!dailyLearningPlan(state, now).due.some(word => word.id === 'w0'));
+  assert.ok(dailyLearningPlan(state, now).tasks.filter(task=>task.wordId==='w0').every(task=>task.steps.every(step=>step!=='listen'&&step!=='sound'&&step!=='recall')));
 });
 
 test('parent disabling reviews explicitly retains the configured new-word allowance', () => {

@@ -20,7 +20,7 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
   const result: LearningActivity[] = [];
   const recent = options.recentKinds ?? [], familiar = new Set(['flip','supply','portal', ...recent]);
   const availableMembers = tasks.map(task => byId.get(task.wordId)!).filter(Boolean).slice(0, 3);
-  const newKinds = gameRegistry.filter(game => !familiar.has(game.kind) && tasks.some(task => task.steps.includes(game.step)) && eligibleGames(game.step, availableMembers, options).some(candidate => candidate.kind === game.kind));
+  const newKinds = gameRegistry.filter(game => !familiar.has(game.kind) && tasks.some(task => task.steps.some(step => eligibleGames(step, availableMembers, options).some(candidate => candidate.kind === game.kind))));
   const novel = options.forcedKind ?? (options.randomize && newKinds.length ? newKinds[Math.floor(random() * newKinds.length)].kind : undefined);
   const pick = (step: LearningActivity['step'], members: Word[], fallback: LearningActivity['kind'], objective = false): LearningActivity['kind'] => {
     let pool = eligibleGames(step, members, options).filter(game => (!objective || !game.practiceOnly) && (familiar.has(game.kind) || game.kind === novel));
@@ -49,8 +49,9 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
     for (const task of batch) for (const step of task.steps) {
       // A due sound assessment must remain objective; flip participation cannot advance that schedule.
       const fallback = distinct && step === 'listen' && byId.get(task.wordId)!.partOfSpeech === 'noun' ? 'supply' : 'standard';
-      const kind = distinct && options.randomize && ['listen','sound'].includes(step) ? pick(step, members, fallback, true) : fallback;
-      add(task, step, kind, kind === 'standard' ? [] : choices);
+      const goal=step==='recognize'||step==='read';
+      const kind = goal&&distinct ? pick(step,members,step==='read'?'portal':members.every(w=>w.partOfSpeech==='noun')?'supply':'gate') : distinct && options.randomize && ['listen','sound'].includes(step) ? pick(step, members, fallback, true) : fallback;
+      add(task, step, kind, kind === 'standard'||kind==='portal' ? [] : choices);
       if (kind === 'gate') result.at(-1)!.cueWord = choices[(choices.findIndex(choice => choice.id === task.wordId) + (gateMatches[batch.indexOf(task)] ? 0 : 1)) % choices.length];
     }
   }
@@ -59,7 +60,7 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
   for (let start = 0; start < fresh.length; start += 3) {
     const batch = fresh.slice(start, start + 3);
     // New assessment steps retain their original order until a matching game is registered.
-    if (batch.some(task => task.steps.some(step => !['learn','listen','sound','recall','spell'].includes(step)))) {
+    if (batch.some(task => task.steps.some(step => !['learn','recognize','listen','sound','read','recall','spell'].includes(step)))) {
       for (const task of batch) for (const step of task.steps) add(task, step);
       continue;
     }
@@ -72,6 +73,11 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
     // Single/ambiguous-word batches retain the proven basic flow rather than padding with examples.
     if (unique.length !== batch.length || batch.length < 2) { for (const task of batch) for (const step of task.steps) add(task, step); continue; }
     for (const task of batch) if (task.steps.includes('learn')) add(task, 'learn');
+    const recognizeKind=pick('recognize',unique,unique.every(w=>w.partOfSpeech==='noun')?'supply':'gate');
+    for(const [index,task] of batch.entries())if(task.steps.includes('recognize')){
+      add(task,'recognize',recognizeKind,shuffled(unique.map(gameWord),random));
+      if(recognizeKind==='gate')result.at(-1)!.cueWord=gameWord(unique[(index+(random()<.5?0:1))%unique.length]);
+    }
     const listenKind = pick('listen', unique, unique.every(word => word.partOfSpeech === 'noun') ? 'supply' : 'standard');
     const soundKind = pick('sound', unique, 'flip', gameDefinition(listenKind)?.practiceOnly === true);
     let recallKind = soundKind === 'associate' ? 'associate' : pick('recall', unique, 'portal');
@@ -110,6 +116,8 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
       add(task, 'sound', soundKind, choices, ['flip','repair'].includes(soundKind) ? groupId : undefined);
       if(soundKind === 'switch')result.at(-1)!.direction = index % 2 ? 'picture-hear' : 'hear-picture';
     }
+    const readKind=pick('read',unique,'portal');
+    for(const task of batch)if(task.steps.includes('read'))add(task,'read',readKind,readKind==='portal'?[]:choices);
     for (const task of soundKind==='associate'?soundOrder:batch) if (task.steps.includes('recall')) add(task, 'recall', recallKind, (['missing','associate','quiz','mimic'].includes(recallKind)||extendedKinds.has(recallKind)) ? choices : []);
     for (const [index,task] of batch.entries()) if (task.steps.includes('spell')) {
       const kind=spellKind==='letter-sort'&&index>=2?'standard':spellKind;
@@ -117,6 +125,13 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
       if(kind==='letter-path')result.at(-1)!.letterGrid=letterBoard(byId.get(task.wordId)!.term,random);
       if(kind==='letter-sort')result.at(-1)!.targets=batch.slice(0,2).map(task=>gameWord(byId.get(task.wordId)!));
     }
+  }
+  // Goal coverage is fixed. A familiar basic screen can replace excess skins, never a goal.
+  const kinds=[...new Set(result.filter(a=>a.kind!=='standard').map(a=>a.kind))];
+  const keep=new Set(kinds.sort((a,b)=>Number(b===novel)-Number(a===novel)).slice(0,3));
+  for(const a of result)if(a.kind!=='standard'&&!keep.has(a.kind)){
+    a.kind='standard';if(a.step!=='recognize'&&a.step!=='read')a.choices=[];
+    delete a.groupId;delete a.cueWord;delete a.targets;delete a.direction;delete a.routeStart;delete a.routeCells;delete a.letterGrid;
   }
   const prepared=new Set<string>();
   for(const a of result){

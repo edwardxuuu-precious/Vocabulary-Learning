@@ -1,3 +1,5 @@
+import { currentActivity } from '../shared/game-plan.ts';
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -28,6 +30,7 @@ function finish(store: Store, session: LearningSession) {
   for (const task of session.tasks!) for (const step of task.steps) {
     const saved = store.read().sessions.find(row => row.id === session.id)!;
     if (saved.completedSteps?.[task.wordId]?.includes(step)) continue;
+    if(step==='recognize'||step==='read'){finishGoalFixture(store,saved,currentActivity(saved)!);continue;}
     if (step !== 'learn') store.attempt({sessionId: session.id, wordId:task.wordId, step, skill:step === 'sound' ? 'listen' : step, correct:true, hinted:false, practiceOnly:step === 'recall', source:'click'});
     store.updateSession({sessionId:session.id, completedStep:{wordId:task.wordId, step}});
   }
@@ -89,8 +92,8 @@ test('relearn includes the full introduction; practice skips known introductions
   const f=fixture(); try {
     const first=start(f.store);finish(f.store,first);const id=first.wordIds[0], before=f.store.read().progress;
     const relearn=start(f.store,{mode:'relearn',wordIds:[id],requestId:'request-relearn'});
-    assert.deepEqual(relearn.tasks![0].steps,['learn','listen','sound','recall']);finish(f.store,relearn);
-    const practice=start(f.store,{mode:'practice',wordIds:[id]});assert.deepEqual(practice.tasks![0].steps,['listen','sound','recall']);finish(f.store,practice);
+    assert.deepEqual(relearn.tasks![0].steps,['learn','recognize','listen','sound','read','recall']);finish(f.store,relearn);
+    const practice=start(f.store,{mode:'practice',wordIds:[id]});assert.deepEqual(practice.tasks![0].steps,['recognize','listen','sound','read','recall']);finish(f.store,practice);
     assert.deepEqual(f.store.read().progress,before);
     const exposure=learningEncounters(f.store.read()).find(row=>row.wordId===id)!;assert.equal(exposure.introducedAt,first.startedAt);
     f.store.updateWord(id,{meaning:'改变后的词义'},()=>true);
@@ -124,7 +127,7 @@ test('repeating a practice-only word cannot postpone its first derived listening
 test('legacy word completion across midnight stays learned and consumes the completion day allowance without inventing a score', () => {
   const f=fixture();try{
     f.at('2026-10-17T15:59:00Z');f.store.updateSettings({dailyNewWords:1});const legacy=start(f.store);
-    f.store.mutate(data=>{const row=data.sessions[0];delete row.tasks;delete row.completedSteps;delete row.taskLimit;delete row.estimatedMinutes;});
+    f.store.mutate(data=>{const row=data.sessions[0];delete row.goalVersion;delete row.activities;delete row.activityStates;delete row.gameSeed;delete row.tasks;delete row.completedSteps;delete row.taskLimit;delete row.estimatedMinutes;});
     f.at('2026-10-17T16:01:00Z');f.store.updateSession({sessionId:legacy.id,completedWordId:legacy.wordIds[0]});f.store.updateSession({sessionId:legacy.id,complete:true});
     const plan=dailyLearningPlan(f.store.read(),f.now());assert.equal(plan.remainingNew,0);assert.equal(plan.usedNewToday,1);
     assert.ok(!plan.fresh.some(word=>word.id===legacy.wordIds[0]));assert.equal(f.store.read().attempts.length,0);assert.equal(f.store.read().progress.length,0);

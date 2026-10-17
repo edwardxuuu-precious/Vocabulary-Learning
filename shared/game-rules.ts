@@ -4,6 +4,8 @@ import type { ActivityAction, ActivityState, LearningActivity } from './contract
 import { gameDefinition, recallGame } from './game-registry.ts';
 import { batchTwoKinds, pairedGame } from './game-boards.ts';
 import { transitionBatchTwo, validBatchState } from './game-batch-two.ts';
+import { isGoalCheckpoint } from './learning-goals.ts';
+import { transitionGoal, validGoalState } from './goal-game-rules.ts';
 
 export const gameActions: ActivityAction[] = ['listen','choose','reveal','skip','next','audio-failed','conceal','show-options','listen-option','pick','undo','submit','uncover','draw','compare','finish','compose','hand-over','guess','letter','tap','place','run','reset','swap','guide','clue'];
 export const activityStateKeys = ['heard','revealed','hinted','audioUnavailable','selectedId','outcome','concealed','optionsVisible','heardOptionIds','selectedIds','uncoveredTiles','drawing','composed','handedOver','gesture','guessId','letterPath',...extendedStateKeys];
@@ -14,6 +16,8 @@ export function gameAudioWord(activity: LearningActivity, action: ActivityAction
   if (action === 'reveal') return activity.word;
 }
 export function gameAudioWords(activity: LearningActivity, action: ActivityAction, selectedId?: string, state: ActivityState = {}) {
+  if(activity.step==='recognize')return [];
+  if(activity.step==='read')return action==='reveal'?[activity.word]:action==='listen-option'?activity.choices.filter(w=>w.id===selectedId):[];
   if(extendedKinds.has(activity.kind)) {
     const m=activity.material;
     if(action==='submit'&&state.outcome==='correct'){
@@ -37,6 +41,7 @@ export interface GameTransition { state: ActivityState; attempt?: { correct: boo
 
 /** Pure transition rules; the server owns the prior checkpoint, frozen question and correctness. */
 export function transitionGame(activity: LearningActivity, previous: ActivityState, action: ActivityAction, selectedId?: string): GameTransition {
+  if(isGoalCheckpoint(activity.step))return transitionGoal(activity,previous,action,selectedId);
   const state: ActivityState = { ...previous, ...(previous.heardOptionIds ? { heardOptionIds: [...previous.heardOptionIds] } : {}) };
   const result: GameTransition = { state };
   const fail = (message: string): never => { throw new Error(message); };
@@ -81,6 +86,7 @@ export function transitionGame(activity: LearningActivity, previous: ActivitySta
 }
 
 export function validActivityState(activity: LearningActivity, state: ActivityState) {
+  if(isGoalCheckpoint(activity.step))return validGoalState(activity,state);
   if (!state || typeof state !== 'object' || Array.isArray(state) || Object.keys(state).some(key => !activityStateKeys.includes(key))) return false;
   if (['heard','revealed','hinted','audioUnavailable','concealed','optionsVisible','composed','handedOver','gesture'].some(key => (state as any)[key] !== undefined && typeof (state as any)[key] !== 'boolean')) return false;
   if(extendedKinds.has(activity.kind))return validExtendedState(activity,state);

@@ -6,6 +6,8 @@ import { RecallPractice } from './recall-practice';
 import { PracticeRecordingHistory } from './practice-recording-history';
 import { WordIntroduction } from './word-introduction-view';
 import { LearningGame } from './learning-games';
+import { GoalGame, GoalTrail } from './goal-games';
+import { isGoalCheckpoint } from '../shared/learning-goals';
 import { currentActivity } from '../shared/game-plan';
 import { gameAudioWords } from '../shared/game-rules';
 import { EntryHome } from './entry-home';
@@ -105,6 +107,7 @@ function App() {
   const [hinted, setHinted] = useState(false);
   const [feedback, setFeedback] = useState<'correct' | 'try' | null>(null);
   const [practiceOnly, setPracticeOnly] = useState(false);
+  const [basicHeardIds,setBasicHeardIds]=useState<string[]>([]),[basicAudioUnavailable,setBasicAudioUnavailable]=useState(false);
   const [selected, setSelected] = useState('');
   const [spoken, setSpoken] = useState('');
   const [spelling, setSpelling] = useState<number[]>([]);
@@ -215,6 +218,7 @@ function App() {
     if (position.step === 'spell' && position.feedback === 'correct' && !position.practiceOnly) setSpelling([...snapshot.words.find(item => item.id === position!.wordId)!.term].map((_, index) => index));
   };
   useEffect(() => { if (screen === 'play' && state?.activeSession?.tasks) restorePosition(state); }, [screen, session?.id, currentId, word?.learningVersion, serverPosition?.step]);
+  useEffect(()=>{setBasicHeardIds([]);setBasicAudioUnavailable(false);},[session?.id,word?.id,step,activity?.id]);
   const startSession = async (request: LearningStartRequest = {mode: 'recommended'}) => {
     if (startLock.current) return;
     startLock.current = true;
@@ -293,11 +297,13 @@ function App() {
     if (feedback === 'correct' || !word) return;
     setSelected(id);
     const correct = id === word.id;
-    await recordAttempt('listen', correct, 'click', options.length < 2);
+    const guided=options.length<2||!basicHeardIds.includes(step==='sound'?id:word.id);
+    await recordAttempt('listen', correct, 'click', guided);
     setFeedback(correct ? 'correct' : 'try');
-    setPracticeOnly(options.length < 2);
+    setPracticeOnly(guided);
     if (!correct) markHinted();
   });
+  const playBasicAudio=async(term:string,id:string)=>{const played=await voice.speakCached(term,'en-US');if(played)setBasicHeardIds(ids=>[...new Set([...ids,id])]);else setBasicAudioUnavailable(true);};
   const finishWord = async () => {
     recorder.cancel(); interruptDialogue();
     if (!word) return;
@@ -316,10 +322,10 @@ function App() {
       await completeRound(session!.id);
     } else restorePosition(updated);
   };
-  const completeAssessmentPractice = () => void run(async () => {
+  const completeAssessmentPractice = (oralStatus?:'recorded'|'skipped') => void run(async () => {
     if (!session || !word) return;
     const dimension = practiceDimension(step); if (!dimension) return;
-    const updated = await post<AppState>('/api/session/assessment-practice', { sessionId: session.id, wordId: word.id, learningVersion: word.learningVersion ?? 0, dimension });
+    const updated = await post<AppState>('/api/session/assessment-practice', { sessionId: session.id, wordId: word.id, learningVersion: word.learningVersion ?? 0, dimension, ...(oralStatus?{oralStatus}:{}) });
     setState(updated);
     const active = updated.activeSession;
     if (active && active.wordIds.every(id => active.completedWordIds.includes(id))) { await completeRound(session!.id); }
@@ -525,8 +531,9 @@ function App() {
       <p className="chat-footer"><span>✦</span> 小小的你，大大的好奇心。</p>
     </main>}
 
-    {screen === 'play' && session && activity && activity.kind !== 'standard' && <LearningGame key={activity.id} activity={activity} session={session} busy={busy || pause || gate} playing={voice.speaking} onAction={gameAction} onHome={() => go('home')} onPause={() => { recorder.cancel(); voice.stop(); setPause(true); }} stopAudio={voice.stop} />}
-    {screen === 'play' && word && session && (!activity || activity.kind === 'standard') && (!session.tasks || serverPosition) && <main className={`lesson-page lesson-${step} page-enter`}>
+    {screen === 'play' && session && activity && isGoalCheckpoint(activity.step) && <GoalGame key={activity.id} activity={activity} session={session} attempts={state.attempts} busy={busy || pause || gate} playing={voice.speaking} onAction={gameAction} onHome={() => go('home')} onPause={() => { recorder.cancel(); voice.stop(); setPause(true); }} stopAudio={voice.stop} />}
+    {screen === 'play' && session && activity && !isGoalCheckpoint(activity.step) && activity.kind !== 'standard' && <LearningGame key={activity.id} activity={activity} session={session} busy={busy || pause || gate} playing={voice.speaking} onAction={gameAction} onHome={() => go('home')} onPause={() => { recorder.cancel(); voice.stop(); setPause(true); }} stopAudio={voice.stop} />}
+    {screen === 'play' && word && session && (!activity || activity.kind === 'standard'&&!isGoalCheckpoint(activity.step)) && (!session.tasks || serverPosition) && <main className={`lesson-page lesson-${step} page-enter`}>
       <nav className="lesson-nav" aria-label="学习导航">
         <button className="lesson-nav-button" onClick={() => go('home')} aria-label="回到单词游乐园首页"><Icon name="home" size={24} /></button>
         <div className="lesson-progress-wrap">
@@ -536,12 +543,13 @@ function App() {
         <button className="lesson-nav-button" onClick={() => { recorder.cancel(); voice.stop(); setPause(true); }} aria-label="休息一下"><Icon name="pause" size={24} /></button>
       </nav>
       <div className="lesson-guide"><Mascot small character={companion} /><h1>{practiceDimension(step) ? `${assessmentLabels[practiceDimension(step)!]} · 练一练` : step === 'learn' ? '一起认识这个词' : wordGamePlan(word, true).find(game => game.step === step)?.title}</h1>{currentTask?.mode === 'review' && <span className="lesson-review">复习</span>}</div>
+      {session.goalVersion===1&&<GoalTrail session={session} wordId={word.id} attempts={state.attempts}/>}
       <section className="lesson-content" aria-label="当前单词任务">
         {practiceDimension(step) && <AssessmentPracticeView target={{sessionId:session.id,activityId:activity?.id??`${word.id}:${step}`}} stopAudio={voice.stop} key={`${session.id}:${word.id}:${step}`} word={word} dimension={practiceDimension(step)!} choices={options} busy={busy || pause || gate} play={voice.speakCached} complete={completeAssessmentPractice} />}
         {step === 'learn' && <WordIntroduction key={`${word.id}:${word.learningVersion}:${word.term}:${word.meaning}`} word={word} active={!pause && !gate} busy={busy} audioEnabled={state.settings.voiceEnabled} speak={voice.speakSequence} getPlaybackId={voice.getPlaybackId} stopIfPlayback={voice.stopIfPlayback} onComplete={completeIntroduction} />}
         {step === 'listen' && <div className="lesson-listen">
-          <button className={`lesson-audio ${voice.speaking ? 'is-playing' : ''}`} onClick={() => void voice.speak(word.term, 'en-US', 'clear')} aria-label="再听一次英文单词"><Icon name="sound" size={30} /><span>听一听</span></button>
-          <div className="lesson-pictures">{options.map(option => <button key={option.id} disabled={busy || feedback === 'correct'} className={`lesson-picture-choice ${selected === option.id ? feedback === 'correct' ? 'is-correct' : 'is-retry' : ''}`} onClick={() => answer(option.id)} aria-label={`选择${option.meaning}`}><img src={option.imageUrl} alt={option.meaning} /><span className="lesson-choice-mark" aria-hidden="true">{selected === option.id && feedback === 'correct' ? <Icon name="check" size={26} /> : selected === option.id ? <Icon name="refresh" size={22} /> : null}</span></button>)}</div>
+          <button className={`lesson-audio ${voice.speaking ? 'is-playing' : ''}`} onClick={() => void playBasicAudio(word.term,word.id)} aria-label="再听一次英文单词"><Icon name="sound" size={30} /><span>听一听</span></button>
+          <div className="lesson-pictures">{options.map(option => <button key={option.id} disabled={busy || voice.speaking || feedback === 'correct'||!basicHeardIds.includes(word.id)&&!basicAudioUnavailable} className={`lesson-picture-choice ${selected === option.id ? feedback === 'correct' ? 'is-correct' : 'is-retry' : ''}`} onClick={() => answer(option.id)} aria-label={`选择${option.meaning}`}><img src={option.imageUrl} alt={option.meaning} /><span className="lesson-choice-mark" aria-hidden="true">{selected === option.id && feedback === 'correct' ? <Icon name="check" size={26} /> : selected === option.id ? <Icon name="refresh" size={22} /> : null}</span></button>)}</div>
         </div>}
         {step === 'sound' && <div className="lesson-match">
           <div className="lesson-picture"><img src={word.imageUrl} alt={word.meaning} /></div>
@@ -554,11 +562,11 @@ function App() {
               const playing = voice.speaking && voice.currentText === option.term;
               const correct = selected === option.id && feedback === 'correct';
               return <div key={option.id} className={`lesson-sound-row ${playing ? 'is-playing' : ''} ${selected === option.id ? correct ? 'is-correct' : 'is-retry' : ''}`}>
-                <button className="lesson-sound-play" onClick={() => void voice.speak(option.term, 'en-US', 'clear')} aria-label={`播放声音${index + 1}`}>
+                <button className="lesson-sound-play" onClick={() => void playBasicAudio(option.term,option.id)} aria-label={`播放声音${index + 1}`}>
                   <span className="lesson-sound-number">{index + 1}</span><Icon name="sound" size={29} /><span className="lesson-sound-label">{playing ? '播放中' : '听读音'}</span>
                   <span className="lesson-sound-wave" aria-hidden="true">{[0, 1, 2, 3, 4].map(bar => <i key={bar} />)}</span>
                 </button>
-                <button className="lesson-sound-select" disabled={busy || feedback === 'correct'} onClick={() => answer(option.id)} aria-label={`选择声音${index + 1}`}>{correct ? <>选对啦<Icon name="check" size={22} /></> : <>选这个<Icon name="arrow" size={20} /></>}</button>
+                <button className="lesson-sound-select" disabled={busy || voice.speaking || feedback === 'correct'||!basicHeardIds.includes(option.id)&&!basicAudioUnavailable} onClick={() => answer(option.id)} aria-label={`选择声音${index + 1}`}>{correct ? <>选对啦<Icon name="check" size={22} /></> : <>选这个<Icon name="arrow" size={20} /></>}</button>
               </div>;
             })}</div>
           </div>

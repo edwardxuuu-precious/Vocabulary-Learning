@@ -4,6 +4,7 @@ import { wordGamePlan } from './vocabulary.ts';
 import { assessmentDay, dueAssessmentProgress, suggestedAssessmentPractice, practiceStep } from './assessment.ts';
 import type { AssessmentData } from './contracts.ts';
 import { availableLearningWords, interleavePacks, learningEncounters, type LearningHistoryData } from './learning-history.ts';
+import { currentWordAttempt, goalStep, learningGoals, goalObservations } from './learning-goals.ts';
 
 export const learningDay = (date = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -12,7 +13,7 @@ export const learningDay = (date = new Date()) => new Intl.DateTimeFormat('en-CA
 export type LearningData = Pick<AppState, 'words' | 'packs' | 'progress' | 'settings'> & LearningHistoryData & AssessmentData;
 const DAY = 86_400_000;
 // A planning estimate, not a countdown or a promise about an individual child.
-export const SECONDS_PER_LEARNING_TASK = 45;
+export const SECONDS_PER_LEARNING_TASK = 30;
 
 export function newWordSteps(word: Pick<Word, 'term'>, spellingEnabled: boolean): LearningStep[] {
   return wordGamePlan(word, spellingEnabled).map(game => game.step);
@@ -49,9 +50,36 @@ function reviewSchedule(data: LearningData) {
     const time = Date.parse(introducedAt);
     const row = schedule.get(wordId) ?? new Map();
     if (!row.has('listen')) row.set('listen', { dueAt: time + DAY, step: 'listen' });
+    const word=words.get(wordId)!;
+    for(const goal of ['recognize','read'] as const){
+      if(row.has(goal))continue;
+      const attempts=(data.attempts??[]).filter(a=>currentWordAttempt(word,a)&&a.skill===goal&&!a.sessionPracticeOnly).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+      const last=attempts.at(-1);
+      // An oral take is a practice reminder, never an invented graded stage.
+      const verified=(data.assessmentProgress??[]).find(p=>p.wordId===wordId&&p.learningVersion===(word.learningVersion??0)&&p.dimension===(goal==='read'?'read':'look'));
+      const practiced=(data.assessmentPractices??[]).filter(p=>p.wordId===wordId&&p.learningVersion===(word.learningVersion??0)&&p.dimension===(goal==='read'?'read':'look')).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)).at(-1);
+      const dueAt=verified?Math.max(Date.parse(verified.dueAt),last?Date.parse(last.createdAt)+DAY:0,practiced?Date.parse(practiced.createdAt)+DAY:0):Math.max(time,last?Date.parse(last.createdAt):0,practiced?Date.parse(practiced.createdAt):0)+DAY;
+      row.set(goal,{dueAt,step:goal});
+    }
     schedule.set(wordId, row);
   }
   return schedule;
+}
+
+/** Incorrect/skipped work comes before unverified or overdue stable work. */
+export function learningWeakness(data:LearningData,word:Word,step?:LearningStep):number{
+  if(!step)return Math.min(...learningGoals.map(goal=>learningWeakness(data,word,goal)));
+  const goal=step&&goalStep(step);
+  const attempts=(data.attempts??[]).filter(a=>currentWordAttempt(word,a)&&(!goal||a.skill===goal)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const last=attempts.at(-1);
+  if(last?.oralStatus==='skipped'||last&&last.oralStatus!=='recorded'&&(last.hinted||!last.practiceOnly&&!last.correct))return 0;
+  const dimensions=goal==='recognize'?['look']:goal==='read'?['read']:goal==='listen'?[]:['look','read'];
+  const assessed=(data.assessmentAttempts??[]).filter(a=>a.wordId===word.id&&a.learningVersion===(word.learningVersion??0)&&dimensions.includes(a.dimension)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)).at(-1);
+  if(assessed&&['incorrect','skipped','hinted','unconfirmed','unavailable'].includes(assessed.result))return 0;
+  if(assessed?.result==='correct'&&(!last||Date.parse(assessed.confirmedAt??assessed.createdAt)>=Date.parse(last.createdAt)))return 3;
+  if(last?.practiceOnly)return 1;
+  if(!last&&!assessed)return 2;
+  return 3;
 }
 
 /** Shared by the home preview and server: only enabled, approved words can be scheduled. */
@@ -81,13 +109,16 @@ export function dailyLearningPlan(data: LearningData, now = new Date()) {
     if (!priorityGroups.has(key)) priorityGroups.set(key, []);
     priorityGroups.get(key)!.push(word);
   }
-  const due = [...priorityGroups.values()].flatMap(group => interleavePacks(group, learningDay(now)));
+  const due = [...priorityGroups.values()].flatMap(group => interleavePacks(group, learningDay(now))).sort((a,b)=>learningWeakness(data,a)-learningWeakness(data,b));
   const taskLimit = Math.max(1, Math.floor(data.settings.sessionMinutes * 60 / SECONDS_PER_LEARNING_TASK));
   const review: Word[] = [], fresh: Word[] = [], tasks: LearningTask[] = [];
   let taskCount = 0;
   for (const word of due) {
     if (review.length >= data.settings.dailyReviewWords || taskCount >= taskLimit) break;
-    const steps = [...schedule.get(word.id)!.values()].filter(item => item.dueAt <= now.getTime()).sort((a, b) => !a.step.startsWith('practice-') && !b.step.startsWith('practice-') ? 0 : a.dueAt - b.dueAt || Number(b.step.startsWith('practice-')) - Number(a.step.startsWith('practice-'))).map(item => item.step).slice(0, taskLimit - taskCount);
+    const dueSteps=[...schedule.get(word.id)!.values()].filter(item=>item.dueAt<=now.getTime());
+    // A test-directed practice and a regular goal checkpoint must not duplicate the same goal today.
+    const practicedGoals=new Set(dueSteps.filter(item=>item.step.startsWith('practice-')).map(item=>goalStep(item.step)).filter(Boolean));
+    const steps = dueSteps.filter(item=>item.step.startsWith('practice-')||!practicedGoals.has(goalStep(item.step))).sort((a,b)=>learningWeakness(data,word,a.step)-learningWeakness(data,word,b.step)||a.dueAt-b.dueAt).map(item=>item.step).slice(0, taskLimit-taskCount);
     if (steps.length) { review.push(word); tasks.push({ wordId: word.id, mode: 'review', steps }); taskCount += steps.length; }
   }
   const pending = (data.sessions ?? data.resumableSessions ?? []).filter(session => !session.completedAt && !session.suspendedAt);
@@ -176,7 +207,7 @@ export function wordLearningOverview(state: AppState, now = new Date()) {
     const nextDue = scheduled.length ? Math.min(...scheduled.map(progress => progress.dueAt)) : undefined;
     return {
       word, available: available.has(word.id), total: records.length, historicalTotal: history.length - records.length,
-      listen: summarizeSkill(records, 'listen'), recall: summarizeSkill(records, 'recall'), spell: summarizeSkill(records, 'spell'),
+      recognize:summarizeSkill(records,'recognize'),read:summarizeSkill(records,'read'),goals:goalObservations(state,word),listen: summarizeSkill(records, 'listen'), recall: summarizeSkill(records, 'recall'), spell: summarizeSkill(records, 'spell'),
       hintedCorrect: records.filter(attempt => attempt.correct && attempt.hinted && !attempt.practiceOnly).length,
       practiceOnly: records.filter(attempt => attempt.practiceOnly).length,
       nextDue, due: available.has(word.id) && nextDue !== undefined && nextDue <= now.getTime(),

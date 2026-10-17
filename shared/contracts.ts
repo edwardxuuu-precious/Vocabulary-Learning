@@ -1,7 +1,8 @@
-export type Skill = 'listen' | 'recall' | 'spell';
+export type LearningGoal = 'recognize' | 'listen' | 'read';
+export type Skill = LearningGoal | 'recall' | 'spell';
 export type AssessmentDimension = 'look' | 'read' | 'en-zh' | 'zh-en';
 export type AssessmentPracticeStep = `practice-${AssessmentDimension}`;
-export type LearningStep = 'learn' | 'listen' | 'sound' | 'recall' | 'spell' | AssessmentPracticeStep;
+export type LearningStep = 'learn' | 'recognize' | 'listen' | 'sound' | 'read' | 'recall' | 'spell' | AssessmentPracticeStep;
 export type AssessmentResult = 'correct' | 'incorrect' | 'hinted' | 'unconfirmed' | 'skipped' | 'unavailable';
 export interface AssessmentRecording { id: string; bytes: number; seconds: number; sha256: string; status: 'ready' | 'purge-pending' | 'deleted' | 'missing' }
 export interface AssessmentResponse { version: number; kind: 'recording' | 'choice' | 'skipped' | 'unavailable'; answeredAt: string; recording?: AssessmentRecording }
@@ -13,7 +14,7 @@ export interface AssessmentJob { status: 'queued' | 'transcribing' | 'grading' |
 export interface AssessmentSession { id: string; wordIds: string[]; mode: 'full' | 'due' | 'recommended'; items: AssessmentItem[]; startedAt: string; completedAt?: string; workflow?: 'recorded'; submittedAt?: string; job?: AssessmentJob }
 export interface AssessmentAttempt { id: string; sessionId: string; itemId: string; wordId: string; learningVersion: number; dimension: AssessmentDimension; result: AssessmentResult; source: 'server' | 'parent'; createdAt: string; confirmedAt?: string; reviewVersion?: number }
 export interface AssessmentProgress { wordId: string; learningVersion: number; dimension: AssessmentDimension; stage: number; dueAt: string; lastSuccessDay?: string }
-export interface AssessmentPractice { id: string; sessionId: string; wordId: string; learningVersion: number; dimension: AssessmentDimension; createdAt: string }
+export interface AssessmentPractice { id: string; sessionId: string; wordId: string; learningVersion: number; dimension: AssessmentDimension; createdAt: string; oralStatus?:'recorded'|'skipped' }
 export interface AssessmentData { assessments?: AssessmentSession[]; assessmentAttempts?: AssessmentAttempt[]; assessmentProgress?: AssessmentProgress[]; assessmentPractices?: AssessmentPractice[] }
 export interface LearningTask { wordId: string; mode: 'new' | 'review'; steps: LearningStep[] }
 export interface GameWord { id: string; term: string; meaning: string; imageUrl: string; learningVersion: number }
@@ -25,7 +26,7 @@ export interface LearningActivity { id: string; wordId: string; step: LearningSt
 export interface ActivityState { heard?: boolean; revealed?: boolean; hinted?: boolean; audioUnavailable?: boolean; concealed?: boolean; optionsVisible?: boolean; heardOptionIds?: string[]; selectedId?: string; outcome?: 'correct' | 'try' | 'practice'; selectedIds?: string[]; uncoveredTiles?: number[]; drawing?: string; composed?: boolean; handedOver?: boolean; gesture?: boolean; guessId?: string; letterPath?: number[]; gameMoves?: string[]; gamePlaced?: Record<string,string>; gameFocus?: string; gameStage?: number; gameText?: string; gamePositions?: number[] }
 export type ActivityAction = 'listen' | 'choose' | 'reveal' | 'skip' | 'next' | 'audio-failed' | 'conceal' | 'show-options' | 'listen-option' | 'pick' | 'undo' | 'submit' | 'uncover' | 'draw' | 'compare' | 'finish' | 'compose' | 'hand-over' | 'guess' | 'letter' | 'tap' | 'place' | 'run' | 'reset' | 'swap' | 'guide' | 'clue';
 export interface PracticeRecordingTarget { sessionId: string; activityId: string }
-export interface PracticeRecording extends PracticeRecordingTarget { id: string; word: GameWord; kind: LearningActivity['kind']; step: LearningStep; mode: 'recall' | 'follow'; round: number; createdAt: string; seconds: number; bytes: number; sha256: string; status: 'ready' | 'missing' }
+export interface PracticeRecording extends PracticeRecordingTarget { id: string; word: GameWord; kind: LearningActivity['kind']; step: LearningStep; mode: 'read' | 'recall' | 'follow'; round: number; createdAt: string; seconds: number; bytes: number; sha256: string; status: 'ready' | 'missing' }
 export type Theme = string;
 export type AssetStatus = 'draft' | 'generating' | 'review' | 'approved' | 'error';
 export interface ChildProfile { nickname: string; interests: Theme[]; interestVersion: number; onboardingCompleted: boolean }
@@ -34,11 +35,11 @@ export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'pronoun' 
 export interface Word { gameMaterials?: Partial<Record<GameKind,GameMaterial>>; id: string; packId: string; term: string; meaning: string; partOfSpeech?: PartOfSpeech; pictureHint?: string; usageNote?: string; imageTheme?: string; imageUrl: string; assetStatus: AssetStatus; imageSource: 'builtin' | 'codex' | 'upload'; error?: string; learningResetAt?: string; learningVersion?: number }
 export interface WordPack { id: string; title: string; createdAt: string; enabled: boolean; isSample?: boolean; confirmedAt?: string }
 export interface SkillProgress { wordId: string; skill: Skill; stage: number; dueAt: string; successes: number; attempts: number }
-export interface LearningAttempt { id: string; wordId: string; skill: Skill; correct: boolean; hinted: boolean; practiceOnly?: boolean; step?: LearningStep; learningVersion?: number; source: 'click' | 'speech' | 'keyboard'; createdAt: string; sessionId: string; activityId?: string }
+export interface LearningAttempt { id: string; wordId: string; skill: Skill; correct: boolean; hinted: boolean; practiceOnly?: boolean; step?: LearningStep; learningVersion?: number; source: 'click' | 'speech' | 'keyboard'; createdAt: string; sessionId: string; activityId?: string; oralStatus?: 'recorded' | 'skipped'; sessionPracticeOnly?: true }
 export type LearningMode = 'recommended' | 'relearn' | 'practice';
 export interface LearningStartRequest { mode?: LearningMode | 'resume'; wordIds?: string[]; sessionId?: string; requestId?: string }
 export interface LearningExposure { wordId: string; learningVersion: number; introducedAt: string }
-export interface LearningSession { id: string; wordIds: string[]; completedWordIds: string[]; startedAt: string; completedAt?: string; suspendedAt?: string; rewardGranted: boolean; tasks?: LearningTask[]; completedSteps?: Record<string, LearningStep[]>; taskLimit?: number; estimatedMinutes?: number; activities?: LearningActivity[]; activityStates?: Record<string, ActivityState>; gameSeed?: string; mode?: LearningMode; practiceOnly?: boolean; requestId?: string; lastResumedAt?: string; exposures?: LearningExposure[] }
+export interface LearningSession { id: string; wordIds: string[]; completedWordIds: string[]; startedAt: string; completedAt?: string; suspendedAt?: string; rewardGranted: boolean; tasks?: LearningTask[]; completedSteps?: Record<string, LearningStep[]>; taskLimit?: number; estimatedMinutes?: number; activities?: LearningActivity[]; activityStates?: Record<string, ActivityState>; gameSeed?: string; mode?: LearningMode; practiceOnly?: boolean; requestId?: string; lastResumedAt?: string; exposures?: LearningExposure[]; goalVersion?: 1 }
 export interface ServiceStatus { configured: boolean; available: boolean; status: string; detail: string; provider?: 'soniox' | 'elevenlabs' | 'azure' | 'codex' }
 export interface IntegrationStatus { speech: ServiceStatus; codex: ServiceStatus; stt?: ServiceStatus; tts?: ServiceStatus; dialogue?: ServiceStatus }
 export interface UsageSummary { month: string; estimatedCny: number; budgetCny: number; ttsCharacters: number; sttSeconds: number; imageJobs: number }

@@ -1,3 +1,5 @@
+import { currentActivity } from '../shared/game-plan.ts';
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -14,13 +16,14 @@ function fixture(initial='2026-10-15T02:00:00Z'){
   store.enablePack('starter',true); // Explicit sample opt-in for scheduling fixtures.
   return{store,directory,at:(time:string)=>{clock=new Date(time);},now:()=>clock,close:()=>{store.close();if(directory.startsWith(join(tmpdir(),'word-adaptive-')))rmSync(directory,{recursive:true,force:true});}};
 }
-const finishStep=(store:Store,wordId:string,step:LearningStep)=>store.updateSession({completedStep:{wordId,step}});
+const finishStep=(store:Store,wordId:string,step:LearningStep)=>{const saved=store.read().sessions.at(-1)!;if(saved.completedSteps?.[wordId]?.includes(step))return store.updateSession({completedStep:{wordId,step}});for(let a=currentActivity(saved);a&&a.wordId===wordId&&['recognize','read'].includes(a.step)&&a.step!==step;a=currentActivity(store.read().sessions.at(-1)!))finishGoalFixture(store,store.read().sessions.at(-1)!,a);return store.updateSession({completedStep:{wordId,step}});};
 function evidence(store:Store,session:LearningSession,wordId:string,step:Exclude<LearningStep,'learn'>,extra={}){
   return store.attempt({sessionId:session.id,wordId,skill:step==='sound'?'listen':step,step,correct:true,hinted:false,source:'click',...extra});
 }
 function finishWord(store:Store,session:LearningSession,wordId:string){
   for(const step of session.tasks!.find(task=>task.wordId===wordId)!.steps){
     if((store.read().sessions.find(s=>s.id===session.id)?.completedSteps?.[wordId]??[]).includes(step))continue;
+    if(step==='recognize'||step==='read'){const saved=store.read().sessions.find(s=>s.id===session.id)!;finishGoalFixture(store,saved,currentActivity(saved)!);continue;}
     if(step!=='learn')evidence(store,session,wordId,step,step==='recall'?{practiceOnly:true,correct:false}:{});
     finishStep(store,wordId,step);
   }
@@ -35,7 +38,7 @@ test('a new session freezes its plan and resumes the same exact next step across
     f.store.updateSettings({sessionMinutes:3,spellingEnabled:true,dailyNewWords:20});
     assert.deepEqual(f.store.startSession().tasks,session.tasks);
     const reopened=new Store(f.directory,()=>f.now());
-    try{const resumed=reopened.startSession();assert.equal(resumed.id,session.id);assert.deepEqual(resumed.tasks,session.tasks);assert.deepEqual(resumed.completedSteps?.[wordId],['learn','listen']);assert.equal(resumed.taskLimit,session.taskLimit);assert.equal(resumed.estimatedMinutes,session.estimatedMinutes);}
+    try{const resumed=reopened.startSession();assert.equal(resumed.id,session.id);assert.deepEqual(resumed.tasks,session.tasks);assert.deepEqual(resumed.completedSteps?.[wordId],['learn','recognize','listen']);assert.equal(resumed.taskLimit,session.taskLimit);assert.equal(resumed.estimatedMinutes,session.estimatedMinutes);}
     finally{reopened.close();}
   }finally{f.close();}
 });
@@ -96,7 +99,7 @@ test('legacy sessions retain their word-completion contract and never receive a 
   const f=fixture();
   try{
     const session=f.store.startSession();
-    f.store.mutate(data=>{const old=data.sessions[0];delete old.tasks;delete old.completedSteps;delete old.taskLimit;delete old.estimatedMinutes;});
+    f.store.mutate(data=>{const old=data.sessions[0];delete old.goalVersion;delete old.activities;delete old.activityStates;delete old.gameSeed;delete old.tasks;delete old.completedSteps;delete old.taskLimit;delete old.estimatedMinutes;});
     f.store.updateSettings({sessionMinutes:3,spellingEnabled:true});assert.equal(f.store.startSession().tasks,undefined);
     f.store.updateSession({completedWordId:session.wordIds[0]});const backup=f.store.exportBackup();
     f.store.restoreBackup(backup);assert.equal(f.store.startSession().tasks,undefined);
@@ -115,7 +118,7 @@ test('editing a meaning preserves raw history but reopens the approved word as a
     const changed=f.store.read().words.find(word=>word.id===wordId)!;
     assert.equal(changed.learningResetAt,f.now().toISOString());assert.equal(changed.learningVersion,1);assert.equal(changed.assetStatus,'draft');assert.equal(f.store.read().progress.length,0);assert.equal(f.store.read().attempts.length,1);
     f.store.updateWord(wordId,{assetStatus:'approved'},()=>true);
-    const plan=dailyLearningPlan(f.store.read(),f.now());assert.equal(plan.tasks[0].wordId,wordId);assert.equal(plan.tasks[0].mode,'new');assert.deepEqual(plan.tasks[0].steps,['learn','listen','sound','recall']);
+    const plan=dailyLearningPlan(f.store.read(),f.now());assert.equal(plan.tasks[0].wordId,wordId);assert.equal(plan.tasks[0].mode,'new');assert.deepEqual(plan.tasks[0].steps,['learn','recognize','listen','sound','read','recall']);
     const newSession=f.store.startSession();assert.notEqual(newSession.id,oldSession.id);
     const current=evidence(f.store,newSession,wordId,'listen');assert.equal(current.learningVersion,1);assert.equal(current.createdAt,old.createdAt);assert.equal(f.store.read().progress[0].stage,1,'a previous meaning cannot consume the new meaning’s one advancement today');
     assert.equal(wordLearningOverview(f.store.state(services),f.now()).find(row=>row.word.id===wordId)!.listen.independent,1);
@@ -130,7 +133,7 @@ test('completion after Shanghai midnight counts as the new day for both planned 
     const f=fixture('2026-10-15T15:59:30Z');
     try{
       f.store.updateSettings({dailyNewWords:1});const session=f.store.startSession();
-      if(legacy)f.store.mutate(data=>{const old=data.sessions[0];delete old.tasks;delete old.completedSteps;delete old.taskLimit;delete old.estimatedMinutes;});
+      if(legacy)f.store.mutate(data=>{const old=data.sessions[0];delete old.goalVersion;delete old.activities;delete old.activityStates;delete old.gameSeed;delete old.tasks;delete old.completedSteps;delete old.taskLimit;delete old.estimatedMinutes;});
       f.at('2026-10-15T16:00:30Z');
       if(legacy)f.store.updateSession({completedWordId:session.wordIds[0]});else finishWord(f.store,session,session.wordIds[0]);
       f.store.updateSession({complete:true});

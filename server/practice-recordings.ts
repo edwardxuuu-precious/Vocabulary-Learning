@@ -36,7 +36,7 @@ export function createPracticeRecordings(store: Store) {
       if((store.read().practiceRecordings??[]).length>=100000)throw new AppError('本机练习录音记录已满。');
       const saved=rows(target).filter(r=>r.status==='ready');if(saved.length>=3)throw new AppError('这个环节已录好三遍，可以回放或继续。');
       const state=session.activityStates?.[a.id]??{};
-      const mode=a.kind==='standard'&&a.step==='recall'||state.revealed||state.optionsVisible||a.kind==='information'&&state.heardOptionIds?.length?'follow':'recall';
+      const mode=['read','practice-read'].includes(a.step)&&!state.revealed?'read':a.kind==='standard'&&a.step==='recall'||state.revealed||state.optionsVisible||a.kind==='information'&&state.heardOptionIds?.length?'follow':'recall';
       const recording:PracticeRecording={...target,id,word:{id:a.word.id,term:a.word.term,meaning:a.word.meaning,imageUrl:a.word.imageUrl,learningVersion:a.word.learningVersion??0},kind:a.kind,step:a.step,mode,round:saved.length+1,createdAt:store.clock().toISOString(),seconds,bytes:audio.length,sha256,status:'ready'};
       writeFileSync(file(id),audio,{flag:'wx'});
       try{store.mutate(data=>{data.practiceRecordings??=[];data.practiceRecordings.push(recording);});}catch(error){unlinkSync(file(id));throw error;}

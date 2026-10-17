@@ -1,3 +1,4 @@
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync,rmSync } from 'node:fs';
@@ -16,7 +17,7 @@ const batch=Number(process.env.GAME_BATCH??5),definitions=gameRegistry.filter(g=
 const fixture=(kind:GameKind)=>{const directory=mkdtempSync(join(tmpdir(),'word-extension-'));let store=new Store(directory,()=>new Date('2026-10-17T06:00:00Z'));store.enablePack('starter',true);store.mutate(data=>{data.words=extendedDemo(kind).words;data.settings={...data.settings,spellingEnabled:true,familyGamesEnabled:true,contextGamesEnabled:true,sessionMinutes:30};});return {get store(){return store;},restart(){store.close();store=new Store(directory,()=>new Date('2026-10-17T06:00:00Z'));},close(){store.close();rmSync(directory,{recursive:true,force:true});}};};
 const active=(store:Store)=>store.read().sessions.at(-1)!;
 function event(store:Store,a:LearningActivity,action:ActivityAction,id?:string) {store.activityEvent({sessionId:active(store).id,activityId:a.id,action,...(id===undefined?{}:{selectedId:id})});assert.doesNotThrow(()=>validateBackup(store.exportBackup()),`${a.kind}/${action}: checkpoint must be restorable`);}
-function basic(store:Store,a:LearningActivity){assert.equal(a.kind,'standard');if(a.step!=='learn')store.attempt({sessionId:active(store).id,wordId:a.wordId,skill:a.step==='sound'?'listen':a.step,step:a.step,correct:false,hinted:true,practiceOnly:true,source:'click'});store.updateSession({completedStep:{wordId:a.wordId,step:a.step}});}
+function basic(store:Store,a:LearningActivity){if(finishGoalFixture(store,active(store),a))return;assert.equal(a.kind,'standard');if(a.step!=='learn')store.attempt({sessionId:active(store).id,wordId:a.wordId,skill:a.step==='sound'?'listen':a.step,step:a.step,correct:false,hinted:true,practiceOnly:true,source:'click'});store.updateSession({completedStep:{wordId:a.wordId,step:a.step}});}
 function reach(store:Store,kind:GameKind){for(let i=0;i<30&&currentActivity(active(store))?.kind!==kind;i++)basic(store,currentActivity(active(store))!);const a=currentActivity(active(store))!;assert.equal(a.kind,kind);return a;}
 function solve(store:Store,a:LearningActivity) {
   const k=a.kind,m=a.material,go=(action:ActivityAction,id?:string)=>event(store,a,action,id);
@@ -55,7 +56,7 @@ for(const def of definitions)test(`batch ${def.batch}: ${def.title} integrates, 
     const frozen=structuredClone(a);solve(f.store,a);const saved=structuredClone(active(f.store));f.restart();assert.deepEqual(active(f.store).activities,saved.activities);assert.deepEqual(active(f.store).activityStates,saved.activityStates);
     const backup=f.store.exportBackup();f.store.restoreBackup(backup);assert.deepEqual(active(f.store).activities!.find(v=>v.id===a.id),frozen);const count=f.store.read().attempts.length;event(f.store,a,'submit');assert.equal(f.store.read().attempts.length,count);event(f.store,a,'next');event(f.store,a,'next');assert.equal(f.store.read().attempts.length,count);
     while(currentActivity(active(f.store))){const next=currentActivity(active(f.store))!;if(next.kind==='standard')basic(f.store,next);else{solve(f.store,next);event(f.store,next,'next');}}
-    f.store.updateSession({complete:true});f.store.updateSession({complete:true});assert.equal(f.store.read().stickers.length,1);assert.ok(f.store.read().attempts.every(v=>v.practiceOnly));assert.equal(f.store.read().progress.length,0);
+    f.store.updateSession({complete:true});f.store.updateSession({complete:true});assert.equal(f.store.read().stickers.length,1);assert.ok(f.store.read().attempts.filter(v=>v.skill!=='recognize').every(v=>v.practiceOnly));assert.equal(f.store.read().progress.filter(v=>v.skill!=='recognize').length,0);
   }finally{f.close();}
 });
 test('reviewed material, current versions, contextual and family switches gate each new random template',()=>{

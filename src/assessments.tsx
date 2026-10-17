@@ -89,7 +89,7 @@ function LegacyAssessmentCenter({ state, grant, onGrant, onExit, reload, initial
 }
 
 export function AssessmentPracticeView({ word, dimension, choices, busy:appBusy, play, complete, target, stopAudio }: {
-  word: Word; dimension: AssessmentDimension; choices: Word[]; busy: boolean; target:PracticeRecordingTarget;stopAudio:()=>void; play: (term: string) => Promise<boolean>; complete: () => void;
+  word: Word; dimension: AssessmentDimension; choices: Word[]; busy: boolean; target:PracticeRecordingTarget;stopAudio:()=>void; play: (term: string) => Promise<boolean>; complete: (oralStatus?:'recorded'|'skipped') => void;
 }) {
   const [oralBusy,setOralBusy]=useState(false),[oralReady,setOralReady]=useState(false),[oralSkipped,setOralSkipped]=useState(false);
   const busy=appBusy||oralBusy;
@@ -105,7 +105,7 @@ export function AssessmentPracticeView({ word, dimension, choices, busy:appBusy,
     {pictureChoice && !revealed && choices.length >= 2 ? <div className="assessment-picture-choices">{choices.map((choice, index) => <button disabled={busy} aria-label={`练习选择图片${index + 1}`} key={choice.id} onClick={() => { setMessage(choice.id === word.id ? '找到了，一起核对一下。' : '一起看看这个词的意思。'); setRevealed(true); }}><img src={choice.imageUrl} alt={`图片选项${index + 1}`} /></button>)}</div> : (dimension === 'zh-en' || revealed || pictureChoice) && <img className="assessment-practice-picture" src={word.imageUrl} alt={revealed ? word.meaning : '回想英文的图片'} />}
     {!pictureChoice&&<OralPractice target={target} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={revealed} readOnly={revealed}/>}
     {!revealed && <button className="assessment-primary" disabled={busy || playing || !pictureChoice&&!oralReady&&!oralSkipped} onClick={reveal}>{dimension === 'read' ? '我试过了，听示范' : '想好了，核对一下'}</button>}
-    {revealed && <><p className="assessment-meaning">{word.term} · {word.meaning}</p><button disabled={busy || playing} onClick={() => void hear()}>{playing ? '播放中…' : '♫ 听示范'}</button><button className="assessment-primary" disabled={busy || playing} onClick={complete}>练习完成，继续</button></>}
-    <p role="status">{message}</p><button disabled={busy || playing} onClick={complete}>这次先跳过</button>
+    {revealed && <><p className="assessment-meaning">{word.term} · {word.meaning}</p><button disabled={busy || playing} onClick={() => void hear()}>{playing ? '播放中…' : '♫ 听示范'}</button><button className="assessment-primary" disabled={busy || playing} onClick={()=>complete(pictureChoice?undefined:oralReady?'recorded':'skipped')}>练习完成，继续</button></>}
+    <p role="status">{message}</p><button disabled={busy || playing} onClick={()=>complete(pictureChoice?undefined:'skipped')}>这次先跳过</button>
   </div>;
 }
