@@ -8,7 +8,7 @@ try { $taskHealth = Invoke-RestMethod -Uri $taskHealthUrl -TimeoutSec 2; $taskHe
 if (-not $taskHealthy) {
   if (-not (Test-Path -LiteralPath (Join-Path $taskRoot 'node_modules'))) {
     Write-Host 'Installing dependencies...'
-    & npm.cmd install
+    & npm.cmd ci
     if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
   }
   if (-not (Test-Path -LiteralPath (Join-Path $taskRoot 'dist\index.html'))) {

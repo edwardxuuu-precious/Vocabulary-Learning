@@ -37,6 +37,13 @@ test('vocabulary and interests are JSON data inside a constrained no-text educat
   assert.match(prompt, /"exactChineseMeaning":"苹果"/);
   assert.match(prompt, /No written words/);
   assert.match(prompt, /IMAGE_TOOL_UNAVAILABLE/);
+  assert.match(prompt, /CHIBI TRANSFORMERS/);
+  assert.match(prompt, /clearly ROBOTIC/);
+  assert.match(prompt, /NO human skin/);
+  assert.match(prompt, /Vocabulary correctness overrides theme decoration/);
+  assert.match(prompt, /Never replace the target animal/);
+  assert.match(prompt, /at most ONE small Transformer/);
+  assert.match(prompt, /Assigned supporting companion for this image:/);
   assert.throws(() => illustrationPrompt({ term: '', meaning: '苹果', interests: [] }), { code: 'INVALID_ILLUSTRATION_INPUT' });
 });
 

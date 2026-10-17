@@ -12,7 +12,9 @@ const configured={provider:'elevenlabs' as const,configured:true,available:false
 const codex={provider:'codex' as const,configured:false,available:false,status:'unavailable' as const,detail:'mock unavailable'};
 async function fixture(request:(url:string,init:RequestInit)=>Promise<Response>){
   const dataDir=await mkdtemp(join(tmpdir(),'word-http-stream-'));
-  const provider=createElevenLabsProvider({env,fetch:request as typeof fetch});
+  const provider=createElevenLabsProvider({env,fetch:(async(url,init)=>String(url).endsWith('/user/subscription')
+    ? Response.json({tier:'free',status:'active',character_count:0,character_limit:10000,max_credit_limit_extension:0})
+    : request(String(url),init!)) as typeof fetch});
   const app=createApp({dataDir,dialogue:{turn:async()=>{throw new Error('not used');},status:async()=>codex,cancel(){},reset:async()=>{},close:async()=>{}},integrations:{probeIntegrations:async()=>({speech:configured,tts:configured,codex}),getCachedSpeech:provider.getCachedSpeech,streamSpeech:provider.streamSpeech,synthesizeSpeech:provider.synthesizeSpeech,estimateTtsCost:provider.estimateTtsCost}});
   await new Promise<void>(resolve=>app.server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${(app.server.address() as {port:number}).port}`;

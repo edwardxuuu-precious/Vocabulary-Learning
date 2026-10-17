@@ -13,8 +13,8 @@ export function useVoice(enabled: boolean, beforeSpeak?: { current: () => void }
   if (!controllerRef.current) controllerRef.current = new SpeechPlaybackController({
     isEnabled: () => enabledRef.current,
     beforeSpeak: () => beforeSpeakRef.current?.current(),
-    playStream: playBrowserStream,
-    requestAudio: async (segment, signal) => api<SpeechResponse>('/api/speech/tts', { method: 'POST', body: JSON.stringify({ ...segment, tone: segment.tone ?? 'clear' }), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) }),
+    playStream: (segment, context) => segment.allowLocalFallback === false ? Promise.resolve('unsupported') : playBrowserStream(segment, context),
+    requestAudio: async ({ allowLocalFallback: _local, ...segment }, signal) => api<SpeechResponse>('/api/speech/tts', { method: 'POST', body: JSON.stringify({ ...segment, tone: segment.tone ?? 'clear' }), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) }),
     playAudio: playBrowserAudio,
     playLocal: playBrowserLocal,
     update: patch => { if (mounted.current) setState(previous => ({ ...previous, ...patch })); },
@@ -22,6 +22,7 @@ export function useVoice(enabled: boolean, beforeSpeak?: { current: () => void }
   const controller = controllerRef.current;
   const stop = useCallback(() => controller.stop(), [controller]);
   const speak = useCallback((text: string, locale: 'zh-CN' | 'en-US' = 'zh-CN', tone: VoiceTone = 'clear') => controller.speak({ text, locale, tone }), [controller]);
+  const speakCached = useCallback((text: string,locale:'en-US'|'zh-CN'='en-US') => controller.speak({ text, locale, tone: 'clear', cacheOnly: true }), [controller]);
   const speakSequence = useCallback((segments: SpeechSegment[]) => controller.speakSequence(segments), [controller]);
   const speakText = useCallback((text: string, tone: VoiceTone) => {
     const sentences = text.match(/[^。！？!?\n]+[。！？!?]?/g)?.map(part => part.trim()).filter(Boolean) ?? [text];
@@ -31,11 +32,11 @@ export function useVoice(enabled: boolean, beforeSpeak?: { current: () => void }
   const stopIfPlayback = useCallback((id: number) => controller.stopIfPlayback(id), [controller]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; controller.stop(); }; }, [controller]);
   useEffect(() => { if (!enabled) controller.stop(); }, [enabled, controller]);
-  return { ...state, speak, speakText, speakSequence, stop, getPlaybackId, stopIfPlayback };
+  return { ...state, speak, speakCached, speakText, speakSequence, stop, getPlaybackId, stopIfPlayback };
 }
 
 /** Resample the actual captured device rate into mono, signed 16-bit, 16 kHz PCM. */
-function toWav(samples: Float32Array, inputRate: number): ArrayBuffer {
+export function toWav(samples: Float32Array, inputRate: number): ArrayBuffer {
   const length = Math.floor(samples.length * 16000 / inputRate);
   const bytes = new ArrayBuffer(44 + length * 2);
   const view = new DataView(bytes);

@@ -31,6 +31,7 @@ export function estimateSttCost(seconds: number): number { const provider = sele
 export function getCachedSpeech(input: TtsInput): Promise<string | undefined> { return selection('output') === 'elevenlabs' ? elevenlabs.getCachedSpeech(input) : azure.getCachedSpeech(input); }
 export function synthesizeSpeech(input: TtsInput): Promise<azure.TtsResult> {
   throwIfAborted(input.signal);
+  if (input.freeOnly && selection('output') !== 'elevenlabs') return Promise.reject(new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', '中文讲解仅使用已确认免费额度的 ElevenLabs 音色，请家长检查本机设置。'));
   return selection('output') === 'elevenlabs' ? elevenlabs.synthesizeSpeech(input) : azureOutput.synthesizeSpeech(input);
 }
 export function streamSpeech(input:TtsInput) {

@@ -1,5 +1,6 @@
 import type { AppState, LearningAttempt, LearningSession, LearningStep } from '../shared/contracts';
 import { newWordSteps } from '../shared/learning';
+import { currentActivity } from '../shared/game-plan';
 
 export interface LearningPosition {
   wordId: string;
@@ -21,7 +22,7 @@ export function sessionTaskProgress(session: LearningSession) {
 export function restoreLearningPosition(state: AppState, stored?: unknown): LearningPosition | null {
   const session = state.activeSession;
   if (!session || session.completedAt) return null;
-  const wordId = session.wordIds.find(id => !session.completedWordIds.includes(id));
+  const wordId = session.activities ? currentActivity(session)?.wordId : session.wordIds.find(id => !session.completedWordIds.includes(id));
   const word = state.words.find(item => item.id === wordId);
   if (!word || !wordId) return null;
   const local = stored && typeof stored === 'object' ? stored as LocalResume : {};
@@ -29,7 +30,7 @@ export function restoreLearningPosition(state: AppState, stored?: unknown): Lear
   const planned = session.tasks?.find(task => task.wordId === wordId);
   const steps = session.tasks ? planned?.steps : newWordSteps(word, state.settings.spellingEnabled);
   if (!steps?.length) return null;
-  const serverStep = steps.find(step => !session.completedSteps?.[wordId]?.includes(step));
+  const serverStep = session.activities ? currentActivity(session)?.step : steps.find(step => !session.completedSteps?.[wordId]?.includes(step));
   const step = session.tasks ? serverStep : matchingLocal && steps.includes(local.step as LearningStep) ? local.step as LearningStep : steps[0];
   if (!step) return null;
   const skill = step === 'sound' ? 'listen' : step;
@@ -41,7 +42,7 @@ export function restoreLearningPosition(state: AppState, stored?: unknown): Lear
     .reduce<LearningAttempt | undefined>((current, attempt) => !current || attempt.createdAt >= current.createdAt ? attempt : current, undefined);
   return {
     wordId, step,
-    hinted: Boolean(matchingLocal && local.step === step && local.hinted) || records.some(attempt => attempt.hinted || (!attempt.correct && !attempt.practiceOnly)),
+    hinted: Boolean(matchingLocal && local.step === step && local.hinted) || Boolean(session.activities && session.activityStates?.[currentActivity(session)?.id ?? '']?.hinted) || records.some(attempt => attempt.hinted || (!attempt.correct && !attempt.practiceOnly)),
     feedback: accepted ? 'correct' : latest ? 'try' : null,
     practiceOnly: Boolean(accepted?.practiceOnly),
   };

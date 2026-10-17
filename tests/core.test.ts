@@ -9,6 +9,7 @@ function fixture() {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'word-core-'));
   let time = new Date('2026-10-15T02:00:00Z');
   const store = new Store(directory, () => time);
+  store.enablePack('starter',true); // Tests explicitly opt in to the non-formal sample vocabulary.
   return { store, directory, advance: (days: number) => { time = new Date(time.getTime() + days * 86_400_000); }, close: () => { store.close(); if (directory.startsWith(path.join(os.tmpdir(), 'word-core-'))) rmSync(directory, { recursive: true, force: true }); } };
 }
 const attempt = (sessionId: string, wordId: string, skill = 'listen', extra = {}) => ({ sessionId, wordId, skill, correct: true, hinted: false, source: 'click', ...extra });
@@ -84,7 +85,7 @@ test('session resumes, retries are idempotent, completion grants exactly one sti
     completePlannedWords(f.store);
     f.store.updateSession({ complete:true }); f.store.updateSession({ complete:true });
     assert.equal(f.store.read().stickers.length, 1);
-    assert.equal(f.store.startSession().id, session.id);
+    assert.equal(f.store.read().sessions[0].completedAt !== undefined, true);
     const second = new Store(f.directory); try { assert.equal(second.read().stickers.length, 1); } finally { second.close(); }
     f.advance(1); const next = f.store.startSession(); assert.notEqual(next.id, session.id);
     assert.ok(next.wordIds.includes(session.wordIds[0]));

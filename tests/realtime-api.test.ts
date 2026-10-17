@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
@@ -15,11 +15,12 @@ const notConfigured: ServiceStatus = { configured:false, available:false, status
 const reply: ChatReply = { text:'我记对了吗？', tone:'curious', action:{type:'propose_interest',interest:'我喜欢挖掘机'} };
 async function fixture(options: Partial<AppOptions> = {}) {
   const dir=mkdtempSync(join(tmpdir(),'word-realtime-'));
+  mkdirSync(join(dir,'speech'));const mockAudio=join(dir,'speech','apple.mp3');writeFileSync(mockAudio,Buffer.concat([Buffer.from('ID3'),Buffer.alloc(50)]));
   let sent=0;
   const app=createApp({chatEnabled:true,dataDir:dir,dialogue:{status:async()=>({...configured,provider:'codex'}),turn:async(input,events)=>{events?.onStatus?.('thinking');return {conversationId:'test_conversation',reply:{...reply,action:{type:'propose_interest',interest:input.message}}};},cancel(){},reset:async()=>{},close:async()=>{}},integrations:{probeIntegrations:async()=>({speech:notConfigured,stt:configured,tts:notConfigured,codex:notConfigured}),estimateSttCost:s=>s*0.001,createLiveSttSession:async(input:LiveSttSessionInput)=>{
     queueMicrotask(()=>input.onEvent({type:'ready'}));
     return {sendAudio(audio:Buffer){sent+=audio.length;input.onEvent({type:'transcript',text:'我喜欢',final:true});},finish(){input.onUsage?.(sent/32000);input.onEvent({type:'endpoint',text:'我喜欢挖掘机'});},cancel(){input.onUsage?.(sent/32000);}};
-  }},...options});
+  },getCachedSpeech:async input=>input.text==='apple'?mockAudio:undefined,ttsStatus:()=>({...notConfigured,provider:'elevenlabs'}),synthesizeSpeech:async()=>{throw Error('mock only; no cloud generation in realtime API tests');}},...options});
   await new Promise<void>(resolve=>app.server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${(app.server.address() as {port:number}).port}`;
   return {...app,base,closeFixture:async()=>{await app.close();if(dir.startsWith(join(tmpdir(),'word-realtime-')))rmSync(dir,{recursive:true,force:true});}};

@@ -69,7 +69,7 @@ export function playBrowserStream(segment: SpeechSegment, context: PlaybackConte
       // Establish both operations immediately. play() may wait for the first MP3 frame; an autoplay rejection must stop the fetch rather than switch voices.
       const response = environment.fetch('/api/speech/tts/stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-        body: JSON.stringify({ ...segment, tone: segment.tone ?? 'clear' }), signal: controller.signal,
+        body: JSON.stringify({ text: segment.text, locale: segment.locale, cacheOnly: segment.cacheOnly, tone: segment.tone ?? 'clear' }), signal: controller.signal,
       }).then(result => { if (settled) { try { void result.body?.cancel().catch(() => {}); } catch {} } return result; });
       const ready = Promise.all([response, opened]);
       const playbackRejected = (failure: unknown) => {

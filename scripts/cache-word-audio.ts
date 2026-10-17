@@ -11,11 +11,13 @@ const { getCachedSpeech } = await import('../server/integrations/speech-router.t
 const base = 'http://127.0.0.1:8787';
 const dataDir = resolve(root, process.env.PLAYROOM_DATA_DIR ?? 'data');
 const apply = process.argv.includes('--apply');
-if (process.argv.slice(2).some(arg => arg !== '--apply')) throw new Error('仅支持 --apply；不传参数时只检查缓存。');
+const includeSamples = process.argv.includes('--include-samples');
+if (process.argv.slice(2).some(arg => !['--apply','--include-samples'].includes(arg))) throw new Error('支持 --apply 补缺、--include-samples 显式包含示例；不传参数时只检查正式词表缓存。');
 const stateResponse = await fetch(base + '/api/state', { signal: AbortSignal.timeout(10000) });
 if (!stateResponse.ok) throw new Error('本机应用未就绪。');
 const before = await stateResponse.json() as AppState;
-const words = [...new Set(before.words.map(word => word.term))];
+const packIds = new Set(before.packs.filter(pack => includeSamples || !pack.isSample).map(pack => pack.id));
+const words = [...new Set(before.words.filter(word => packIds.has(word.packId)).map(word => word.term))];
 const input = (text: string) => ({ text, locale: 'en-US' as const, tone: 'clear' as const, dataDir });
 const rows = await Promise.all(words.map(async text => ({ text, cachedBefore: Boolean(await getCachedSpeech(input(text))) })));
 const missing = rows.filter(row => !row.cachedBefore);

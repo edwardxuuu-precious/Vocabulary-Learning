@@ -6,7 +6,7 @@ import type { ServiceStatus, VoiceTone } from '../../shared/contracts.ts';
 import { validateTtsInput, type TtsInput as AzureTtsInput, type TtsResult } from './speech.ts';
 import { IntegrationError, throwIfAborted } from './errors.ts';
 
-export type TtsInput = AzureTtsInput & { tone?: VoiceTone; signal?: AbortSignal; beforeRequest?: () => void };
+export type TtsInput = AzureTtsInput & { tone?: VoiceTone; signal?: AbortSignal; beforeRequest?: () => void; freeOnly?: boolean };
 export interface TtsStreamResult {
   contentType: 'audio/mpeg'; mode: 'api'; cached: boolean;
   stream: AsyncIterable<Uint8Array>; completed: Promise<TtsResult>; cancel(): void;
@@ -67,6 +67,22 @@ export function createElevenLabsProvider(options: ElevenLabsOptions = {}) {
     try { const info = await stat(filePath); if (info.size <= (options.maxAudioBytes ?? 2_000_000) && mp3(await readFile(filePath))) return filePath; } catch { /* Expected cache miss. */ }
     return undefined;
   }
+  async function verifyFreeQuota(input: TtsInput, signal: AbortSignal) {
+    if (!input.freeOnly) return;
+    const failure = () => new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', '暂时无法确认 ElevenLabs 免费额度，中文讲解已暂停；请家长开启密钥的 user_read 权限后重试，也可以点箭头继续。');
+    let response: Response;
+    try { response = await request('https://api.elevenlabs.io/v1/user/subscription', { method: 'GET', redirect: 'error', signal, headers: { 'xi-api-key': config(input.locale).key! } }); }
+    catch { throwIfAborted(input.signal); throw failure(); }
+    if (!response.ok) { await response.body?.cancel().catch(() => {}); throw failure(); }
+    let quota: { tier?: string; character_count?: number; character_limit?: number; max_credit_limit_extension?: number | string; status?: string };
+    try { quota = await response.json(); } catch { throw failure(); }
+    throwIfAborted(input.signal);
+    if (!quota || typeof quota !== 'object' || quota.tier !== 'free' || quota.max_credit_limit_extension !== 0 || !['free', 'active', 'trialing'].includes(quota.status ?? '') ||
+        typeof quota.character_count !== 'number' || !Number.isFinite(quota.character_count) || quota.character_count < 0 ||
+        typeof quota.character_limit !== 'number' || !Number.isFinite(quota.character_limit) || quota.character_limit - quota.character_count < [...input.text].length) {
+      throw new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', '未确认有足够的免费额度，中文讲解已暂停；已有缓存仍可播放，也可以点箭头继续。');
+    }
+  }
   function status(): ServiceStatus {
     try {
       const chinese = config('zh-CN'), english = config('en-US');
@@ -106,6 +122,7 @@ export function createElevenLabsProvider(options: ElevenLabsOptions = {}) {
       let temporaryPath: string | undefined;
       try {
         throwIfAborted(input.signal);
+        await verifyFreeQuota(input, controller.signal);
         input.beforeRequest?.();
         throwIfAborted(input.signal);
         const response = await request(`https://api.elevenlabs.io/v1/text-to-dialogue/stream?output_format=${OUTPUT_FORMAT}`, {
@@ -196,7 +213,7 @@ export function createElevenLabsProvider(options: ElevenLabsOptions = {}) {
     const chunks:Buffer[]=[];let size=0;
     const add=(bytes:Uint8Array)=>{size+=bytes.byteLength;if(size>maximum)throw new IntegrationError('SPEECH_OUTPUT_LIMIT','语音音频超过本地大小限制。');const chunk=Buffer.from(bytes);chunks.push(chunk);return chunk;};
     try{
-      throwIfAborted(input.signal);input.beforeRequest?.();throwIfAborted(input.signal);requestSent=true;
+      throwIfAborted(input.signal);await verifyFreeQuota(input,controller.signal);check();input.beforeRequest?.();throwIfAborted(input.signal);requestSent=true;
       response=await request(`https://api.elevenlabs.io/v1/text-to-dialogue/stream?output_format=${OUTPUT_FORMAT}`,{
         method:'POST',redirect:'error',signal:controller.signal,headers:{'xi-api-key':settings.key,'Content-Type':'application/json',Accept:'audio/mpeg'},
         body:JSON.stringify({model_id:settings.model,language_code:input.locale==='en-US'?'en':'zh',inputs:[{text:value.text,voice_id:settings.voice}],settings:{stability:input.locale==='en-US'?1:0.5},apply_text_normalization:input.locale==='en-US'?'off':'auto',seed:1234}),

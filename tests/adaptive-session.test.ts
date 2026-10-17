@@ -11,6 +11,7 @@ const services:IntegrationStatus={speech:{configured:false,available:false,statu
 function fixture(initial='2026-10-15T02:00:00Z'){
   const directory=mkdtempSync(join(tmpdir(),'word-adaptive-'));let clock=new Date(initial);
   const store=new Store(directory,()=>clock);
+  store.enablePack('starter',true); // Explicit sample opt-in for scheduling fixtures.
   return{store,directory,at:(time:string)=>{clock=new Date(time);},now:()=>clock,close:()=>{store.close();if(directory.startsWith(join(tmpdir(),'word-adaptive-')))rmSync(directory,{recursive:true,force:true});}};
 }
 const finishStep=(store:Store,wordId:string,step:LearningStep)=>store.updateSession({completedStep:{wordId,step}});
@@ -133,7 +134,7 @@ test('completion after Shanghai midnight counts as the new day for both planned 
       f.at('2026-10-15T16:00:30Z');
       if(legacy)f.store.updateSession({completedWordId:session.wordIds[0]});else finishWord(f.store,session,session.wordIds[0]);
       f.store.updateSession({complete:true});
-      assert.equal(f.store.startSession().id,session.id);assert.equal(f.store.state(services).activeSession!.id,session.id);assert.equal(f.store.read().stickers.length,1);
+      assert.equal(f.store.state(services).activeSession,null);assert.equal(f.store.state(services).lastCompletedSession!.id,session.id);assert.equal(f.store.read().stickers.length,1);
       f.at('2026-10-16T16:00:30Z');assert.notEqual(f.store.startSession().id,session.id);
     }finally{f.close();}
   }

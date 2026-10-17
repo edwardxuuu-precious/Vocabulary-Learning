@@ -1,0 +1,226 @@
+{
+  "formatVersion": 1,
+  "themeId": "transformers-mecha-v2",
+  "assets": [
+    {
+      "path": "public/assets/backgrounds/cloud-garden-v1.png",
+      "bytes": 1444128,
+      "sha256": "bbf9dda610766dcf187fa7c33c73e826f7be6927abef0daeaa45564ab5384ac0"
+    },
+    {
+      "path": "public/assets/backgrounds/lagoon-v1.png",
+      "bytes": 1465454,
+      "sha256": "dd79c76b856640170f4a0b8c60334661dc199d7461c85bfc8e00a4898066a824"
+    },
+    {
+      "path": "public/assets/backgrounds/meadow-v1.png",
+      "bytes": 1572844,
+      "sha256": "85e28b229c4334171ca56b530fc8952e15f8e2b223f0cbb8d1f2e74abc5424c9"
+    },
+    {
+      "path": "public/assets/brand/arcee-mecha-v2.png",
+      "bytes": 1360504,
+      "sha256": "90f5c0072ebb139db5f837a4287bfb67a844d51c8476579312afc0bc92d96ad7"
+    },
+    {
+      "path": "public/assets/brand/autobot-courtyard-desktop-v5.png",
+      "bytes": 1802415,
+      "sha256": "488e8783b8b5aa0e3480424715721312a3e79cc59bbfdab1a12a8afa93e39f3a"
+    },
+    {
+      "path": "public/assets/brand/autobot-courtyard-portrait-v5.png",
+      "bytes": 1802712,
+      "sha256": "b7365ddee4a9510043147e78380cb759b58c4b89b89cae8c526482a35f87d529"
+    },
+    {
+      "path": "public/assets/brand/bumblebee-mecha-v2.png",
+      "bytes": 1591635,
+      "sha256": "03d79a4ff9aad951e71d24595086af4c9a67e2429774314d71bdfb61eca49e60"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/elitaone.png",
+      "bytes": 1558450,
+      "sha256": "4b584fd9ee3e3fb9538581f51b919f80f6165d2c191f6376d1c78f0479029468"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/grimlock.png",
+      "bytes": 2023540,
+      "sha256": "fedd02c8d51f165d440198fea12189268c05b6010b007af2a750233afceedc73"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/hotrod.png",
+      "bytes": 1891031,
+      "sha256": "573b566ac000ac3e1b0b394e102e99c8bee58f878530d040ad6b1b40380f2dff"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/hound.png",
+      "bytes": 1903222,
+      "sha256": "b9fac928fa137984f4b6a22e4469034120eb19d031504cf732052c2fb008618c"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/ironhide.png",
+      "bytes": 2337685,
+      "sha256": "a14af97d8f100183620d47a1da9fe091d09d7481666957295d2ddfac35c4a520"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/jazz.png",
+      "bytes": 1797063,
+      "sha256": "41e6b087018bc5dfb065d03d625fb4b335bf9da97972fa2fb31634fa11d4fed9"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/jetfire.png",
+      "bytes": 1768494,
+      "sha256": "021a823c4f46acf04cda289a21c94c80f40214d0e6dc786a12d5ba25fa1d09f4"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/megatron.png",
+      "bytes": 1785447,
+      "sha256": "59b22d17d0c4fbc40e85f12e560abcc6f907487b027fb6ec5fbef7902329a5b3"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/mirage.png",
+      "bytes": 1874998,
+      "sha256": "4f129e6a4b4505ea7a9858af07acf8d4868322908535436673986f347d0b5720"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/prowl.png",
+      "bytes": 1872518,
+      "sha256": "d6339675b4229aa0c5912be4b79ae3f50a264094cf311fc798362fa1f002bd2d"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/ratchet.png",
+      "bytes": 1631893,
+      "sha256": "71ae9be566da6e1e63787140f3f4c66c80df884ea3d12171f184a55830dc0a92"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/shockwave.png",
+      "bytes": 1761686,
+      "sha256": "160b0f06c8a8a0ad534ef23994ea56a18669f4ebae6eff21a85e7c9b6a357cd7"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/sideswipe.png",
+      "bytes": 1719095,
+      "sha256": "cf5b80ddd8e11a4f26268acb9a289ada68c2e71005143727246500d543593215"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/soundwave.png",
+      "bytes": 1872064,
+      "sha256": "d3f2a720f6611ad3fdcb8555d630927485396a7e2903631a7cf1a03c77132530"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/starscream.png",
+      "bytes": 1862211,
+      "sha256": "988a074ebfadb0319b472aa682fa31b8c1bcab388fde95110f2897a5163607dc"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/ultramagnus.png",
+      "bytes": 2428585,
+      "sha256": "a65cf11382e4a1d307ad6a45c3711e3c970dfc7b6f6f7e0424dbc5a6e15568dc"
+    },
+    {
+      "path": "public/assets/brand/companions-v1/wheeljack.png",
+      "bytes": 2015309,
+      "sha256": "34d10bbcfbe23fede2b43c5a76356146a15d783b7db42ea620523051d664198b"
+    },
+    {
+      "path": "public/assets/brand/optimus-mecha-v2.png",
+      "bytes": 1871190,
+      "sha256": "9bff16db15933644b8c8481cda66872d14c057c5f49cc298c618b9c4ab414a50"
+    },
+    {
+      "path": "public/assets/placeholder.svg",
+      "bytes": 439,
+      "sha256": "ec87617a4c58fa9b20dbb8ebb0b9545963cbcb4aabc89373af891865ed37c9cd"
+    },
+    {
+      "path": "public/assets/themes/animals.svg",
+      "bytes": 1025,
+      "sha256": "90b8f57d40745e0015f0cc7cbb33d8b1830aa08fbdaf5a018d8f564eb79ee76c"
+    },
+    {
+      "path": "public/assets/themes/cars.svg",
+      "bytes": 811,
+      "sha256": "bc7bf7abc61961a4ffb85b8c1204ee0cf17b7e71ee3d12001399b796ac095aae"
+    },
+    {
+      "path": "public/assets/themes/dinosaurs.svg",
+      "bytes": 583,
+      "sha256": "98805eb04be05950e6a8b6aa05c8c7255f4dcaeb5658a9de360f884ad171b2fc"
+    },
+    {
+      "path": "public/assets/themes/nature.svg",
+      "bytes": 492,
+      "sha256": "5be3d4abcdc9a2fca588f090d30fed74259af433d0e1d5b6da931a2dbf89696d"
+    },
+    {
+      "path": "public/assets/themes/ocean.svg",
+      "bytes": 737,
+      "sha256": "5135b4ac623e014f97979d919c482c0fca3a491713e48bb28948b759b3a11b0f"
+    },
+    {
+      "path": "public/assets/themes/space.svg",
+      "bytes": 738,
+      "sha256": "d2922b213625a43fefb9fe794861321d485a1498f3bfc42a08152a9eb8d7e93e"
+    },
+    {
+      "path": "public/assets/words/apple.svg",
+      "bytes": 629,
+      "sha256": "6cd60cec5a1dff13ffcef5b542bc708aa5d73966a00583e4a5d2715f7f645b1c"
+    },
+    {
+      "path": "public/assets/words/ball.svg",
+      "bytes": 629,
+      "sha256": "b6fa44a1ce0156343f1b2686216e37c98718bf15d0b0a495e050758706ada734"
+    },
+    {
+      "path": "public/assets/words/banana.svg",
+      "bytes": 601,
+      "sha256": "b99a95b9da12f7fcc891ce537c27a86b832e0e9eb623449777c6a271ad61e07a"
+    },
+    {
+      "path": "public/assets/words/bird.svg",
+      "bytes": 766,
+      "sha256": "045a16c9193ca9b78f75003783d0ec7eaa4353962a34fd1c940f4d31fe9e04a8"
+    },
+    {
+      "path": "public/assets/words/car.svg",
+      "bytes": 810,
+      "sha256": "ea2e6b3d1ed8a1736b7dd42b25cfafed74ff68c180e93cfcdef76cbce414994b"
+    },
+    {
+      "path": "public/assets/words/cat.svg",
+      "bytes": 1021,
+      "sha256": "6961fa97137a42285803b5b62a6435980f7f9e8469de53c2fd43d8f817f846bb"
+    },
+    {
+      "path": "public/assets/words/dog.svg",
+      "bytes": 919,
+      "sha256": "d765aeb2372ad964d1831f985ac299800a1a5784bbdf28ccfe9ffb8da12f4bed"
+    },
+    {
+      "path": "public/assets/words/fish.svg",
+      "bytes": 736,
+      "sha256": "c733a57f5505673d0f648b3527e93ccedf778e2120abb14e000ab103820fccba"
+    },
+    {
+      "path": "public/assets/words/jump.svg",
+      "bytes": 942,
+      "sha256": "7178e8719b90b024842cfd3eadeab81a41ec1557caba4d7c6418b5c15afbc8d5"
+    },
+    {
+      "path": "public/assets/words/moon.svg",
+      "bytes": 557,
+      "sha256": "23c7efdba26c94eb7831b8b38108dc753a0d59ff38f45ac696572db1cea52a66"
+    },
+    {
+      "path": "public/assets/words/run.svg",
+      "bytes": 941,
+      "sha256": "178261c0fe566620d45de083a8addc866c879baa80dfb28056bde0320f7d0d78"
+    },
+    {
+      "path": "public/assets/words/sun.svg",
+      "bytes": 761,
+      "sha256": "b923f122846c62dc6c2fabad76f5b758ea77ab296a7b8b33b971ccb4affe5513"
+    }
+  ]
+}

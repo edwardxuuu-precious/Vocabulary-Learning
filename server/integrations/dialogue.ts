@@ -77,7 +77,7 @@ export function dialogueServerArguments():string[] {
 }
 
 /** JSONL app-server transport. No shell, token parsing, raw stderr persistence, or granted server requests. */
-class StdioTransport implements DialogueTransport {
+export class StdioTransport implements DialogueTransport {
   private child:ChildProcessWithoutNullStreams;
   private pending=new Map<number,{resolve:(value:any)=>void;reject:(error:Error)=>void;timer:NodeJS.Timeout}>();
   private listeners=new Set<(message:RpcMessage)=>void>();

@@ -20,8 +20,8 @@ export function MicrophoneHelp({ notify }: { notify: (message: string) => void }
   return <div role="note" aria-label="麦克风开启方法">
     <strong>麦克风权限与设备</strong>
     <p role="status">浏览器授权：{permission}；录音接口：{microphoneAvailable ? '可用' : '未提供'}。</p>
-    <p>在浏览器的站点权限中，允许此网页使用麦克风。如果内置浏览器没有授权入口，可用 Chrome 或 Edge 打开 http://127.0.0.1:8787，再点麦克风并允许。</p>
-    <p>仍不能打开时，请检查 Windows 设置中的麦克风隐私权限，以及当前录音设备。网页不能代替你修改浏览器或系统授权。</p>
+    <p>{permission === '已允许' ? '网页授权已打开，无需反复点击允许。仍不能录音时，请检查系统对当前浏览器的麦克风授权。' : '请家长在浏览器的站点权限中，允许此网页使用麦克风。'}</p>
+    <p>Windows 设置 → 隐私和安全性 → 麦克风：检查“麦克风访问权限”和应用授权。Codex 在部分安装包中显示为 ChatGPT；使用 Chrome 或 Edge 时，检查对应浏览器及桌面应用的授权。网页不能代替你修改系统授权。</p>
     <button className="button secondary compact-button" type="button" onClick={() => void copy()}>复制本机网页地址</button>
   </div>;
 }

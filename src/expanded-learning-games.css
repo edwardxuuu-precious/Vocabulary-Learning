@@ -1,0 +1,47 @@
+.extra-bingo-board { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; width:min(100%,330px); }
+.extra-bingo-board .extra-picture { border-radius:20px; }
+.extra-free-square { display:flex; flex-direction:column; align-items:center; justify-content:center; border:3px solid #e7c888; border-radius:20px; background:#fff5d7; color:#b38b35; font-size:48px; }
+.extra-free-square span { font-size:16px; }
+.extra-picture.is-collected { border-color:#79b499; background:#e3f3e9; opacity:.72; box-shadow:none; }
+.extra-stars { display:flex; gap:14px; font-size:27px; color:#b8c8dd; }
+.extra-stars .is-lit { color:#c1993b; }
+.extra-repair-board { width:min(100%,420px); display:grid; gap:6px; }
+.extra-wire-row { display:flex; align-items:center; gap:14px; padding:4px 12px; border-radius:16px; background:#edf3fc; opacity:.65; }
+.extra-wire-row.is-current { background:#e4ecff; opacity:1; }
+.extra-wire-row button { display:flex; gap:8px; align-items:center; justify-content:center; min-width:70px; min-height:48px; border-radius:13px; background:#b8cced; color:#304f7c; font:600 18px system-ui; }
+.extra-wire-row button span { font-size:25px; }
+.extra-wire-row img { width:52px; height:52px; object-fit:contain; background:#fffdf7; border-radius:10px; }
+.extra-wire { flex:1; text-align:center; color:#a4875e; border-top:3px dashed #b9acc1; font-size:23px; line-height:1; }
+.extra-wire-row.is-fixed .extra-wire { color:#428262; border-color:#84b79b; }
+.extra-repair-board + .game-picture-choices { max-width:480px; }
+.extra-gate-scene { width:min(100%,300px); display:flex; gap:12px; align-items:center; justify-content:center; }
+.extra-gate-scene>img { width:170px; height:170px; object-fit:contain; border-radius:25px; background:#fffdf7; }
+.extra-gate-post { width:15px; height:170px; border-radius:8px; background:#a2b7d6; box-shadow:0 5px 0 #728cae; transition:transform .3s ease; }
+.extra-gate-scene.is-open .extra-gate-post:first-child { transform:translateX(-12px) rotate(-8deg); }
+.extra-gate-scene.is-open .extra-gate-post:last-child { transform:translateX(12px) rotate(8deg); }
+.extra-gate-actions { display:flex; gap:18px; width:min(100%,350px); }
+.extra-gate-actions button { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; min-height:70px; border:2px solid #a7c8d4; background:#ecf7ef; border-radius:20px; color:#2f6a50; font:600 20px system-ui; box-shadow:0 5px 0 #a9c7b8; }
+.extra-gate-actions button:last-child { background:#edf2fc; color:#3c5f89; border-color:#adc4de; box-shadow:0 5px 0 #b9cce1; }
+.extra-gate-actions button span { font-size:29px; }
+.extra-treasure { margin-top:30px; margin-bottom:24px; }
+.extra-picture.is-covered { background:repeating-linear-gradient(45deg,#91acd9,#91acd9 12px,#9fb9e1 12px,#9fb9e1 24px); border-color:#c1d1e9; }
+.extra-question { display:block; font-size:60px; color:#f6fbff; }
+.extra-ear { width:140px; height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#627cb8; font-size:74px; }
+.extra-ear span { font-size:35px; letter-spacing:8px; }
+.extra-show { font-size:18px; }
+.extra-missing-board { margin:24px 0; }
+.extra-memory-picture { aspect-ratio:1; min-width:0; padding:10px; border:3px solid #bacbe3; border-radius:25px; background:#fffdf7; display:grid; place-items:center; box-sizing:border-box; }
+.extra-memory-picture img { width:100%; height:100%; object-fit:contain; }
+.extra-memory-picture.is-empty { background:#e5e9f5; border:3px dashed #9cadd1; color:#7c88b4; font-size:70px; }
+.extra-think-picture { width:180px; height:180px; padding:8px; background:#fffdf7; border:3px solid #b9cce5; border-radius:26px; }
+.extra-think-picture img { width:100%; height:100%; object-fit:contain; }
+.extra-sound-options { display:grid; gap:8px; width:min(100%,400px); }
+.extra-sound-row { display:grid; grid-template-columns:minmax(0,1fr) 110px; gap:10px; }
+.extra-sound-row button { min-height:50px; border-radius:16px; background:#e9f2fd; border:2px solid #b9cde4; color:#385a83; font:600 17px system-ui; }
+.extra-sound-row button:first-child { display:flex; align-items:center; justify-content:center; gap:12px; }
+.extra-sound-row button:first-child span { font-size:27px; }
+.extra-sound-row button:last-child { background:#657ddd; border-color:#546bc3; color:white; }
+.extra-sound-row.is-correct button { background:#e1f2e7; color:#316b51; border-color:#83b59c; }
+@media(max-width:600px) { .extra-bingo-board { max-width:270px; } .extra-gate-scene>img { width:145px; height:145px; } .extra-gate-post { height:145px; } .extra-repair-board { gap:4px; } .extra-wire-row img { width:44px; height:44px; } .extra-wire-row { padding:3px 9px; } .extra-treasure { margin:18px 0; } .extra-memory-picture { padding:6px; border-radius:18px; } .extra-memory-picture.is-empty { font-size:50px; } .extra-sound-row { grid-template-columns:minmax(0,1fr) 94px; } .extra-think-picture { width:155px; height:155px; } }
+@media(min-width:601px) and (max-height:760px) { .extra-bingo-board { max-width:240px; } .extra-gate-scene>img { width:135px; height:135px; } .extra-gate-post { height:135px; } .extra-think-picture { width:130px; height:130px; } .extra-wire-row { padding:2px 9px; } .extra-wire-row img { width:42px; height:42px; } .extra-repair-board + .game-picture-choices { max-width:370px; } .extra-missing-board { max-width:500px; margin:15px 0; } .extra-sound-row button { min-height:46px; } }
+@media(prefers-reduced-motion:reduce) { .extra-gate-post { transition:none; } }

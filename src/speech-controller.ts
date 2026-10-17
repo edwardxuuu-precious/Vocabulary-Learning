@@ -1,6 +1,6 @@
 import type { VoiceTone } from '../shared/contracts';
 
-export interface SpeechSegment { text: string; locale: 'zh-CN' | 'en-US'; tone?: VoiceTone }
+export interface SpeechSegment { text: string; locale: 'zh-CN' | 'en-US'; tone?: VoiceTone; cacheOnly?: boolean; allowLocalFallback?: boolean }
 export interface SpeechAsset { mode: 'api' | 'local'; audioUrl?: string }
 export interface SpeechState { speaking: boolean; localMode: boolean; currentText: string; message: string }
 export interface PlaybackContext { signal: AbortSignal; onStart: () => void }
@@ -67,7 +67,10 @@ export class SpeechPlaybackController {
       if (streamed === 'failed') { this.runtime.update({ message: '这次声音中断了，点小喇叭再听一次。' }); return false; }
       requestCompleteAudio = streamed === 'unsupported';
     }
-    if (requestCompleteAudio) try { asset = await this.runtime.requestAudio(segment, signal); } catch { if (!isCurrent()) return false; }
+    if (requestCompleteAudio) try { asset = await this.runtime.requestAudio(segment, signal); } catch (failure) {
+      if (!isCurrent()) return false;
+      if (segment.allowLocalFallback === false) { this.runtime.update({ speaking: false, message: failure instanceof Error ? failure.message : '这次声音没能播放，可以点按钮继续。' }); return false; }
+    }
     if (!isCurrent()) return false;
     if (asset.mode === 'api' && asset.audioUrl) {
       this.runtime.update({ localMode: false });
@@ -81,6 +84,8 @@ export class SpeechPlaybackController {
       if (played) return true;
     }
     if (!isCurrent()) return false;
+    if (segment.cacheOnly) { this.runtime.update({ speaking: false, message: '缓存声音暂时没能播放，可以重听或跳过。' }); return false; }
+    if (segment.allowLocalFallback === false) { this.runtime.update({ speaking: false, message: '讲解声音暂时不可用，可以重听或点箭头继续。' }); return false; }
     this.runtime.update({ localMode: true });
     let played = false;
     try { played = await this.runtime.playLocal(segment, context); } catch { /* A missing browser voice must release the interaction. */ }

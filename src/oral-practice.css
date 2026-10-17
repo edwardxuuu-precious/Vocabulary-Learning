@@ -1,0 +1,32 @@
+.oral-practice { width:min(100%,510px); display:flex; flex-direction:column; align-items:center; gap:12px; padding:16px 20px; box-sizing:border-box; border-radius:22px; background:#ffffffb5; }
+.oral-practice-heading { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:10px; color:#5e7495; font-size:15px; line-height:1.5; }
+.oral-practice-heading small { color:#8b9aaf; font-size:12px; }
+.oral-practice-actions { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:12px; }
+.oral-practice button { min-height:48px; font-family:inherit; cursor:pointer; }
+.oral-practice .oral-record,.oral-practice .oral-complete { display:flex; align-items:center; justify-content:center; gap:10px; min-height:54px; padding:12px 20px; border:1.5px solid #a9bce7; border-radius:17px; color:#465db0; background:#eff3ff; font-size:18px; font-weight:650; }
+.oral-practice .oral-record.is-recording { background:#fff0f0; color:#ac5262; border-color:#dda3ad; }
+.oral-practice .oral-replay { display:flex; align-items:center; justify-content:center; gap:5px; min-width:48px; padding:10px; border:1px solid #c5d5e8; border-radius:15px; background:#f4f9ff; color:#5877a1; }
+.oral-replay span { font-size:25px; }
+.oral-practice .oral-skip { background:transparent; border:0; padding:4px 8px; min-height:36px; font-size:13px; color:#7e8da5; text-decoration:underline; text-underline-offset:4px; }
+.oral-practice button:disabled { opacity:.6; cursor:default; }
+.oral-message { margin:0; font-size:14px; color:#697e9e; text-align:center; line-height:1.5; }
+.oral-practice.is-compact { padding:10px 16px; gap:8px; }
+.practice-history-list { display:grid; gap:12px; margin-top:20px; }
+.practice-history-list article { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:16px; border:1px solid #e1e8f3; border-radius:16px; background:#f8faff; }
+.practice-history-list article>div { display:flex; flex-direction:column; gap:6px; }
+.practice-history-list small { color:#7b8ca5; font-size:13px; }
+.practice-history-list audio { max-width:100%; }
+.game-page.game-portal .game-portal-window { width:220px; margin:0; }
+.game-page.game-portal .game-stage { gap:16px; }
+.game-portal-subject { display:flex; align-items:center; flex-direction:column; gap:14px; }
+@media(min-width:701px){
+  .game-page.game-portal .game-stage { display:grid; grid-template-columns:minmax(220px,300px) minmax(0,1fr); gap:20px 36px; align-items:center; }
+  .game-page.game-portal .game-prompt { grid-column:1 / -1; margin-bottom:12px; }
+  .game-page.game-portal .game-portal-subject { grid-column:1; grid-row:2 / span 3; align-self:start; }
+  .game-page.game-portal .game-portal-window { width:260px; }
+  .game-page.game-portal .oral-practice { grid-column:2; grid-row:2; }
+  .game-page.game-portal .game-reveal { grid-column:2; grid-row:3; justify-self:center; }
+  .game-page.game-portal .game-feedback { grid-column:2; grid-row:4; justify-self:center; }
+}
+@media(min-width:701px) and (max-height:760px){.game-page.game-portal .game-portal-window{width:230px}.game-page.game-portal .game-stage{gap:12px 32px}.game-page.game-portal .game-revealed-word{font-size:23px}.game-page .oral-practice{padding:10px 18px;gap:8px}}
+@media(max-width:700px){.oral-practice{padding:14px;gap:10px}.game-page.game-portal .game-portal-window{width:190px}.oral-practice .oral-record{font-size:17px;padding:10px 16px}.oral-practice-actions{gap:10px}}

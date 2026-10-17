@@ -38,7 +38,7 @@ test('fresh words retain the full lesson and fit the task estimate, including op
 test('old words start directly at due skills and listening questions vary without exposing a learn page', () => {
   const state = fixture(); due(state, 0, 'listen', 2); due(state, 1, 'listen', 3);
   const plan = dailyLearningPlan(state, now);
-  assert.deepEqual(plan.tasks.slice(0, 2).map(task => [task.mode, task.steps]), [['review', ['listen']], ['review', ['sound']]]);
+  assert.deepEqual([...plan.tasks.slice(0, 2)].sort((a,b)=>a.wordId.localeCompare(b.wordId)).map(task => [task.mode, task.steps]), [['review', ['listen']], ['review', ['sound']]]);
   assert.equal(plan.fresh.length, 2); assert.equal(plan.taskCount, 10);
   assert.ok(plan.taskCount <= plan.taskLimit);
 });

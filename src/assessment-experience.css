@@ -1,0 +1,16 @@
+.assessment-experience{min-height:100svh;background:#f4f8ff;color:#263e63}
+.experience-header{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:20px max(24px,calc((100vw - 1120px)/2));background:#e4edff;border-bottom:1px solid #cbd9f4}
+.experience-header strong{font-size:22px}.experience-header p{font-size:14px;line-height:1.6;color:#5c7196;margin:7px 0 0}
+.experience-tools{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;font-size:14px}
+.experience-tools span{color:#5c7196}.experience-tools button{padding:10px 13px;min-height:42px;border:1px solid #bdccef;border-radius:12px;background:#fff;color:#4561a2;font-size:14px;font-weight:600}
+.experience-tools button:disabled{opacity:.45}
+.experience-welcome{width:min(820px,100%);margin:auto;padding:40px 26px}
+.experience-label{color:#5265bc;font-size:15px;font-weight:700}.experience-welcome h1{font-size:clamp(28px,5vw,40px);margin:12px 0 16px;line-height:1.3}
+.experience-welcome p{font-size:18px;line-height:1.8;color:#607493}.experience-welcome ol{display:grid;grid-template-columns:1fr 1fr;list-style:none;padding:0;margin:28px 0;gap:14px;counter-reset:steps}
+.experience-welcome li{display:flex;flex-direction:column;gap:8px;padding:23px 20px;border:1px solid #d5e0f5;border-radius:18px;background:#fff;counter-increment:steps}
+.experience-welcome li strong{font-size:20px}.experience-welcome li strong::before{content:counter(steps) ' · ';color:#687ed5}.experience-welcome li span{font-size:16px;color:#647898;line-height:1.5}
+.experience-welcome .experience-tip{font-size:16px}.experience-welcome>.assessment-primary{min-height:58px;margin-top:12px;font-size:20px;padding:14px 28px;background:#286cb1;color:#fff;border:2px solid #286cb1;border-radius:16px;font-weight:700;cursor:pointer}
+.experience-welcome>.assessment-primary:disabled{opacity:.55;cursor:default}.assessment-experience button:focus-visible{outline:3px solid #f4ae38;outline-offset:3px}
+.experience-welcome .experience-foot{font-size:14px;margin-top:18px}.experience-error{margin:18px auto;padding:12px 20px;max-width:900px;color:#944e43;background:#fff0e9;border-radius:12px}
+.assessment-experience .assessment-page{padding-top:24px;min-height:0}
+@media(max-width:650px){.experience-header{flex-direction:column;align-items:flex-start;padding:16px 20px;gap:12px}.experience-tools{justify-content:flex-start}.experience-welcome{padding-top:30px}.experience-welcome ol{grid-template-columns:1fr;gap:10px;margin:20px 0}.experience-welcome li{padding:15px 18px}.experience-welcome p{font-size:16px}.experience-header strong{font-size:20px}}

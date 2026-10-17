@@ -1,0 +1,51 @@
+.game-page { min-height:100dvh; padding-bottom:28px; }
+.game-page .lesson-guide { margin-bottom:10px; }
+.game-stage { width:min(100%, 760px); margin:0 auto; display:flex; align-items:center; flex-direction:column; gap:16px; padding:0 18px; box-sizing:border-box; }
+.game-prompt { margin:0; color:#344f67; font-size:22px; text-align:center; font-weight:600; }
+.game-audio { position:relative; min-height:64px; border:2px solid #a1c6eb; background:#eef7ff; color:#24578a; border-radius:22px; padding:14px 28px; display:flex; align-items:center; justify-content:center; gap:12px; font-size:19px; font-weight:600; font-family:inherit; cursor:pointer; box-shadow:0 5px 0 #bbd6ec; }
+.game-audio>span { font-size:32px; }
+.game-audio.is-playing { background:#dcefff; }
+.game-audio:disabled { cursor:default; }
+.game-flip-card { width:172px; min-height:128px; padding:12px; white-space:nowrap; flex-direction:column; gap:6px; background:linear-gradient(150deg,#7e91d6,#5168b0); color:white; border:4px solid #e5eaff; box-shadow:0 7px 0 #405688,0 12px 28px #5268aa25; }
+.game-flip-card>span { font-size:40px; }
+.game-flip-card.is-heard { background:linear-gradient(150deg,#8299df,#5b7bc0); }
+.game-hand { position:absolute; right:-16px; bottom:-14px; font-size:40px; font-weight:400; transform:rotate(-16deg); animation:game-point .7s ease-in-out 3; }
+.game-flip-track { display:flex; align-items:center; gap:12px; }
+.game-mini-card { display:grid; place-items:center; width:38px; height:46px; border-radius:10px; background:#cfdcf0; color:#6c7d9a; transform:rotate(4deg); font-size:24px; }
+.game-mini-card.is-current { background:#657dc6; color:white; transform:rotate(-6deg) translateY(-3px); }
+.game-mini-card.is-paired { background:#b5dac8; color:#245e45; transform:none; }
+.game-picture-choices { width:100%; max-width:620px; align-self:center; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.game-picture-choices:has(> :nth-child(2):last-child) { grid-template-columns:repeat(2,minmax(0,1fr)); max-width:500px; width:100%; align-self:center; }
+.game-picture { position:relative; aspect-ratio:1; padding:10px; border:3px solid #b5d3ec; background:#fffdf8; border-radius:26px; box-shadow:0 6px 0 #ccdeed; cursor:pointer; min-width:0; }
+.game-picture img { width:100%; height:100%; object-fit:contain; border-radius:16px; }
+.game-picture:disabled { cursor:default; }
+.game-picture:disabled:not(.is-paired):not(.is-correct):not(.is-retry) { opacity:.86; }
+.game-picture.is-correct { border-color:#5eaa86; background:#e3f5e9; box-shadow:0 6px 0 #a7cdb7; }
+.game-picture.is-retry { border-color:#d1aa72; }
+.game-picture.is-paired { opacity:.35; border-style:dashed; box-shadow:none; }
+.game-picture-mark { position:absolute; right:5px; top:5px; width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background:#e2f4e6; color:#286548; font-size:23px; }
+.game-feedback { min-height:28px; color:#397353; font-size:20px; text-align:center; font-weight:600; }
+.game-next { width:min(100%,390px); margin:0; }
+.game-skip { min-height:48px; background:transparent; border:0; color:#526c81; padding:10px 18px; font-size:18px; font-family:inherit; cursor:pointer; }
+.game-practised { border:2px solid #a4bad8; border-radius:22px; background:#eff5ff; color:#365e94; }
+.game-delivery { width:min(100%,430px); height:96px; display:flex; align-items:end; position:relative; padding:0 12px 12px; justify-content:space-between; }
+.game-base { font-size:44px; color:#6e9bac; }
+.game-road { position:absolute; left:30px; right:30px; bottom:8px; border-bottom:5px dashed #b2c8d5; }
+.game-truck { position:absolute; left:30%; bottom:18px; width:85px; height:58px; background:#83b3d5; border-radius:13px 9px 5px 5px; border:3px solid #528bb4; transition:transform .35s ease; }
+.game-truck>img { position:absolute; width:44px; height:44px; object-fit:contain; left:7px; top:3px; background:#fffdf8; border-radius:8px; }
+.game-truck>span { font-size:32px; display:block; text-align:center; color:#f7fcff; }
+.game-truck-cab { position:absolute; right:-28px; bottom:-3px; height:43px; width:32px; border-radius:12px 15px 3px 3px; background:#f6ce7f; border:3px solid #c4a166; }
+.game-truck-cab::after { content:''; display:block; width:19px; height:15px; border-radius:5px; background:#dff4ff; margin:5px; }
+.game-truck i { position:absolute; width:20px; height:20px; bottom:-15px; left:10px; background:#586d88; border:4px solid #eff5ff; border-radius:50%; }
+.game-truck i:last-child { left:80px; }
+.game-delivery.is-loaded .game-truck { transform:translateX(28px); }
+.game-portal-window { position:relative; display:grid; place-items:center; width:min(62vw,290px); aspect-ratio:1; margin:8px 0; }
+.game-portal-ring { position:absolute; inset:0; border:14px solid #aa98d5; border-radius:50%; box-shadow:0 0 0 7px #e8e0f6,0 0 35px #b3a2df55,inset 0 0 28px #bbaade55; background:#f6f1fd; }
+.game-portal-window.is-open .game-portal-ring { border-color:#7db8b2; box-shadow:0 0 0 7px #d8ede7,0 0 35px #94c6ba44; background:#eff9f3; }
+.game-portal-window img { position:relative; width:74%; height:74%; object-fit:contain; border-radius:50%; }
+.game-revealed-word { margin:0; font-size:28px; font-weight:600; color:#4c5280; }
+@keyframes game-point { 50% { transform:rotate(-16deg) translateY(-7px); } }
+@media(max-width:600px) { .game-stage { gap:14px; padding:0 14px; } .game-prompt { font-size:18px; } .game-picture-choices { gap:9px; } .game-picture { padding:5px; border-radius:18px; border-width:2px; } .game-picture img { border-radius:12px; } .game-flip-card { min-height:108px; width:146px; } .game-feedback { font-size:18px; } .game-portal-window { width:240px; max-width:76vw; } }
+@media(min-width:601px) and (max-height:760px) { .game-stage { gap:10px; } .game-page { padding-bottom:18px; } .game-picture-choices { max-width:540px; } .game-delivery { height:66px; } .game-audio { min-height:52px; padding:8px 24px; } .game-flip-card { min-height:96px; } .game-portal-window { width:230px; } .game-portal-ring { border-width:11px; } .game-revealed-word { font-size:25px; } }
+@media(min-width:601px) and (max-height:680px) { .game-stage { gap:8px; } .game-page .lesson-guide { min-height:56px; margin-bottom:0; } .game-portal-window { width:190px; } .game-next { min-height:60px; padding:10px 20px; font-size:22px; } }
+@media(prefers-reduced-motion:reduce) { .game-hand { animation:none; } .game-truck { transition:none; } }

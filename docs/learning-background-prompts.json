@@ -1,0 +1,27 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "date": "2026-10-17",
+  "assets": [
+    {
+      "path": "public/assets/backgrounds/meadow-v1.png",
+      "width": 1672,
+      "height": 941,
+      "prompt": "Use case: stylized-concept. Asset type: subtle background asset for a local English-learning web app for Chinese children ages 6-8, rendered behind cards and controls. Generate ONE complete landscape 16:9 background, no UI mockup. Premium soft toy-like 3D illustration, rounded forms, gentle daylight, very pale pastel colors, low contrast, quiet and unbusy. IMPORTANT: central 70% of image must be almost empty very pale sky/light wash with no focal object so text and learning cards remain readable. Put sparse scenery only at extreme side/bottom corners, safe when center-cropped to a portrait screen. No text, no letters, no numbers, no logos, no badges, no characters, no robots, no vehicles, no animals, no animated elements, no dark regions, no high-contrast decorative patterns. This is a calm backdrop to support attention, not the primary illustration. Scene: an airy sky above a quiet meadow, a few distant rounded pale mint hills and soft powder-blue clouds at corners, tiny soft distant futuristic garden platforms at bottom outer corners, light blue and mint palette.",
+      "transparent_background": false
+    },
+    {
+      "path": "public/assets/backgrounds/lagoon-v1.png",
+      "width": 1672,
+      "height": 941,
+      "prompt": "Use case: stylized-concept. Asset type: subtle background asset for a local English-learning web app for Chinese children ages 6-8, rendered behind cards and controls. Generate ONE complete landscape 16:9 background, no UI mockup. Premium soft toy-like 3D illustration, rounded forms, gentle daylight, very pale pastel colors, low contrast, quiet and unbusy. IMPORTANT: central 70% of image must be almost empty very pale sky/light wash with no focal object so text and learning cards remain readable. Put sparse scenery only at extreme side/bottom corners, safe when center-cropped to a portrait screen. No text, no letters, no numbers, no logos, no badges, no characters, no robots, no vehicles, no animals, no animated elements, no dark regions, no high-contrast decorative patterns. This is a calm backdrop to support attention, not the primary illustration. Scene: a peaceful pale turquoise lagoon and a distant cream island, sparse smooth shoreline curves confined to very bottom corners, pale aqua sky, tiny ivory rounded stones and low plants at outside corners, aqua and warm cream palette.",
+      "transparent_background": false
+    },
+    {
+      "path": "public/assets/backgrounds/cloud-garden-v1.png",
+      "width": 1672,
+      "height": 941,
+      "prompt": "Use case: stylized-concept. Asset type: subtle background asset for a local English-learning web app for Chinese children ages 6-8, rendered behind cards and controls. Generate ONE complete landscape 16:9 background, no UI mockup. Premium soft toy-like 3D illustration, rounded forms, gentle daylight, very pale pastel colors, low contrast, quiet and unbusy. IMPORTANT: central 70% of image must be almost empty very pale sky/light wash with no focal object so text and learning cards remain readable. Put sparse scenery only at extreme side/bottom corners, safe when center-cropped to a portrait screen. No text, no letters, no numbers, no logos, no badges, no characters, no robots, no vehicles, no animals, no animated elements, no dark regions, no high-contrast decorative patterns. This is a calm backdrop to support attention, not the primary illustration. Scene: a very light lilac-blue sky above a distant floating cloud garden, a few soft ivory cloud banks and pale lavender rounded floating terraces only at bottom outer corners, nearly-white central open sky, lavender and powder-blue palette.",
+      "transparent_background": false
+    }
+  ]
+}

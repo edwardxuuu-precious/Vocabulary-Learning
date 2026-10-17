@@ -15,6 +15,7 @@ function fixture() {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'word-learning-'));
   let time = new Date('2026-10-15T02:00:00Z');
   const store = new Store(directory, () => time);
+  store.enablePack('starter',true); // Explicit sample opt-in for observation fixtures.
   return { store, state: () => store.state(status), now: () => time, advance: () => { time = new Date(time.getTime() + 86_400_000); }, close: () => { store.close(); rmSync(directory, { recursive: true, force: true }); } };
 }
 function completeWord(store:Store,wordId:string) {
@@ -62,7 +63,7 @@ test('first learning and cross-day resume do not require interests or write an i
     assert.deepEqual(f.state().profile.interests, []);
     assert.equal(f.state().profile.onboardingCompleted, false);
     assert.equal(f.state().stickers.length, 1);
-    assert.equal(f.store.startSession().id,first.id,'a cross-day completion is already today’s completed session');
+    assert.equal(f.state().activeSession,null); assert.equal(f.state().lastCompletedSession!.id,first.id,'completion is separate from the resumable session');
   } finally { f.close(); }
 });
 

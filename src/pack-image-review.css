@@ -1,0 +1,55 @@
+.pack-image-status { margin:16px 0; padding:13px 15px; background:#f2f7ff; border:1px solid #dbe6fa; border-radius:15px; color:#405c7f; }
+.image-status-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; line-height:1.8; }
+.image-status-heading strong { font-size:15px; color:#304e78; }
+.image-status-heading>span { font-size:14px; color:#4b6587; }
+.pack-image-status>progress { width:100%; height:8px; margin:10px 0 0; display:block; border:0; border-radius:7px; accent-color:#6d8df1; overflow:hidden; }
+.pack-image-status>progress::-webkit-progress-bar { background:#dce7fa; border-radius:7px; }
+.pack-image-status>progress::-webkit-progress-value { background:#7e9af1; border-radius:7px; }
+.pack-image-status>p { margin:9px 0 0; font-size:14px; line-height:1.8; color:#4d6686; }
+.book-image-actions { display:flex; flex-direction:column; align-items:flex-start; gap:0; }
+.book-image-actions .text-button { color:#425f8e; font-size:14px; min-height:48px; }
+.book-image-actions small { color:#536b88; font-size:14px; line-height:1.8; }
+.image-review-panel { min-width:0; }
+.image-review-panel .muted,.image-review-panel .panel-footnote { color:#536b87; }
+.image-generation-actions { display:flex; align-items:center; gap:15px; margin:15px 0 21px; flex-wrap:wrap; }
+.image-generation-actions>span { font-size:14px; line-height:1.8; color:#526b8c; max-width:590px; }
+.image-review-checklist { padding:17px 20px; border:1px solid #efd6a0; background:#fff8e6; border-radius:17px; margin:20px 0; }
+.image-review-checklist>strong { color:#715629; font-size:17px; }
+.image-review-checklist>p { color:#705e3e; font-size:14px; line-height:1.9; margin:7px 0 0; }
+.image-selection-toolbar { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:13px 16px; background:#f1f6ff; border:1px solid #d4e2fc; border-radius:18px; margin:18px 0 24px; flex-wrap:wrap; }
+.image-selection-toolbar>div { display:flex; gap:7px 18px; align-items:center; flex-wrap:wrap; }
+.image-selection-toolbar .text-button { color:#395b8b; min-height:48px; font-size:14px; padding:10px 0; }
+.image-selection-toolbar>div>span { font-size:15px; color:#3a5376; }
+.image-selection-notice { font-size:14px; line-height:1.8; color:#415f87; padding:12px 15px; border-radius:13px; background:#edf5ff; margin-bottom:20px; }
+.image-review-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:23px; }
+.image-review-card { min-width:0; overflow:hidden; background:white; border:2px solid #dee8f7; border-radius:23px; box-shadow:0 4px 0 #edf2fa; }
+.image-review-card.selected { border-color:#688af2; box-shadow:0 0 0 3px #c9d8ff,0 5px 0 #e2eaff; }
+.review-picture { height:250px; background:#f1f6ff; padding:13px; position:relative; }
+.review-enlarge { display:block; width:100%; height:100%; position:relative; border:0; padding:0; background:transparent; border-radius:14px; overflow:hidden; }
+.review-enlarge>img { width:100%; height:100%; object-fit:contain; }
+.review-enlarge>span { position:absolute; right:4px; bottom:5px; font-size:14px; line-height:1.5; padding:8px 12px; border:1px solid #d4e1f7; background:#fffffff2; color:#3f5b84; border-radius:11px; min-height:38px; display:flex; align-items:center; }
+.review-picture .asset-status { color:#4a6381; }
+.review-picture .status-review { color:#825d22; }
+.review-picture .status-approved { color:#316747; }
+.review-picture .status-error { color:#914a2f; }
+.review-word { padding:18px 18px 10px; }
+.review-word>h3 { font-size:25px; color:#2d456b; margin:0 0 7px; overflow-wrap:anywhere; }
+.review-word>p { color:#344f72; font-size:18px; line-height:1.7; margin:0 0 9px; }
+.review-word>small { color:#576e8b; font-size:14px; line-height:1.8; }
+.review-select { display:flex; align-items:center; gap:10px; min-height:58px; padding:11px 16px; background:#f0f5ff; border-top:1px solid #e0e9f8; color:#3a557c; cursor:pointer; font-size:14px; line-height:1.7; }
+.review-select>input { min-width:23px; width:23px; min-height:23px; height:23px; accent-color:#5478e7; margin:0; padding:0; }
+.review-card-actions { display:flex; align-items:center; justify-content:space-between; padding:5px 17px 12px; gap:12px; }
+.review-card-actions .text-button { font-size:14px; color:#47648e; min-height:48px; }
+.review-redraw-feedback { margin:8px 16px; padding:9px 11px; border-radius:11px; background:#eef5ff; color:#405b7a; font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
+.review-redraw-feedback.asset-error { background:#fff2df; color:#8b5429; }
+.image-pagination { display:flex; align-items:center; justify-content:center; gap:18px; margin:30px 0 20px; flex-wrap:wrap; }
+.image-pagination>span { color:#4e6787; font-size:14px; line-height:1.8; }
+.image-review-modal { max-width:min(880px,95vw); max-height:94vh; overflow:auto; padding:25px 28px; }
+.image-review-modal>div { margin-right:30px; }
+.image-review-modal h2 { font-size:27px; color:#2a4469; margin:0; }
+.image-review-modal>div>p { font-size:20px; color:#3c5576; line-height:1.7; margin:5px 0 0; }
+.image-review-modal>img { max-width:100%; width:auto; height:auto; max-height:58vh; object-fit:contain; border:1px solid #dce6f5; border-radius:17px; background:#f7faff; }
+.image-review-modal .image-preview-note { font-size:14px; color:#526b8b; line-height:1.8; }
+@media(min-width:1450px) { .image-review-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:1000px) { .image-review-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:19px; }.review-picture { height:250px; } }
+@media(max-width:620px) { .image-review-grid { grid-template-columns:1fr; gap:22px; }.review-picture { height:290px; }.image-selection-toolbar { padding:12px 14px; gap:9px; }.image-selection-toolbar>.button { width:100%; }.image-selection-toolbar>div { gap:5px 15px; }.image-review-checklist { padding:15px; }.image-generation-actions>.button { width:100%; }.image-review-modal { padding:23px 17px; gap:13px; }.image-review-modal>img { max-height:52vh; }.image-review-modal h2 { font-size:25px; }.image-pagination { gap:10px; }.image-pagination>span { order:3; flex-basis:100%; text-align:center; } }

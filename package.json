@@ -9,7 +9,13 @@
     "build": "tsc --noEmit && vite build",
     "start": "tsx server/index.ts",
     "test": "tsx --test tests/*.test.ts",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit && npm run assets:check",
+    "build:assessment-experience": "vite build --config scripts/assessment-experience.vite.ts",
+    "assessment:experience": "tsx scripts/assessment-qa.ts --serve --experience --port=8799",
+    "reset-parent-pin": "node scripts/reset-parent-pin.mjs",
+    "assets:check": "node --import tsx scripts/check-assets.ts",
+    "assets:update": "node --import tsx scripts/check-assets.ts --write",
+    "package:project": "npm run check && powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-project.ps1"
   },
   "dependencies": {
     "@openai/codex": "0.162.1",
