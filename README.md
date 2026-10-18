@@ -98,6 +98,7 @@ npm.cmd run package:project
 | [AGENTS](AGENTS.md)、[目录与模块](docs/PROJECT.md) | 后续工作规则、代码定位、隔离工具与交付边界 |
 | [产品规则](docs/MVP.md)、[合同](shared/contracts.ts) | 当前行为与数据类型，HTTP 实现见 `server/index.ts` |
 | [任务树](docs/TASK_TREE.md)、[验收](docs/ACCEPTANCE.md) | 当前完成/待办与实际验证 |
+| [学习优化策略图](docs/LEARNING_STRATEGY.html) | 本机浏览器打开；研究依据、架构方向及 33 项任务详情；依赖和实施状态见项目任务树，策略收益待真人验证 |
 | [机制库](docs/VOCABULARY_GAME_LIBRARY.md)、[游戏 UI](docs/GAME_UI_DESIGN.md)、[素材](docs/GAME_MATERIALS.md) | 玩法、界面及家长审核 |
 | [成长](docs/CHILD_GROWTH.md) | 会词、打卡与奖章规则 |
 | [主题](docs/autobot-theme-assets.md)、[伙伴](docs/companion-library.md)、[首页](docs/home-courtyard-v5.md)、[资产清单](docs/ASSETS.json) | 在用资源、提示词与哈希 |

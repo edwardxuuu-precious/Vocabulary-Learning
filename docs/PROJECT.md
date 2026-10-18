@@ -1,6 +1,6 @@
 # 项目目录与模块入口
 
-使用见 [README](../README.md)，产品规则见 [MVP](MVP.md)，当前状态见 [任务树](TASK_TREE.md)，验证见 [验收](ACCEPTANCE.md)。各文件维护一种事实，不复制阶段日志。
+使用见 [README](../README.md)，产品规则见 [MVP](MVP.md)，当前状态见 [任务树](TASK_TREE.md)，验证见 [验收](ACCEPTANCE.md)。各文件维护一种事实，不复制阶段日志。研究诊断、依据、完整规划与交互示意见 [学习优化策略](LEARNING_STRATEGY.html)，33 项任务的依赖/执行状态统一维护在任务树；规划不代表功能已经实现。
 
 ## 固定结构
 
