@@ -2,8 +2,8 @@ import type { VoiceTone } from '../shared/contracts';
 
 export interface SpeechSegment { text: string; locale: 'zh-CN' | 'en-US'; tone?: VoiceTone; cacheOnly?: boolean; allowLocalFallback?: boolean }
 export interface SpeechAsset { mode: 'api' | 'local'; audioUrl?: string }
-export interface SpeechState { speaking: boolean; localMode: boolean; currentText: string; message: string }
-export interface PlaybackContext { signal: AbortSignal; onStart: () => void }
+export interface SpeechState { speaking: boolean; localMode: boolean; currentText: string; message: string; progress?: number }
+export interface PlaybackContext { signal: AbortSignal; onStart: () => void; onProgress?: (progress:number) => void }
 export type StreamPlaybackResult = 'completed' | 'unsupported' | 'unavailable' | 'failed';
 export class PlaybackBlockedError extends Error { constructor() { super('浏览器需要点一下才能播放声音。点小喇叭，再听一次。'); this.name = 'PlaybackBlockedError'; } }
 export interface SpeechRuntime {
@@ -26,7 +26,7 @@ export class SpeechPlaybackController {
   stop() {
     this.generation += 1;
     const abort = this.abort; this.abort = null; abort?.abort();
-    this.runtime.update({ speaking: false, currentText: '' });
+    this.runtime.update({ speaking: false, currentText: '', progress: undefined });
   }
   speak(segment: SpeechSegment) { return this.speakSequence([segment]); }
   async speakSequence(segments: SpeechSegment[]): Promise<boolean> {
@@ -50,7 +50,8 @@ export class SpeechPlaybackController {
     }
   }
   private async playSegment(segment: SpeechSegment, signal: AbortSignal, isCurrent: () => boolean): Promise<boolean> {
-    const context: PlaybackContext = { signal, onStart: () => { if (isCurrent()) this.runtime.update({ speaking: true, currentText: segment.text }); } };
+    this.runtime.update({ progress: undefined });
+    const context: PlaybackContext = { signal, onStart: () => { if (isCurrent()) this.runtime.update({ speaking: true, currentText: segment.text, progress: 0 }); }, onProgress: progress => { if(isCurrent())this.runtime.update({progress}); } };
     let asset: SpeechAsset = { mode: 'local' };
     let requestCompleteAudio = true;
     if (this.runtime.playStream) {

@@ -121,6 +121,26 @@ test('browser NotAllowedError is distinguished from media failure', async t => {
   await assert.rejects(playBrowserAudio('/test', { signal: new AbortController().signal, onStart: () => {} }), PlaybackBlockedError);
 });
 
+test('model playback reports actual media progress and ignores events after cancel, error or end', async t => {
+  let audio!: FakeAudio;
+  class FakeAudio {
+    onplay:(()=>void)|null=null;onplaying:(()=>void)|null=null;onended:(()=>void)|null=null;onerror:(()=>void)|null=null;ontimeupdate:(()=>void)|null=null;
+    duration=NaN;currentTime=0;play(){audio=this;this.onplay?.();return Promise.resolve();}pause(){}
+  }
+  const previous=Object.getOwnPropertyDescriptor(globalThis,'Audio');Object.defineProperty(globalThis,'Audio',{value:FakeAudio,configurable:true});
+  t.after(()=>{if(previous)Object.defineProperty(globalThis,'Audio',previous);else Reflect.deleteProperty(globalThis,'Audio');});
+  for(const finish of ['cancel','error','end'] as const){
+    let starts=0;const progress:number[]=[],abort=new AbortController();
+    const pending=playBrowserAudio('/cached',{signal:abort.signal,onStart:()=>starts++,onProgress:value=>progress.push(value)},8000,{onPlayingOnly:true});
+    assert.equal(starts,0);audio.ontimeupdate?.();assert.deepEqual(progress,[]);
+    audio.onplaying?.();assert.equal(starts,1);audio.duration=4;audio.currentTime=1;audio.ontimeupdate?.();assert.deepEqual(progress,[.25]);
+    const staleProgress=audio.ontimeupdate,staleStart=audio.onplaying;
+    if(finish==='cancel')abort.abort();else if(finish==='error')audio.onerror?.();else audio.onended?.();
+    assert.equal(await pending,finish==='end');staleProgress?.();staleStart?.();
+    assert.equal(starts,1);assert.deepEqual(progress,[.25]);assert.equal(audio.ontimeupdate,null);
+  }
+});
+
 test('a browser speech engine that emits no events times out and releases its cancellation listener', async t => {
   let cancelled = 0;
   class FakeUtterance { lang = ''; rate = 1; voice = null; onstart = null; onend = null; onerror = null; constructor(_: string) {} }

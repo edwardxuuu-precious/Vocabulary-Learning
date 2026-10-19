@@ -75,7 +75,7 @@ export function transitionMemoryRecall(previous: ActivityState, action: Activity
     if (action === 'next') return {state, complete:true};
     return {state};
   }
-  if (action === 'reveal') { state.revealed=true; state.hinted=true; }
+  if (action === 'reveal') { state.revealed=true; state.hinted=true; delete state.audioUnavailable; }
   else if (action === 'audio-failed' && state.revealed) { state.audioUnavailable=true; state.hinted=true; }
   else if (action === 'finish' || action === 'skip') {
     state.outcome='practice';

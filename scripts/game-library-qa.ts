@@ -14,8 +14,8 @@ import { Script } from 'node:vm';
 import { batchTwoKinds } from '../shared/game-boards.ts';
 
 const arg = (name: string) => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
-for (const value of process.argv.slice(2)) if (value !== '--serve' && value !== '--synthetic-mic' && value !== '--memory-loop' && !/^--(?:port|dist|batch|restore|resume-data)=/.test(value)) throw Error('支持--serve、--synthetic-mic（仅验收）、--port=端口、--dist=项目内构建目录、--batch=1至5、--restore=项目artifacts内体验备份。');
-const memoryLoop=process.argv.includes('--memory-loop');let qaNow=new Date('2026-10-18T01:00:00Z');
+for (const value of process.argv.slice(2)) if (!['--serve','--synthetic-mic','--memory-loop','--recall-ui'].includes(value) && !/^--(?:port|dist|batch|restore|resume-data)=/.test(value)) throw Error('支持--serve、--synthetic-mic、--memory-loop、--recall-ui（仅验收）、--port=端口、--dist=项目内构建目录、--batch=1至5、--restore=项目artifacts内体验备份。');
+const recallUi=process.argv.includes('--recall-ui'),memoryLoop=process.argv.includes('--memory-loop')||recallUi;let qaNow=new Date('2026-10-18T01:00:00Z');
 const batch = Number(arg('batch') ?? 2); assert.ok([1,2,3,4,5].includes(batch));
 const gameRegistry=allGames.filter(game=>(game.batch??(batchTwoKinds.has(game.kind)?2:1))<=batch);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'), port = Number(arg('port') ?? (batch===1?8793:8794)), origin = `http://127.0.0.1:${port}`;
@@ -95,6 +95,7 @@ function select(kind: string) {
   assert.equal(currentActivity(app.store.read().sessions.at(-1)!)?.kind, kind);
 }
 function inspect() { const data=app.store.read(); return {selected,implemented:gameRegistry,syntheticPreparation:selected!=='random',syntheticMic:process.argv.includes('--synthetic-mic'),localDemoCues,state:app.store.state(statuses),charges:data.charges,requests,requestHistory,denied,copiedAudio:copied.length,dataDir,dist}; }
+const failures=new Set<string>();
 const json = (res: ServerResponse, value: unknown, status=200) => { res.writeHead(status, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}); res.end(JSON.stringify(value)); };
 const panel = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>单词游乐园 · 游戏体验</title><style>
 *{box-sizing:border-box}body{margin:0;font:16px system-ui;background:#f1f5fc;color:#314765}iframe{display:block;border:0;width:100%;height:100dvh;background:#edf5ff}
@@ -114,11 +115,32 @@ if(arg('restore')) {
   policy.forcedKind=selected==='random'?undefined:selected as GameKind;
 }
 
+if(recallUi&&!resumeData){
+  const session=app.store.startSession('random',policy);
+  for(let i=0;i<30;i++){
+    const current=app.store.read().sessions.find(s=>s.id===session.id)!,activity=currentActivity(current);
+    if(!activity||activity.step==='recall')break;
+    if(activity.kind==='standard'){
+      if(activity.step!=='learn')app.store.attempt({sessionId:session.id,wordId:activity.wordId,step:activity.step,skill:activity.step==='sound'?'listen':activity.step,correct:false,hinted:true,practiceOnly:true,source:'click'});
+      app.store.updateSession({completedStep:{wordId:activity.wordId,step:activity.step}});
+    }else for(const action of ['skip','next'])app.store.activityEvent({sessionId:session.id,activityId:activity.id,action});
+  }
+  assert.equal(currentActivity(app.store.read().sessions.find(s=>s.id===session.id)!)?.step,'recall');
+}
 await writeFile(join(dataDir,'fixture-audit.json'),JSON.stringify({copied,templates:gameRegistry.length,cloudCalls:denied.length,isolated:true},null,2));
 const original=app.server.listeners('request')[0] as (req: IncomingMessage,res:ServerResponse)=>void; app.server.removeAllListeners('request');
 app.server.on('request',(req,res)=>{void(async()=>{
   if(![`127.0.0.1:${port}`,`localhost:${port}`].includes(req.headers.host??''))return json(res,{error:'仅允许此本机端口。'},403);
   const url=new URL(req.url??'/',origin);
+  if(recallUi&&req.method==='POST'&&url.pathname==='/__qa/failure'){
+    if(req.headers['x-qa-token']!==token||req.headers.origin&&req.headers.origin!==origin||req.headers['sec-fetch-site']==='cross-site')return json(res,{error:'体验请求来源无效。'},403);
+    const kind=url.searchParams.get('kind');if(!kind||!['demo','save','activity'].includes(kind))return json(res,{error:'仅支持demo/save/activity单次失败'},400);
+    failures.add(kind);return json(res,{armed:kind});
+  }
+  if(recallUi&&req.method==='POST'){
+    const kind=url.pathname==='/api/speech/tts'?'demo':url.pathname==='/api/practice-recordings'?'save':url.pathname==='/api/session/activity'?'activity':undefined;
+    if(kind&&failures.delete(kind)){req.resume();return json(res,{error:`隔离验收：${kind}单次失败，请重试。`},503);}
+  }
   if(req.method==='GET'&&url.pathname==='/') {res.writeHead(302,{Location:'/__qa'});res.end();return;}
   if(req.method==='GET'&&url.pathname==='/__qa') {res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});res.end(panel.replace('__CURRENT_KIND__',selected));return;}
   if(req.method==='GET'&&url.pathname==='/__qa/app') {

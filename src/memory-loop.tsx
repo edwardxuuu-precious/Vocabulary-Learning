@@ -5,25 +5,33 @@ import { LearningSymbol, LearningTopbar } from './learning-topbar';
 import { OralPractice } from './oral-practice';
 import { Mascot } from './mascot';
 import { companionFor } from '../shared/companions';
+import './memory-recall.css';
 
-export function MemoryRecall({session,activity,busy,playing,onAction,onHome,onPause,stopAudio}:{session:LearningSession;activity:LearningActivity;busy:boolean;playing:boolean;onAction:(action:ActivityAction,selectedId?:string,advance?:boolean)=>void;onHome:()=>void;onPause:()=>void;stopAudio:()=>void}) {
-  const [ready,setReady]=useState(false),[recording,setRecording]=useState(false);
+export function MemoryRecall({session,activity,busy,playing,audioProgress,onAction,onHome,onPause,stopAudio}:{session:LearningSession;activity:LearningActivity;busy:boolean;playing:boolean;audioProgress?:number;onAction:(action:ActivityAction,selectedId?:string,advance?:boolean)=>Promise<boolean|undefined>|void;onHome:()=>void;onPause:()=>void;stopAudio:()=>void}) {
+  const [recording,setRecording]=useState(false),[demonstrating,setDemonstrating]=useState(false),[demoFinished,setDemoFinished]=useState<boolean>();
   const state=session.activityStates?.[activity.id]??{},accepted=state.outcome==='practice',blocked=busy||playing||recording;
-  return <main className="memory-page page-enter">
+  const listen=async()=>{setDemonstrating(true);try{setDemoFinished(await onAction('reveal')??undefined);}finally{setDemonstrating(false);}};
+  const demoPhase=demonstrating?(playing?'playing':'loading'):demoFinished===false||state.audioUnavailable&&demoFinished!==true?'error':state.revealed?'replay':'idle';
+  const demoLabel=demoPhase==='playing'?'正在播放':demoPhase==='loading'?'加载中':demoPhase==='error'?'重试发音':demoPhase==='replay'?'再听一次':'听示范';
+  const word=state.revealed?activity.word.term:activity.word.meaning;
+  return <main className="memory-page memory-recall page-enter">
     <LearningTopbar session={session} onHome={onHome} onPause={onPause}/>
-    <header className="memory-heading"><h1>这个，英语怎么说？</h1><Mascot small character={companionFor(session.id,0)}/></header>
-    <section className="memory-stage" aria-label="先回忆，再按需听示范">
-      <img className="memory-picture" src={activity.word.imageUrl} alt={activity.word.meaning}/>
-      <p className="memory-meaning">{activity.word.meaning}</p>
-      <p className="memory-prompt">{accepted?'这次练习记好啦':state.revealed?'听一听，再试着说':'先自己想一想，说一说'}</p>
-      {state.revealed&&<strong className="memory-answer">{activity.word.term}</strong>}
-      <OralPractice target={{sessionId:session.id,activityId:activity.id}} active={!busy&&!playing} busy={busy} stopAudio={stopAudio} onReady={setReady} onBusy={setRecording} readOnly={accepted} onSkip={accepted?undefined:()=>onAction('skip')}/>
-      {state.audioUnavailable&&<p role="status">示范暂时播不了，可以再试或先跳过。</p>}
+    <section className="memory-recall-grid" aria-label="先回忆，再按需听示范">
+      <p className="memory-instruction">用英语说一说</p>
+      <div className="memory-picture-stage"><div className="memory-picture-frame"><img src={activity.word.imageUrl} alt={activity.word.meaning}/></div></div>
+      <div className={`memory-cue ${state.revealed?'is-revealed':''}`}>
+        <div className="memory-word-cue" style={{'--word-length':Math.max(1,[...word].length)} as React.CSSProperties}>
+          <h1 className={state.revealed?'is-english':''}>{word}</h1>
+          {state.revealed&&<p>{activity.word.meaning}</p>}
+        </div>
+        <button className="memory-demo" data-phase={demoPhase} disabled={blocked||accepted||demonstrating} onClick={()=>void listen()}>
+          <span className="memory-demo-icon"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m11 4-6 5H2v6h3l6 5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></span>
+          <span className="memory-demo-copy"><span>{demoLabel}</span>{demoPhase==='playing'&&audioProgress!==undefined&&<span className="memory-audio-progress" aria-hidden="true"><i style={{width:`${audioProgress*100}%`}}/></span>}</span>
+        </button>
+      </div>
+      <OralPractice target={{sessionId:session.id,activityId:activity.id}} active={!busy&&!playing&&!demonstrating} busy={busy} stopAudio={stopAudio} onBusy={setRecording} readOnly={accepted} variant="memory" complete={()=>void onAction(accepted?'next':'finish',undefined,!accepted)} onSkip={accepted?undefined:()=>void onAction('skip')}/>
+      {demoPhase==='error'&&<p className="memory-audio-error" role="status">示范暂时播不了，可以重试或先自己说。</p>}
     </section>
-    <footer className="memory-actions">{accepted?<button className="lesson-next" disabled={blocked} onClick={()=>onAction('next')}>继续<LearningSymbol kind="arrow"/></button>:<>
-      <button className="memory-help" disabled={blocked} onClick={()=>onAction('reveal')}>{state.revealed?'再听示范':'想不起来，听示范'}</button>
-      {ready&&<button className="lesson-next" disabled={blocked} onClick={()=>onAction('finish',undefined,true)}>继续<LearningSymbol kind="arrow"/></button>}
-    </>}</footer>
   </main>;
 }
 

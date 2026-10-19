@@ -306,7 +306,8 @@ function App() {
     interruptDialogue();
     const generation = narrationGeneration.current;
     const isActive = () => generation === narrationGeneration.current && !document.hidden;
-    void run(async () => {
+    let audioResult:boolean|undefined;
+    return run(async () => {
       try {
         const result = await submitLearningAction({ sessionId: session.id, activityId: activity.id, action, ...(selectedId ? { selectedId } : {}) }, {
           submit: request => post<AppState>('/api/session/activity', request), update: setState, advance, isActive,
@@ -314,7 +315,13 @@ function App() {
         const updated = result.state;
         const audioWords = gameAudioWords(activity, action, selectedId, updated.activeSession?.activityStates?.[activity.id]);
         for (const audioWord of audioWords) {
-          const played = await voice.speakCached(audioWord.term,'locale' in audioWord?audioWord.locale as 'en-US'|'zh-CN':'en-US');
+          if (!isActive()) break;
+          const locale='locale' in audioWord?audioWord.locale as 'en-US'|'zh-CN':'en-US';
+          const played = recallFirstActivity(session,activity)
+            ? await voice.speakSequence([{text:audioWord.term,locale,tone:'clear',cacheOnly:true,allowLocalFallback:false}])
+            : await voice.speakCached(audioWord.term,locale);
+          if (!isActive()) break;
+          audioResult=played;
           if (!played) {
             const failed = await post<AppState>('/api/session/activity', { sessionId: session.id, activityId: activity.id, action: 'audio-failed' });
             setState(failed);
@@ -327,7 +334,7 @@ function App() {
           } else restorePosition(updated);
         }
       } finally { gameActionLock.current = false; }
-    });
+    }).then(()=>audioResult);
   };
 
   const recordAttempt = async (skill: Skill, correct: boolean, source: LearningAttempt['source'] = 'click', practiceOnly = false) => {
@@ -576,7 +583,7 @@ function App() {
     </main>}
 
     {screen === 'play' && learningCheckpoint && session && <LearningCheckpoint session={session} busy={busy} onRest={()=>go('hub')} onContinue={()=>void run(async()=>{await patch('/api/session',{sessionId:session.id,checkpointId:learningCheckpoint});const next=await load();restorePosition(next);})}/>}
-    {screen === 'play' && !learningCheckpoint && memoryRecall && session && activity && <MemoryRecall key={session.id+activity.id} session={session} activity={activity} busy={busy||pause||gate} playing={voice.speaking} onAction={gameAction} onHome={()=>go('hub')} onPause={pauseLearning} stopAudio={voice.stop}/>}
+    {screen === 'play' && !learningCheckpoint && memoryRecall && session && activity && <MemoryRecall key={session.id+activity.id} session={session} activity={activity} busy={busy||pause||gate} playing={voice.speaking} audioProgress={voice.progress} onAction={gameAction} onHome={()=>go('hub')} onPause={pauseLearning} stopAudio={voice.stop}/>}
     {screen === 'play' && !learningCheckpoint && session && activity && isGoalCheckpoint(activity.step) && <GoalGame key={activity.id} activity={activity} session={session} attempts={state.attempts} busy={busy || pause || gate} playing={voice.speaking} onAction={gameAction} onHome={() => go('hub')} onPause={pauseLearning} stopAudio={voice.stop} />}
     {screen === 'play' && !learningCheckpoint && !memoryRecall && session && activity && !isGoalCheckpoint(activity.step) && activity.kind !== 'standard' && <LearningGame key={activity.id} activity={activity} session={session} busy={busy || pause || gate} playing={voice.speaking} onAction={gameAction} onHome={returnFromPlay} onPause={pauseLearning} stopAudio={voice.stop} />}
     {screen === 'play' && !learningCheckpoint && word && session && (!activity || activity.kind === 'standard'&&!isGoalCheckpoint(activity.step)) && (!session.tasks || serverPosition) && <main className={`lesson-page lesson-${step} page-enter`}>

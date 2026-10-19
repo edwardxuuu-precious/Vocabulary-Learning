@@ -15,7 +15,7 @@ export function useVoice(enabled: boolean, beforeSpeak?: { current: () => void }
     beforeSpeak: () => beforeSpeakRef.current?.current(),
     playStream: (segment, context) => segment.allowLocalFallback === false ? Promise.resolve('unsupported') : playBrowserStream(segment, context),
     requestAudio: async ({ allowLocalFallback: _local, ...segment }, signal) => api<SpeechResponse>('/api/speech/tts', { method: 'POST', body: JSON.stringify({ ...segment, tone: segment.tone ?? 'clear' }), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) }),
-    playAudio: playBrowserAudio,
+    playAudio: (url, context) => playBrowserAudio(url, context, 90000, {onPlayingOnly:true}),
     playLocal: playBrowserLocal,
     update: patch => { if (mounted.current) setState(previous => ({ ...previous, ...patch })); },
   });

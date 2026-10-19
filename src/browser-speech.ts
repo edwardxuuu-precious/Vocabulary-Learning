@@ -9,7 +9,7 @@ export function playBrowserAudio(url: string, context: PlaybackContext, timeoutM
     const done = (completed: boolean, blocked = false) => {
       if (settled) return; settled = true;
       clearTimeout(timer); context.signal.removeEventListener('abort', cancelled);
-      audio.onplay = null; audio.onplaying = null; audio.onended = null; audio.onerror = null;
+      audio.onplay = null; audio.onplaying = null; audio.onended = null; audio.onerror = null; audio.ontimeupdate = null;
       try { audio.pause(); } catch { /* Cleanup is best effort; the generation already prevents stale callbacks. */ }
       if (blocked) reject(new PlaybackBlockedError()); else resolve(completed);
     };
@@ -20,6 +20,7 @@ export function playBrowserAudio(url: string, context: PlaybackContext, timeoutM
     if (options.volume !== undefined) audio.volume = Math.max(0, Math.min(1, options.volume));
     const started = () => { if (!settled && !context.signal.aborted) context.onStart(); };
     if (options.onPlayingOnly) audio.onplaying = started; else audio.onplay = started;
+    audio.ontimeupdate = () => { if(!settled&&!context.signal.aborted&&Number.isFinite(audio.duration)&&audio.duration>0)context.onProgress?.(Math.max(0,Math.min(1,audio.currentTime/audio.duration))); };
     audio.onended = () => done(true); audio.onerror = () => done(false);
     const failed = (failure: unknown) => done(false, typeof failure === 'object' && failure !== null && 'name' in failure && failure.name === 'NotAllowedError');
     try { void audio.play().catch(failed); } catch (failure) { failed(failure); }

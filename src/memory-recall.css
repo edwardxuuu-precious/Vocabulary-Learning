@@ -1,0 +1,69 @@
+/* Recall keeps the word, optional model and child's next action together. */
+.app.screen-play[data-learning-background]:has(.memory-recall){background:#faf9f6;color:#34354d}
+.screen-play .memory-recall{max-width:1180px;padding:38px 48px 32px;color:#34354d}
+.memory-recall-grid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);grid-template-areas:"picture instruction" "picture cue" "picture voice" "picture error";grid-template-rows:min-content min-content min-content min-content;column-gap:84px;align-items:start;max-width:1040px;margin:clamp(45px,calc((100svh - 560px)/2),145px) auto 0}
+.memory-instruction{grid-area:instruction;padding-top:24px;margin:0;font-size:20px;line-height:1.5;font-weight:500;color:#94889e}
+.memory-picture-stage{grid-area:picture;position:relative;align-self:center;padding:12px 4px 18px 7px}
+.memory-picture-stage::before{content:"";position:absolute;inset:15px 9px 13px 7px;border-radius:40px;background:#e9e1f6;transform:rotate(-5deg)}
+.memory-picture-frame{position:relative;padding:10px;border-radius:37px;background:#fff;box-shadow:0 10px 0 #eeebe4,0 24px 38px -25px #b9acc2;max-width:460px}
+.memory-picture-frame img{width:100%;aspect-ratio:1;display:block;object-fit:contain;border-radius:28px;background:#fbf6eb}
+.memory-picture-stage::after{content:"+";position:absolute;right:-12px;bottom:42px;font-size:38px;font-weight:800;color:#b2a0df;transform:rotate(12deg)}
+.memory-cue{grid-area:cue;display:flex;align-items:center;justify-content:space-between;gap:15px;width:100%;max-width:380px;min-height:158px;padding:15px 16px 15px 24px;margin:17px 0 25px;box-sizing:border-box;border:1px solid #e8e7ed;border-radius:23px;background:#fff;box-shadow:0 3px 0 #efedf0}
+.memory-word-cue{flex:1;min-width:0;container-type:inline-size}
+.memory-word-cue h1{--word-max:64px;margin:0;font-size:clamp(26px,min(var(--word-max),calc(95cqi / var(--word-length))),var(--word-max));font-weight:850;line-height:1.12;letter-spacing:1px;color:#383047;overflow-wrap:anywhere;text-wrap:balance}
+.memory-word-cue h1.is-english{--word-max:59px;font-size:clamp(25px,min(var(--word-max),calc(140cqi / var(--word-length))),var(--word-max));font-weight:750;line-height:1.08;letter-spacing:.1px}
+.memory-word-cue p{margin:6px 0 0;font-size:27px;line-height:1.2;font-weight:600;letter-spacing:.5px;color:#94899e;overflow-wrap:anywhere}
+.memory-recall .memory-demo{display:inline-flex;align-items:center;justify-content:center;flex:none;gap:10px;min-width:134px;min-height:62px;padding:5px;border:0;border-radius:17px;background:transparent;box-shadow:none;color:#46768e;font-size:15px;font-weight:700;white-space:nowrap}
+.memory-demo-icon{display:flex;align-items:center;justify-content:center;flex:none;width:50px;height:50px;border-radius:16px;color:#fff;background:#3e9fcb;box-shadow:0 3px 0 #2b7da5}
+.memory-demo-copy{display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:62px;min-height:39px;text-align:left}
+.memory-demo:hover:not(:disabled){background:#f2f8fb;color:#356b87}
+.memory-demo[data-phase=loading]:disabled,.memory-demo[data-phase=playing]:disabled{opacity:1;cursor:progress}
+.memory-demo[data-phase=error]{color:#a06d56}
+.memory-demo[data-phase=error] .memory-demo-icon{background:#bc876f;box-shadow:0 3px 0 #9e6b56}
+.memory-audio-progress{display:block;width:59px;height:3px;background:#dcebf2;overflow:hidden;border-radius:5px}
+.memory-audio-progress i{display:block;height:100%;background:#3e9fcb;border-radius:5px;transition:width .15s linear}
+.memory-voice{grid-area:voice;width:100%;max-width:380px;min-width:0}
+.memory-recall .memory-primary{width:100%;min-height:73px;padding:0 22px;border:0;border-radius:21px;box-shadow:0 6px 0 #5038aa,0 12px 20px -12px #8b66c9;color:#fff;background:#7358df;display:flex;align-items:center;justify-content:center;gap:13px;font-size:21px;letter-spacing:.6px;font-weight:750}
+.memory-recall .memory-primary:hover:not(:disabled){background:#674bcf}
+.memory-recall .memory-primary.is-recording{background:#cf7b92;box-shadow:0 6px 0 #ad6175}
+.memory-icon-disc{display:grid;place-items:center;flex:none;width:39px;height:39px;border-radius:13px;background:#ffffff24}
+.memory-voice-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:57px;margin-top:11px}
+.memory-record-status{flex:1;min-width:0;margin:0;color:#82728f;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.memory-record-status.is-saved{color:#658b77}.memory-record-status.is-error{color:#ad745c}
+.memory-secondary{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-shrink:0}
+.memory-secondary button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:8px 10px;border:0;border-radius:12px;background:transparent;color:#83778f;font-size:12px;box-shadow:none}
+.memory-secondary button:hover:not(:disabled){color:#8469bb;background:#efebf6}
+.memory-audio-error{grid-area:error;max-width:380px;margin:0;font-size:13px;line-height:1.6;color:#a06d56}
+.memory-recall button:focus-visible{outline:3px solid #b7a6e9;outline-offset:4px}
+@media(min-width:761px) and (max-width:1050px){
+  .screen-play .memory-recall{padding:30px 32px 32px}
+  .memory-recall-grid{column-gap:52px}
+  .memory-cue,.memory-voice{max-width:340px}
+  .memory-word-cue h1{--word-max:60px}.memory-word-cue h1.is-english{--word-max:55px}.memory-word-cue p{font-size:26px}
+  .memory-recall .memory-primary{min-height:68px}
+  .memory-picture-frame{border-radius:31px;padding:9px}.memory-picture-frame img{border-radius:23px}
+}
+@media(max-width:760px){
+  .screen-play .memory-recall{padding:19px 23px 22px}
+  .memory-recall .flow-nav{gap:17px;grid-template-columns:44px minmax(0,1fr) 76px}
+  .memory-recall-grid{display:flex;flex-direction:column;align-items:center;margin-top:18px;gap:0}
+  .memory-instruction{order:0;padding:0;font-size:16px;text-align:center}
+  .memory-picture-stage{order:1;width:clamp(216px,31svh,280px);padding:0;margin:17px 0 0;align-self:auto}
+  .memory-picture-stage::before{inset:6px -3px 0 0;border-radius:29px}
+  .memory-picture-stage::after{right:-14px;bottom:20px;font-size:30px}
+  .memory-picture-frame{padding:7px;border-radius:28px;box-shadow:0 6px 0 #eeebe4,0 15px 30px -22px #a99bb9}.memory-picture-frame img{border-radius:21px}
+  .memory-cue{order:2;max-width:310px;min-height:126px;padding:13px 12px 13px 17px;margin:19px 0 17px;gap:9px;border-radius:21px}
+  .memory-word-cue h1{--word-max:49px}.memory-word-cue h1.is-english{--word-max:45px}.memory-word-cue p{font-size:24px;margin-top:5px}
+  .memory-recall .memory-demo{min-width:128px;min-height:61px;font-size:14px;gap:8px}
+  .memory-demo-icon{width:47px;height:47px;border-radius:15px}.memory-demo-icon svg{width:24px;height:24px}.memory-demo-copy{min-width:59px}
+  .memory-voice{order:3;max-width:310px}
+  .memory-recall .memory-primary{min-height:61px;font-size:18px;border-radius:18px;gap:11px;padding:0 18px;box-shadow:0 5px 0 #5038aa}
+  .memory-icon-disc{width:32px;height:32px;border-radius:11px}.memory-icon-disc svg{width:22px;height:22px}
+  .memory-voice-footer{min-height:56px;margin-top:9px;gap:6px}.memory-record-status{font-size:11px}.memory-secondary{gap:0}.memory-secondary button{font-size:11px;padding:8px}
+  .memory-audio-error{order:4}
+}
+@media(max-width:760px) and (max-height:720px){
+  .screen-play .memory-recall{padding-top:16px;padding-bottom:12px}
+  .memory-picture-stage{width:204px}
+}
+@media(prefers-reduced-motion:reduce){.memory-audio-progress i{transition:none}}

@@ -10,9 +10,9 @@ import './oral-practice.css';
 export function RecordingIcon({stop=false}:{stop?:boolean}) {
   return <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">{stop?<rect x="5" y="5" width="14" height="14" rx="3" fill="currentColor"/>:<><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M8 22h8"/></>}</svg>;
 }
-export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,onReady,onBusy,onSkip,complete,compact=false,readOnly=false,autoStart=false,completeLabel='完成跟读 →'}:{
+export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,onReady,onBusy,onSkip,complete,compact=false,readOnly=false,autoStart=false,completeLabel='完成跟读 →',variant='default'}:{
   target:PracticeRecordingTarget;active:boolean;busy:boolean;rounds?:1|3;demonstrate?:()=>Promise<boolean>;stopAudio:()=>void;
-  onReady?:(ready:boolean)=>void;onBusy?:(busy:boolean)=>void;onSkip?:()=>void;complete?:()=>void;compact?:boolean;readOnly?:boolean;autoStart?:boolean;completeLabel?:string;
+  onReady?:(ready:boolean)=>void;onBusy?:(busy:boolean)=>void;onSkip?:()=>void;complete?:()=>void;compact?:boolean;readOnly?:boolean;autoStart?:boolean;completeLabel?:string;variant?:'default'|'memory';
 }) {
   const [takes,setTakes]=useState<PracticeRecording[]>([]),[phase,setPhase]=useState<'loading'|'idle'|'preparing'|'demo'|'recording'|'saving'|'playing'>('loading'),[message,setMessage]=useState('');
   const [pending,setPending]=useState<{id:string;blob:Blob}>();
@@ -20,7 +20,7 @@ export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,
   const owner=useRef<AbortController|undefined>(undefined),capture=useRef<PreparedRecording|undefined>(undefined),mounted=useRef(true),lock=useRef(false),autoStarted=useRef(false);
   const callbacks=useRef({stopAudio,onReady,onBusy,demonstrate});callbacks.current={stopAudio,onReady,onBusy,demonstrate};
   const query=new URLSearchParams({...target}).toString(),saved=takes.filter(t=>t.status==='ready'),ready=saved.length>=rounds;
-  const cancel=()=>{owner.current?.abort();owner.current=undefined;capture.current?.cancel();capture.current=undefined;lock.current=false;callbacks.current.stopAudio();if(mounted.current)setPhase('idle');};
+  const cancel=()=>{owner.current?.abort();owner.current=undefined;capture.current?.cancel();capture.current=undefined;lock.current=false;callbacks.current.stopAudio();if(mounted.current)setPhase(previous=>previous==='loading'?'loading':'idle');};
   useEffect(()=>{mounted.current=true;const controller=new AbortController();void api<PracticeRecording[]>(`/api/practice-recordings?${query}`,{signal:controller.signal}).then(rows=>{if(mounted.current)setTakes(rows);}).catch(error=>{if(!controller.signal.aborted)setMessage(errorMessage(error));}).finally(()=>{if(!controller.signal.aborted&&mounted.current){setLoaded(true);setPhase('idle');}});return()=>{mounted.current=false;controller.abort();cancel();callbacks.current.onBusy?.(false);};},[target.sessionId,target.activityId]);
   useEffect(()=>{callbacks.current.onReady?.(ready);},[ready]);
   useEffect(()=>{callbacks.current.onBusy?.(phase!=='idle');},[phase]);
@@ -33,7 +33,7 @@ export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,
     setTakes(rows);setPending(undefined);setMessage('');
   };
   const start=async(retry=false)=>{
-    if(lock.current||busy||!active||readOnly||phase!=='idle')return;lock.current=true;setMessage('');
+    if(lock.current||!loaded||busy||!active||readOnly||phase!=='idle')return;lock.current=true;setMessage('');
     const controller=new AbortController();owner.current=controller;let recording:PreparedRecording|undefined;
     try{
       if(retry&&pending){await save(pending,controller);return;}
@@ -57,6 +57,28 @@ export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,
   };
   useEffect(()=>{if(autoStart&&!autoStarted.current&&loaded&&active&&!busy&&phase==='idle'&&!readOnly){autoStarted.current=true;if(!ready)void start();}},[autoStart,loaded,active,busy,phase,readOnly,ready]);
   const recording=phase==='recording',idle=phase==='idle',label=recording?'说完啦':phase==='preparing'?'打开麦克风…':phase==='demo'?'先听一听…':phase==='saving'?'正在保存…':phase==='loading'?'正在找录音…':phase==='playing'?'正在回放…':pending?'重新保存录音':saved.length?'再录一遍':'开始录音';
+  if(variant==='memory'){
+    const canContinue=(ready||readOnly)&&!pending;
+    const record=()=>{if(recording){setPhase('saving');capture.current?.stop();}else void start(!!pending);};
+    return <div className="memory-voice" aria-label="口头练习录音">
+      <button className={`memory-primary ${recording?'is-recording':''}`} disabled={busy||!active||!idle&&!recording} onClick={idle&&canContinue?complete:record}>
+        <span className="memory-icon-disc">{canContinue&&!recording?<PlaybackIcon/>:<RecordingIcon stop={recording}/>}</span>
+        <span>{idle&&canContinue?'继续':label}</span>
+      </button>
+      <div className="memory-voice-footer">
+        <p className={`memory-record-status ${message?'is-error':ready?'is-saved':''}`} role="status">{message|| (recording?'正在录音…':ready?'✓ 已保存':takes.some(t=>t.status==='missing')?'上次录音找不到了':'')}</p>
+        <div className="memory-secondary">
+          {pending&&idle?<>
+            <button disabled={busy||!active} onClick={()=>{setPending(undefined);void start();}}>重新录音</button>
+            {!ready&&onSkip&&<button disabled={busy||!active} onClick={()=>{cancel();onSkip();}}>这次先跳过</button>}
+          </>:ready?<>
+            <button disabled={!idle||busy||!active} onClick={()=>void replay(saved.at(-1)!)}><PlaybackIcon size={16}/>听听自己</button>
+            {!readOnly&&saved.length<3&&<button disabled={!idle||busy||!active} onClick={()=>void start()}>再录一遍</button>}
+          </>:onSkip&&<button disabled={!idle||busy||!active} onClick={()=>{cancel();onSkip();}}>这次先跳过</button>}
+        </div>
+      </div>
+    </div>;
+  }
   return <div className={`oral-practice ${compact?'is-compact':''}`} aria-label="口头练习录音">
     <div className="oral-practice-heading"><span>{recording?'正在听你说…':rounds===3?`一起读 3 遍 · 已录 ${saved.length} 遍`:saved.length?'录音已保存，点播放听自己':compact?'再说一遍':'先自己说一说'}</span>{!compact&&<small>每段最多20秒</small>}</div>
     <div className="oral-practice-actions">
