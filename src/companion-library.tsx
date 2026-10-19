@@ -48,7 +48,7 @@ export function CompanionLibrary({ onBack }: { onBack: () => void }) {
         </button>;
       })}</div>
     </main>
-    {character && createPortal(<div className="companion-backdrop" onClick={event => { if (event.target === event.currentTarget) setSelected(null); }}><section className={'companion-portrait faction-' + character.faction} role="dialog" aria-modal="true" aria-labelledby="companion-name" aria-describedby="companion-introduction companion-biography" onKeyDown={event => {
+    {character && createPortal(<div className="companion-backdrop" onClick={event => { if (event.target === event.currentTarget) setSelected(null); }}><section className={'companion-portrait faction-' + character.faction} role="dialog" aria-modal="true" aria-labelledby="companion-name" aria-describedby="companion-introduction" onKeyDown={event => {
       if (event.key !== 'Tab') return;
       const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button, [tabindex="0"]'));
       const first = items[0], last = items.at(-1);
@@ -63,7 +63,7 @@ export function CompanionLibrary({ onBack }: { onBack: () => void }) {
           <h2 id="companion-name">{character.name}</h2>
           <p className="companion-english-name">{character.englishName}</p>
           <p className="companion-introduction" id="companion-introduction">{biography.slice(0, introductionEnd)}</p>
-          <p className="companion-biography" id="companion-biography">{biography.slice(introductionEnd)}</p>
+          <details className="companion-more"><summary>更多介绍</summary><p className="companion-biography" id="companion-biography">{biography.slice(introductionEnd)}</p></details>
         </div>
       </div>
       <nav className="companion-portrait-nav" aria-label="切换伙伴"><button aria-label="上一位伙伴" onClick={() => move(-1)}><CompanionArrow direction="left" />上一位</button><span aria-live="polite" aria-atomic="true">{visibleIds.indexOf(selected!) + 1} / {visibleIds.length}</span><button aria-label="下一位伙伴" onClick={() => move(1)}>下一位<CompanionArrow /></button></nav>

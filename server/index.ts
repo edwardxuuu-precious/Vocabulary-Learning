@@ -1,3 +1,6 @@
+import { lessonSegment } from '../shared/lesson-plan.ts';
+import { packGameCatalogue } from '../shared/pack-games.ts';
+import { gameRegistry } from '../shared/game-registry.ts';
 import { readyGameMaterialKeys } from './game-material-readiness.ts';
 import { prepareGameAudio } from './game-audio-preparation.ts';
 import { createPackGameAudio } from './pack-game-audio.ts';
@@ -230,6 +233,13 @@ export function createApp(options: AppOptions = {}) {
         throw new AppError('不支持该测试操作。', 'METHOD_NOT_ALLOWED', 405);
       }
       if (req.method === 'GET' && route === '/api/state') return json(res, await state());
+      if (req.method === 'POST' && route === '/api/lesson-plan') {
+        assessmentGrants.require(req.headers.authorization);
+        store.saveLessonPlan(await readJson(req, 100000), availableImage); return json(res, await state());
+      }
+      if (req.method === 'POST' && route === '/api/session/end') {
+        const session = store.manageSession(await readJson(req, 4096)); return json(res, { session, state: await state() });
+      }
       if(route==='/api/practice-recordings'||/^\/api\/practice-recordings\/[^/]+\/audio$/.test(route)){
         const target=url.searchParams.has('sessionId')?{sessionId:url.searchParams.get('sessionId')??'',activityId:url.searchParams.get('activityId')??''}:undefined;
         if(!target||req.headers.authorization)assessmentGrants.require(req.headers.authorization);
@@ -467,8 +477,18 @@ export function createApp(options: AppOptions = {}) {
         cancelImageJob(decodeURIComponent(cancelMatch[1]));
         return json(res, { jobs: store.read().jobs });
       }
+      if (req.method === 'GET' && route === '/api/pack-games') {
+        const data=store.read(),packId=url.searchParams.get('packId');
+        const pack=data.packs.find(pack=>pack.id===packId&&pack.enabled&&!pack.deletedAt&&!pack.isSample);
+        if(!pack)throw new AppError('这本词表还没有交给孩子学习。','SESSION_WORDS',409);
+        const words=data.words.filter(word=>word.packId===pack.id&&word.assetStatus==='approved');
+        const readyMaterialKeys=await readyGameMaterialKeys(data.words,words,availableImage,async cue=>!!await integration.getCachedSpeech({...cue,tone:'clear',dataDir}));
+        const allowedKinds=options.learningGames?.allowedKinds ?? gameRegistry.map(game=>game.kind);
+        return json(res,packGameCatalogue(words,{familyEnabled:data.settings.familyGamesEnabled===true,contextEnabled:data.settings.contextGamesEnabled===true,...options.learningGames,readyMaterialKeys,
+          allowedKinds:allowedKinds.filter(kind=>data.settings.spellingEnabled||gameRegistry.find(game=>game.kind===kind)?.step!=='spell')}));
+      }
       if (req.method === 'POST' && route === '/api/session/start') {
-        const input=await readJson(req,1_000_000,true),data=store.read(),daily=dailyLearningPlan(data,store.clock()),ids=Array.isArray(input.wordIds)?input.wordIds:(daily.tasks.length?daily.tasks:supplementalLearningPlan(data,store.clock()).tasks).map(t=>t.wordId);
+        const input=await readJson(req,1_000_000,true),data=store.read(),daily=dailyLearningPlan(data,store.clock()),ids=input.mode==='lesson'&&data.lessonPlan?lessonSegment(data.lessonPlan,data).tasks.map(t=>t.wordId):Array.isArray(input.wordIds)?input.wordIds:(daily.tasks.length?daily.tasks:supplementalLearningPlan(data,store.clock()).tasks).map(t=>t.wordId);
         const readyMaterialKeys=await readyGameMaterialKeys(data.words,data.words.filter(w=>ids.includes(w.id)),availableImage,async cue=>!!await integration.getCachedSpeech({...cue,tone:'clear',dataDir}));
         return json(res,store.startSession('random',{...options.learningGames,readyMaterialKeys},input));
       }

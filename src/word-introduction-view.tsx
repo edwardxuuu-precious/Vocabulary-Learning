@@ -48,10 +48,12 @@ export function WordIntroduction({ word, active, busy, audioEnabled, speak, getP
           <span className="lesson-meaning">{word.meaning}</span>
         </p>}
       </div>
-      {showPicture && <div className="lesson-picture introduction-picture"><img src={word.imageUrl} alt={word.meaning} /></div>}
+      <div className={`lesson-picture introduction-picture${showPicture?' is-revealed':''}`}>
+        {showPicture?<img src={word.imageUrl} alt={word.meaning}/>:<svg className="introduction-placeholder" viewBox="0 0 120 120" fill="none" aria-hidden="true"><rect x="24" y="21" width="72" height="78" rx="18" stroke="currentColor" strokeWidth="3"/><circle cx="48" cy="47" r="7" fill="currentColor" opacity=".5"/><path d="m31 82 20-21 14 14 9-9 15 16" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      </div>
     </div>
     <div className="introduction-controls">
-      <p className="introduction-phase" role="status"><span aria-hidden="true" />{phaseLabels[state.phase]}</p>
+      <div className="introduction-status"><p className="introduction-phase" role="status"><span aria-hidden="true" />{phaseLabels[state.phase]}</p><small>{state.transitionFailed?'可以重新连接':'会自动接着玩'}</small></div>
       {state.audioFailed && <p className="introduction-message" role="status">{audioEnabled ? '声音暂时没能播放，画面会自动继续。' : '声音已关闭，画面会自动继续。'}</p>}
       {state.transitionFailed && <p className="introduction-message" role="status">小任务暂时没接上，请重新连接。</p>}
       <div className="introduction-actions">

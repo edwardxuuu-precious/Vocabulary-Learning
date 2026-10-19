@@ -16,11 +16,12 @@ function shuffled<T>(values: T[], random: () => number): T[] {
 }
 /** Every game action replaces an existing atomic learning step; no hidden extra round is appended. */
 export function buildActivities(tasks: LearningTask[], words: Word[], random = Math.random, options: GamePlanOptions = {}): LearningActivity[] {
+  const batchSize=options.wordBatchSize??3;
   const byId = new Map(words.map(word => [word.id, word]));
   const result: LearningActivity[] = [];
   const recent = options.recentKinds ?? [], familiar = new Set(['flip','supply','portal', ...recent]);
   const groups:LearningTask[][]=[];
-  for(const members of options.practiceRounds?[tasks]:[tasks.filter(t=>t.mode==='review'),tasks.filter(t=>t.mode==='new')])for(let i=0;i<members.length;i+=3)groups.push(members.slice(i,i+3));
+  for(const members of options.practiceRounds?[tasks]:[tasks.filter(t=>t.mode==='review'),tasks.filter(t=>t.mode==='new')])for(let i=0;i<members.length;i+=batchSize)groups.push(members.slice(i,i+batchSize));
   const newKinds = gameRegistry.filter(game => !familiar.has(game.kind) && groups.some(group=>group.some(task=>task.steps.some(step=>eligibleGames(step,group.map(t=>byId.get(t.wordId)!),options).some(candidate=>candidate.kind===game.kind)))));
   const novel = options.forcedKind ?? (options.randomize && newKinds.length ? newKinds[Math.floor(random() * newKinds.length)].kind : undefined);
   const pick = (step: LearningActivity['step'], members: Word[], fallback: LearningActivity['kind'], objective = false): LearningActivity['kind'] => {
@@ -42,8 +43,8 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
   };
   // Preserve review-first scheduling and each word's due-skill order. Distractors are already learned reviews.
   const reviews = tasks.filter(task => task.mode === 'review' && !options.practiceRounds);
-  for (let start = 0; start < reviews.length; start += 3) {
-    const batch = reviews.slice(start, start + 3), members = batch.map(task => byId.get(task.wordId)!);
+  for (let start = 0; start < reviews.length; start += batchSize) {
+    const batch = reviews.slice(start, start + batchSize), members = batch.map(task => byId.get(task.wordId)!);
     const gateMatches = shuffled(batch.map((_, index) => index % 2 === 0), random);
     const distinct = members.length >= 2 && new Set(members.map(word => word.term.toLowerCase())).size === members.length && new Set(members.map(word => word.meaning.trim())).size === members.length && new Set(members.map(word => word.imageUrl)).size === members.length && members.every(word => word.imageUrl !== '/assets/placeholder.svg');
     const choices = distinct ? shuffled(members.map(gameWord), random) : [];
@@ -58,8 +59,8 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
   }
   const fresh = tasks.filter(task => task.mode === 'new' || options.practiceRounds);
   // Batch at most three words so the child never has to hold an entire large pack in working memory.
-  for (let start = 0; start < fresh.length; start += 3) {
-    const batch = fresh.slice(start, start + 3);
+  for (let start = 0; start < fresh.length; start += batchSize) {
+    const batch = fresh.slice(start, start + batchSize);
     // New assessment steps retain their original order until a matching game is registered.
     if (batch.some(task => task.steps.some(step => !['learn','recognize','listen','sound','read','recall','spell'].includes(step)))) {
       for (const task of batch) for (const step of task.steps) add(task, step);

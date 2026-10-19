@@ -25,11 +25,13 @@
 
 | 功能 | 主要入口 |
 | --- | --- |
-| 页面协调 | `src/main.tsx`、`src/entry-home.tsx`、`src/learning-hub.tsx`、`src/learning-topbar.tsx`、`src/learning-flow.css` |
+| 页面协调 | `src/main.tsx`、`src/entry-home.tsx`、`src/learning-hub.tsx`、`src/learning-topbar.tsx`、`src/learning-flow.css`；选词/挑战/成长/图鉴/家长共用样式 `src/page-system.css` |
 | 备课、编辑与审核 | `src/pack-workbench.tsx`、`src/pack-editor.tsx`、`src/pack-image-review-panel.tsx`、`server/import-preparation.ts`、`server/pack-audio.ts`、`server/pack-images.ts` |
-| 学习计划与恢复 | `shared/learning.ts`、`shared/learning-goals.ts`、`shared/game-plan.ts`、`src/learning-session.ts` |
+| 课堂范围与轮次管理 | `shared/lesson-plan.ts`、`src/lesson-planner.tsx`、`src/learning-hub.tsx`、`server/store.ts` |
+| 学习计划与恢复 | `shared/learning.ts`、`shared/learning-policy.ts`、`shared/learning-goals.ts`、`shared/game-plan.ts`、`src/learning-session.ts` |
+| 整本词表复习与游戏 | `shared/pack-practice.ts`、`shared/pack-games.ts`、`src/word-book-practice.tsx`、`src/word-book-games.tsx`；复用轮次接口，书与玩法快照由 `server/store.ts` 校验保存，`GET /api/pack-games` 返回真实可玩目录 |
 | 游戏与素材 | `shared/game-registry.ts`、`shared/game-materials.ts`、`shared/game-material-builder.ts`、`server/game-validation.ts`、`server/pack-game-audio.ts` |
-| 讲解、跟读与录音 | `src/word-introduction.ts`、`src/recall-demonstration.ts`、`src/oral-practice.tsx`、`server/practice-recordings.ts` |
+| 讲解、跟读与录音 | `src/word-introduction.ts`、`src/recall-demonstration.ts`、`src/memory-loop.tsx`、`src/oral-practice.tsx`、`server/practice-recordings.ts` |
 | 挑战与核验 | `src/child-challenge.tsx`、`src/assessment-review.tsx`、`server/challenges.ts`、`server/assessments.ts`、`server/assessment-grants.ts` |
 | 数据与 HTTP | `server/store.ts`、`server/index.ts`、`shared/contracts.ts` |
 | 家长入口 | `src/parent-gate.tsx`、`server/parent-gate.ts` |
@@ -53,8 +55,11 @@
 | 自动编排 | `scripts/automatic-games-qa.ts`；复用本机缓存，固定 8828，启动前确认空闲 |
 | 自主挑战 | `scripts/challenge-qa.vite.ts`、`scripts/challenge-qa.ts`；明确转写/初判替身，独立原音 |
 | 旧家长现场测试 | `npm.cmd run build:assessment-experience`、`npm.cmd run assessment:experience`；独立档案，默认 8799 |
+| 课堂范围与轮次管理 | `node --import tsx scripts/classroom-qa.ts --port=未占用端口`；40词隔离示例与测试PIN，所有云调用禁用；加 `--games` 开放已实现玩法供验收 |
 | 成长、导入与图片 | `scripts/growth-qa.ts`、`scripts/parent-import-qa.ts`、`scripts/pack-images-qa.ts` |
 | 发音与游戏维护 | `scripts/cache-word-audio.ts`、`scripts/prepare-game-materials.ts`；默认检查，显式 `--apply` 才准备缺项，不自动交付 |
+
+`scripts/game-library-qa.ts --serve --batch=1 --memory-loop --synthetic-mic --port=未占用端口 --dist=dist` 可验收分段闭环；合成麦克风明确标识，`/__qa/day` 只推进独立档案时钟。需已有 12 词缓存清单，不加载 `.env` 或调用云服务。
 
 脚本存在不等于服务已运行。不要停止其他体验；原有目录、数据和证据继续保留。云端 smoke 只有明确授权且额度通过后才能运行，普通检查/测试/构建不生成云端素材。
 

@@ -4,7 +4,7 @@ import { wordGamePlan } from './vocabulary.ts';
 import { assessmentDay, dueAssessmentProgress, suggestedAssessmentPractice, practiceStep } from './assessment.ts';
 import type { AssessmentData } from './contracts.ts';
 import { availableLearningWords, interleavePacks, learningEncounters, type LearningHistoryData } from './learning-history.ts';
-import { currentWordAttempt, goalStep, learningGoals, goalObservations } from './learning-goals.ts';
+import { currentWordAttempt, goalStep, learningGoals, goalObservations, recallObservations } from './learning-goals.ts';
 
 export const learningDay = (date = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -60,6 +60,14 @@ function reviewSchedule(data: LearningData) {
       const practiced=(data.assessmentPractices??[]).filter(p=>p.wordId===wordId&&p.learningVersion===(word.learningVersion??0)&&p.dimension===(goal==='read'?'read':'look')).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)).at(-1);
       const dueAt=verified?Math.max(Date.parse(verified.dueAt),last?Date.parse(last.createdAt)+DAY:0,practiced?Date.parse(practiced.createdAt)+DAY:0):Math.max(time,last?Date.parse(last.createdAt):0,practiced?Date.parse(practiced.createdAt):0)+DAY;
       row.set(goal,{dueAt,step:goal});
+    }
+    if (data.settings.learningStrategy === 'memory-loop') {
+      const lastRecall=(data.attempts??[]).filter(a=>currentWordAttempt(word,a)&&a.skill==='recall'&&!a.sessionPracticeOnly).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)).at(-1);
+      // Participation creates a reminder, never a verified score or a shifted formal due date.
+      const oralPractices=(data.assessmentPractices??[]).filter(p=>p.wordId===wordId&&p.learningVersion===(word.learningVersion??0)&&p.dimension==='zh-en');
+      const lastDay=learningDay(new Date(Math.max(time,lastRecall?Date.parse(lastRecall.createdAt):0,...oralPractices.map(p=>Date.parse(p.createdAt)))));
+      const verified=(data.assessmentProgress??[]).find(p=>p.wordId===wordId&&p.learningVersion===(word.learningVersion??0)&&p.dimension==='zh-en');
+      row.set('recall',{dueAt:Math.max(Date.parse(lastDay+'T00:00:00+08:00')+DAY,verified?Date.parse(verified.dueAt):0),step:'recall'});
     }
     schedule.set(wordId, row);
   }
@@ -118,7 +126,7 @@ export function dailyLearningPlan(data: LearningData, now = new Date()) {
     const dueSteps=[...schedule.get(word.id)!.values()].filter(item=>item.dueAt<=now.getTime());
     // A test-directed practice and a regular goal checkpoint must not duplicate the same goal today.
     const practicedGoals=new Set(dueSteps.filter(item=>item.step.startsWith('practice-')).map(item=>goalStep(item.step)).filter(Boolean));
-    const steps = dueSteps.filter(item=>item.step.startsWith('practice-')||!practicedGoals.has(goalStep(item.step))).sort((a,b)=>learningWeakness(data,word,a.step)-learningWeakness(data,word,b.step)||a.dueAt-b.dueAt).map(item=>item.step).slice(0, taskLimit-taskCount);
+    const steps = dueSteps.filter(item=>item.step.startsWith('practice-')||!practicedGoals.has(goalStep(item.step))&&!(item.step==='recall'&&dueSteps.some(row=>row.step==='practice-zh-en'))).sort((a,b)=>learningWeakness(data,word,a.step)-learningWeakness(data,word,b.step)||a.dueAt-b.dueAt).map(item=>item.step).slice(0, taskLimit-taskCount);
     if (steps.length) { review.push(word); tasks.push({ wordId: word.id, mode: 'review', steps }); taskCount += steps.length; }
   }
   const pending = (data.sessions ?? data.resumableSessions ?? []).filter(session => !session.completedAt && !session.suspendedAt);
@@ -207,7 +215,7 @@ export function wordLearningOverview(state: AppState, now = new Date()) {
     const nextDue = scheduled.length ? Math.min(...scheduled.map(progress => progress.dueAt)) : undefined;
     return {
       word, available: available.has(word.id), total: records.length, historicalTotal: history.length - records.length,
-      recognize:summarizeSkill(records,'recognize'),read:summarizeSkill(records,'read'),goals:goalObservations(state,word),listen: summarizeSkill(records, 'listen'), recall: summarizeSkill(records, 'recall'), spell: summarizeSkill(records, 'spell'),
+      recognize:summarizeSkill(records,'recognize'),read:summarizeSkill(records,'read'),goals:goalObservations(state,word),recallEvidence:recallObservations(state,word),listen: summarizeSkill(records, 'listen'), recall: summarizeSkill(records, 'recall'), spell: summarizeSkill(records, 'spell'),
       hintedCorrect: records.filter(attempt => attempt.correct && attempt.hinted && !attempt.practiceOnly).length,
       practiceOnly: records.filter(attempt => attempt.practiceOnly).length,
       nextDue, due: available.has(word.id) && nextDue !== undefined && nextDue <= now.getTime(),

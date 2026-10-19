@@ -1,3 +1,4 @@
+import { pendingLearningCheckpoint } from '../shared/learning-policy.ts';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -15,6 +16,7 @@ export function createPracticeRecordings(store: Store) {
   function current(target:PracticeRecordingTarget) {
     const data=store.read(),session=data.activeLearningSessionId===undefined?[...data.sessions].reverse().find(s=>!s.completedAt&&!s.suspendedAt):data.sessions.find(s=>s.id===data.activeLearningSessionId&&!s.completedAt&&!s.suspendedAt);
     if(!session||session.id!==target.sessionId)throw new AppError('这轮学习已结束，请在当前环节录音。','RECORDING_STALE',409);
+    if(pendingLearningCheckpoint(session))throw new AppError('这一小段完成啦，准备好了再继续。','LEARNING_CHECKPOINT',409);
     let a=currentActivity(session);
     if(!session.activities){const word=data.words.find(w=>w.id===session.wordIds.find(id=>!session.completedWordIds.includes(id)));if(word){const step=target.activityId.slice(word.id.length+1) as LearningActivity['step'];const steps=session.tasks?.find(t=>t.wordId===word.id)?.steps??newWordSteps(word,data.settings.spellingEnabled);if(target.activityId===`${word.id}:${step}`&&steps.includes(step))a={id:target.activityId,wordId:word.id,word:{...word,learningVersion:word.learningVersion??0},step,kind:'standard',choices:[]};}}
     const word=a&&data.words.find(w=>w.id===a.wordId);

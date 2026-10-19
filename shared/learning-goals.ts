@@ -18,3 +18,10 @@ export function goalObservations(data: Pick<AppState,'attempts'|'assessmentAttem
     return [goal, { attempts: attempts.length+practices.length, independent: independent.length, independentDays: new Set(independent.map(a=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(a.createdAt)))).size, recorded: attempts.filter(a=>a.oralStatus==='recorded').length+practices.filter(p=>p.oralStatus==='recorded').length, skipped: attempts.filter(a=>a.oralStatus==='skipped').length+practices.filter(p=>p.oralStatus==='skipped').length, verified:Number(verified), needsPractice:!!latest && (!latest.correct || latest.hinted || latest.practiceOnly), latestAt:latest?.createdAt }];
   })) as Record<LearningGoal,{attempts:number;independent:number;independentDays:number;recorded:number;skipped:number;verified:number;needsPractice:boolean;latestAt?:string}>;
 }
+
+/** Picture-to-English participation and formally verified recall remain separate. */
+export function recallObservations(data: Pick<AppState,'attempts'|'assessmentAttempts'>,word:Word) {
+  const attempts=data.attempts.filter(a=>currentWordAttempt(word,a)&&a.skill==='recall');
+  const verified=(data.assessmentAttempts??[]).filter(a=>a.wordId===word.id&&a.learningVersion===(word.learningVersion??0)&&a.dimension==='zh-en').sort((a,b)=>(a.confirmedAt??a.createdAt).localeCompare(b.confirmedAt??b.createdAt)).at(-1);
+  return {recorded:attempts.filter(a=>a.oralStatus==='recorded').length,skipped:attempts.filter(a=>a.oralStatus==='skipped').length,helped:attempts.filter(a=>a.hinted&&a.oralStatus==='recorded').length,unprompted:attempts.filter(a=>!a.hinted&&a.oralStatus==='recorded').length,verified:verified?.result==='correct'&&verified.source==='parent'};
+}

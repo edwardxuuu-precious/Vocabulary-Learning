@@ -58,9 +58,10 @@ interface WorkbenchProps {
   selectPack: (packId: string) => void;
   handoff: (packId: string) => Promise<void>;
   showSettings: () => void;
+  onLesson?: () => void;
 }
 
-export function PackWorkbench({ state, statuses, statusErrors, refreshAudio, imageStatuses, imageErrors, refreshImages, reload, report, showImages, onExit, packId, selectPack, handoff, showSettings }: WorkbenchProps) {
+export function PackWorkbench({ state, statuses, statusErrors, refreshAudio, imageStatuses, imageErrors, refreshImages, reload, report, showImages, onExit, packId, selectPack, handoff, showSettings, onLesson }: WorkbenchProps) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [creating, setCreating] = useState(() => !state.packs.some(pack => !pack.isSample));
   const [editingId, setEditingId] = useState('');
@@ -125,7 +126,7 @@ export function PackWorkbench({ state, statuses, statusErrors, refreshAudio, ima
     </article>;
   };
   return <div className="pack-workbench">
-    {formal.length > 0 && !creating && <div className="prep-book-switch">{formal.length > 1 && <label htmlFor="prep-current-pack">当前词表<select id="prep-current-pack" value={current?.id ?? ''} disabled={busy || !!editingId} onChange={event => { selectPack(event.target.value); setCreating(false); setError(''); }}>{formal.map(pack => <option key={pack.id} value={pack.id}>{pack.title}{pack.enabled ? ' · 已启用' : ''}</option>)}</select></label>}<button className="prep-secondary" disabled={busy || !!editingId} onClick={startNew}>＋ 新词表</button></div>}
+    {formal.length > 0 && !creating && <div className="prep-book-switch">{formal.length > 1 && <label htmlFor="prep-current-pack">当前词表<select id="prep-current-pack" value={current?.id ?? ''} disabled={busy || !!editingId} onChange={event => { selectPack(event.target.value); setCreating(false); setError(''); }}>{formal.map(pack => <option key={pack.id} value={pack.id}>{pack.title}{pack.enabled ? ' · 已启用' : ''}</option>)}</select></label>}<div className="prep-library-actions">{onLesson&&<button className="prep-secondary" disabled={busy || !!editingId} onClick={onLesson}>安排课堂单词</button>}<button className="prep-secondary" disabled={busy || !!editingId} onClick={startNew}>＋ 新词表</button></div></div>}
     <PreparationSteps active={creating ? 1 : current && (packPreparation(current, state.words, statuses[current.id]).reviewing > 0 || packPreparation(current, state.words, statuses[current.id]).canEnable) ? 3 : 2} pack={creating ? undefined : current} words={state.words} audio={current ? statuses[current.id] : undefined} />
     {error && <div className="pack-error workbench-error" role="alert">{error}</div>}
     {creating ? <EnglishImport spellingEnabled={state.settings.spellingEnabled} hasBooks={formal.length > 0} back={() => setCreating(false)} confirmed={confirmed} packIds={state.packs.map(pack => pack.id)} /> : current && renderPack(current)}

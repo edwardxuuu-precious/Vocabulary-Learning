@@ -1,0 +1,259 @@
+/* Shared foundations for the five supporting pages of the learning loop. */
+.app{--page-ink:#2e466c;--page-muted:#7b8ba5;--page-border:#dbe4f2;--page-purple:#5868dc;--page-shadow:0 8px 24px #47638a08;--page-card:linear-gradient(120deg,#fff 45%,#f5f5ff)}
+.app:is(.screen-book-games,.screen-books,.screen-select,.screen-growth,.screen-companions,.screen-parent),.child-challenge{background:linear-gradient(155deg,#edf4ffed,#fffaf2ed),var(--learning-scene,none) center/cover fixed;color:#2e466c}
+.word-picker,.growth-page,.companion-library,.parent-page.parent-studio{width:min(1060px,100%);max-width:1060px;margin:0 auto;padding:clamp(44px,6vh,72px) 36px 48px}
+.word-picker.page-enter,.growth-page.page-enter,.parent-studio.page-enter{animation:flow-reveal .2s ease both}
+.word-picker .hub-heading,.growth-heading,.companion-library-header,.parent-space-heading{display:flex;align-items:center;justify-content:space-between;min-height:88px;margin:28px 0 26px;gap:18px}
+.word-picker .hub-heading h1,.growth-heading h1,.companion-library h1,.parent-space-heading h1{font-size:38px;line-height:1.35;letter-spacing:-1px;color:#2e466c;margin:0}
+.word-picker .hub-heading>.mascot,.growth-page .growth-heading>.mascot,.companion-library .companion-library-header>.mascot,.parent-studio .parent-space-heading>.mascot{width:88px;height:88px;object-fit:contain}
+.word-picker :is(button,summary,select):focus-visible,.growth-page :is(button,summary,select,input):focus-visible,.companion-library button:focus-visible,.companion-portrait :is(button,summary):focus-visible,.parent-studio :is(button,summary,select,input,textarea):focus-visible,.child-challenge :is(button,summary):focus-visible{outline:3px solid #6d77db;outline-offset:4px}
+.word-picker :is(button,select),.growth-page button,.companion-library button,.parent-studio button{font-family:inherit}
+.growth-page .growth-nav>button,.companion-library-nav>button,.parent-home-nav>button{min-height:48px;box-shadow:none;background:#ffffffc9;border:1px solid #dbe4f2;border-radius:15px;font-size:16px;font-weight:500;color:#607a9d}
+
+/* Tabs remain quiet; selected cards and the single start button carry emphasis. */
+.word-picker .picker-toolbar,.growth-page .growth-module-nav,.companion-filters,.parent-studio .studio-tabs{background:#ffffffbf;border:1px solid #dbe4f2;border-radius:21px;box-shadow:none}
+.word-picker .picker-filters button[aria-pressed=true],.growth-page .growth-module-nav>button[aria-current=page],.companion-filters>button[aria-pressed=true],.parent-studio .studio-tabs>button[aria-current=page]{color:#5b69bb;background:white;box-shadow:0 2px 7px #4962950c}
+.word-picker .picker-toolbar{padding:10px 18px 3px}
+.word-picker .picker-grid article{border:1px solid #dbe4f2;box-shadow:0 4px 14px #50608f09;background:#fff;border-radius:24px}
+.word-picker .picker-grid article:has(.picker-card:hover:not(:disabled)){transform:translateY(-1px);box-shadow:0 6px 20px #50608f10}
+.word-picker .picker-grid article.is-selected:has(.picker-card:hover:not(:disabled)){border-color:#8d9ae3;box-shadow:0 0 0 1px #8d9ae344,0 6px 20px #50608f09}
+.word-picker .picker-grid article.is-selected{border-color:#8d9ae3;background:#f4f5ff;box-shadow:0 0 0 1px #8d9ae344}
+.word-picker .picker-card{background:transparent}
+.word-picker .picker-picture{background:#fafbff;border:1px solid #edf0f8}
+.word-picker .picker-check{background:#f1f4fa;color:#9aa8bd;border-color:#e0e7f2}
+.word-picker .is-selected .picker-check{background:#6877d6;color:white;border-color:#6877d6}
+.word-picker .picker-card small{background:transparent;padding:0;color:#8d9ab0;font-size:11px}
+.word-picker .picker-card .is-new{color:#8b99b0}
+.word-picker .picker-card .is-familiar{color:#6f9b88}
+.word-picker .picker-footer{padding:16px 22px;border:1px solid #dbe4f2;border-radius:22px;box-shadow:0 6px 24px #50658b14;gap:16px}
+.word-picker .picker-start{min-height:56px;min-width:156px;padding:13px 23px;border-radius:17px;font-size:20px;background:#5868dc;box-shadow:0 4px 0 #4453b8}
+.word-picker .picker-selection-heading>strong{font-size:20px}
+.word-picker .picker-selection-status{color:#8593a8;font-size:12px}
+.word-picker .picker-options>summary{background:transparent;color:#8392ab;font-size:12px}
+.word-picker .picker-listen{color:#8796b0}
+
+/* A book is the scope; the saved round keeps every ready word across breaks. */
+.hub-option-books .hub-option-icon{background:#eaeefa;color:#6879bc}
+.hub-recommendation-note{margin:10px 6px 0;color:#8190a7;font-size:12px;max-width:650px}
+.hub-recommendation-note>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;width:fit-content}
+.hub-recommendation-note>summary::after{content:'⌄'}
+.hub-recommendation-note>p{margin:0 0 16px;line-height:1.8}
+.book-practice-intro{color:#7b8ba5;font-size:14px;line-height:1.8;margin:-5px 0 27px}
+.book-practice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.book-practice-card,.book-practice-empty{padding:28px;border:1px solid #dbe4f2;background:var(--page-card);border-radius:28px;box-shadow:var(--page-shadow);min-width:0}
+.book-practice-grid:has(>.book-practice-card:only-child){grid-template-columns:1fr}
+.book-practice-card:only-child{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr);column-gap:36px;min-height:270px}
+.book-practice-card:only-child>:not(.book-practice-pictures){grid-column:1}
+.book-practice-card:only-child>.book-practice-pictures{grid-column:2;grid-row:1/span 4;align-self:center;justify-content:flex-end;margin:0}
+.book-practice-card:only-child>.book-practice-pictures>span{width:30%;max-width:112px}
+.book-practice-card:only-child>.book-practice-status{margin-top:24px}
+.book-practice-card:only-child>.hub-start{justify-self:start}
+.book-practice-heading{display:flex;align-items:center;gap:16px}
+.book-practice-heading>div{min-width:0}
+.book-practice-heading h2{font-size:25px;margin:0;color:#2e466c;overflow-wrap:anywhere;line-height:1.45}
+.book-practice-heading p{font-size:13px;color:#8190a7;margin:5px 0 0}
+.book-practice-symbol{width:54px;height:60px;border-radius:13px;background:#eaeefa;color:#7282c5;display:grid;place-items:center;font-size:34px;flex-shrink:0}
+.book-practice-pictures{display:flex;gap:12px;margin:26px 0}
+.book-practice-pictures>span{width:88px;aspect-ratio:1;background:white;border:1px solid #e4e9f3;border-radius:18px;padding:5px}
+.book-practice-pictures img{width:100%;height:100%;object-fit:contain;border-radius:12px}
+.book-practice-status>strong{font-size:18px;color:#536ba9;font-weight:650}
+.book-practice-status>p,.book-practice-pending{font-size:13px;line-height:1.8;color:#8190a7;margin:7px 0 0}
+.book-practice-card .hub-start{margin-top:23px;font-size:18px;min-height:54px;padding:13px 21px;border-radius:17px}
+.book-practice-card .hub-start>span:first-child{font-size:14px;margin:0 8px 0 0}
+.book-practice-card .hub-start>span:last-child{margin-left:18px}
+.book-practice-footer{margin-top:25px;text-align:center}
+.book-practice-empty h2{font-size:22px}.book-practice-empty p{color:#8190a7;line-height:1.8}
+.hub-option-games .hub-option-icon{background:#e8f4f0;color:#509b83}
+.book-game-scope{margin:-2px 0 26px;color:#536b94}
+.book-game-scope>strong{font-size:18px}.book-game-scope>strong>span{font-weight:400;font-size:13px;color:#8190a7}
+.book-game-scope>p{font-size:13px;line-height:1.8;color:#8190a7;margin:9px 0 0}
+.book-game-scope label{display:flex;align-items:center;gap:14px;font-size:13px;color:#8190a7}
+.book-game-scope select{min-height:48px;max-width:100%;background:white;border:1px solid #dbe4f2;border-radius:14px;padding:10px 16px;color:#405b80;font:inherit;font-size:16px}
+.book-game-featured{display:grid;grid-template-columns:1fr;gap:18px}
+.book-game-featured.has-resume{grid-template-columns:1fr 1fr}
+.book-game-random,.book-game-resume{padding:25px 28px;background:var(--page-card);border:1px solid #dbe4f2;border-radius:26px;box-shadow:var(--page-shadow)}
+.book-game-random{display:flex;align-items:center;gap:28px}
+.book-game-dice{width:104px;height:104px;border-radius:27px;background:#edefff;color:#7582d4;display:grid;place-items:center;flex-shrink:0;transform:rotate(-7deg)}
+.book-game-dice svg{width:67px;height:67px}
+.book-game-featured h2{font-size:28px;margin:0;color:#2e466c;line-height:1.4}
+.book-game-featured p{color:#8190a7;font-size:13px;margin:9px 0 0;line-height:1.8}
+.book-game-featured .hub-start{margin-top:19px;min-height:53px;font-size:18px;padding:12px 20px;border-radius:16px}
+.book-game-resume>small{display:block;margin-bottom:7px;color:#639a83;font-size:12px}
+.book-game-filter{display:flex;gap:7px;flex-wrap:wrap;margin:28px 0 18px}
+.book-game-filter button{min-height:46px;background:transparent;color:#8190a7;padding:10px 17px;font-size:14px;border-radius:14px;border:1px solid transparent}
+.book-game-filter button[aria-pressed=true]{background:white;border-color:#dbe4f2;color:#5c6bbd;box-shadow:0 3px 12px #50608f07}
+.book-game-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.book-game-kind{position:relative;background:#ffffffed;border:1px solid #dbe4f2;border-radius:24px;padding:22px;text-align:left;min-height:166px;color:#365176;transition:border-color .15s,transform .15s,box-shadow .15s}
+.book-game-kind:hover:not(:disabled){border-color:#a9b6df;box-shadow:0 6px 20px #50608f0c;transform:translateY(-2px)}
+.book-game-kind-icon{display:grid;place-items:center;width:49px;height:49px;border-radius:16px;background:#eef2fb;color:#7586c3;margin-bottom:17px}
+.book-game-kind:nth-child(3n+2) .book-game-kind-icon{background:#eaf5ef;color:#78a28b}
+.book-game-kind:nth-child(3n) .book-game-kind-icon{background:#fff3e2;color:#c49d6a}
+.book-game-kind-icon svg{width:29px;height:29px}
+.book-game-kind>strong{display:block;font-size:20px;line-height:1.5}.book-game-kind>small{display:block;color:#8a98ae;font-size:12px;margin-top:7px;line-height:1.6}
+.book-game-kind-arrow{position:absolute;top:32px;right:23px;color:#98a6bd;font-size:21px}
+.book-game-locked{margin-top:26px;color:#8a98ae;font-size:12px;line-height:1.8}
+.book-game-locked>summary{cursor:pointer;min-height:44px;padding:10px 0}
+.book-game-locked>div{display:flex;gap:8px;flex-wrap:wrap}.book-game-locked>div>span{padding:7px 11px;background:#ffffff8f;border:1px solid #e2e8f3;border-radius:12px}
+.book-game-loading,.book-game-error{padding:22px 0;color:#8190a7;font-size:14px;line-height:1.8}
+@media(max-width:760px){
+  .book-practice-grid{grid-template-columns:1fr;gap:17px}
+  .book-practice-card,.book-practice-empty{padding:22px 20px;border-radius:25px}
+  .book-practice-card:only-child{display:block;min-height:0}
+  .book-practice-card:only-child>.book-practice-pictures{justify-content:flex-start;margin:22px 0}
+  .book-practice-card:only-child>.book-practice-pictures>span{max-width:88px}
+  .book-practice-card:only-child>.book-practice-status{margin-top:0}
+  .book-practice-intro{font-size:12px;margin-bottom:21px}
+  .book-practice-heading h2{font-size:22px}
+  .book-practice-heading{gap:12px}
+  .book-practice-symbol{width:45px;height:51px;font-size:29px}
+  .book-practice-pictures{gap:9px;margin:22px 0}
+  .book-practice-pictures>span{width:calc((100% - 18px)/3);max-width:88px;border-radius:16px}
+  .book-practice-card .hub-start{width:100%;justify-content:center}
+  .book-game-scope{margin-top:0;margin-bottom:23px}.book-game-scope>strong{font-size:17px}.book-game-scope>p{font-size:12px}
+  .book-game-featured.has-resume{grid-template-columns:1fr}
+  .book-game-random,.book-game-resume{padding:22px 20px;border-radius:25px;gap:19px}
+  .book-game-dice{width:69px;height:69px;border-radius:20px}.book-game-dice svg{width:46px;height:46px}
+  .book-game-featured h2{font-size:24px}.book-game-featured p{font-size:12px}.book-game-featured .hub-start{font-size:17px}
+  .book-game-filter{gap:3px;margin-top:23px}.book-game-filter button{padding:9px 11px;font-size:12px;min-height:44px}
+  .book-game-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+  .book-game-kind{padding:18px 14px;min-height:171px;border-radius:21px}.book-game-kind>strong{font-size:17px}.book-game-kind>small{font-size:11px}.book-game-kind-arrow{right:14px;top:26px;font-size:18px}
+}
+
+/* Growth uses actual evidence without the former solid purple banner. */
+.growth-page .growth-highlight{border:1px solid #dbe4f2;border-radius:30px;background:var(--page-card);box-shadow:var(--page-shadow);color:#2e466c;padding:28px 32px;min-height:220px}
+.growth-page .growth-highlight::after{display:none}
+.growth-page .growth-highlight-copy>h2{font-size:30px;color:#2e466c;line-height:1.4}
+.growth-page .growth-highlight-copy>p{font-size:14px;color:#7b8ba5}
+.growth-page .growth-highlight-copy>button{background:#5868dc;border:1px solid #5665d7;border-radius:16px;box-shadow:0 4px 0 #4453b8;color:white;min-height:54px;padding:12px 22px;font-size:18px;margin-top:23px}
+.growth-page .growth-highlight-art>span{background:white;border:1px solid #e1e6f0;box-shadow:0 4px 14px #50608f09;transform:none}
+.growth-page .growth-highlight-art>span:nth-child(2){transform:translateY(-8px)}
+.growth-page .growth-highlight-art>span:nth-child(3){transform:none}
+.growth-page :is(.growth-summary>button,.growth-panel,.growth-word-card){background:#ffffffed;border:1px solid #dbe4f2;box-shadow:var(--page-shadow)}
+.growth-page .growth-summary>button{border-radius:23px}
+.growth-page .growth-summary strong{color:#5c6fc3}
+.growth-page .badge-next{border:1px solid #dce5f2;background:#f8faff;box-shadow:none;border-radius:20px}
+.growth-page .badge-card{box-shadow:none;border-color:#e2e8f3;border-radius:21px;background:#fff}
+.growth-page .growth-primary{background:#5868dc;box-shadow:0 4px 0 #4453b8;border-radius:17px}
+.growth-page .growth-test-action{min-height:54px;font-size:18px}
+.growth-page .growth-search,.growth-page .growth-word-filters{border-color:#dbe4f2;background:#ffffffd9}
+
+/* Companion artwork remains unchanged, with a short introduction first. */
+.companion-card{background:#fff;border-radius:24px;box-shadow:0 4px 14px #50608f09}
+.companion-card:hover{box-shadow:0 7px 20px #50608f12;transform:translateY(-2px)}
+.companion-card:active{box-shadow:0 3px 10px #50608f09;transform:translateY(1px)}
+.companion-card-name{padding-top:14px}
+.companion-card strong{font-size:20px}
+.companion-card-art{background:linear-gradient(145deg,#fafbff,#f1f4fe)}
+.faction-decepticon .companion-card-art{background:linear-gradient(145deg,#fcfbff,#f4f0fc)}
+.companion-portrait{border-color:#dbe4f2;background:white;box-shadow:0 24px 90px #2339532b}
+.companion-portrait-stage{background:var(--page-card)}
+.companion-portrait-nav>button{background:#fff;border-color:#dbe4f2;color:#6a7c9f;font-size:15px}
+.companion-more{border-top:1px solid #e8edf6;margin-top:19px}
+.companion-more>summary{min-height:44px;padding:12px 0;font-size:13px;color:#8796ac;cursor:pointer}
+.companion-more .companion-biography{margin-top:3px;font-size:14px}
+
+.parent-studio .prep-book-switch{justify-content:space-between}
+.parent-studio .prep-library-actions{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+.parent-studio .prep-library-actions>.prep-secondary{box-shadow:none;min-height:48px;padding:11px 16px;font-size:14px}
+
+/* Preparation, records and settings share the same surface and primary color. */
+.parent-studio :is(.preparation-book,.prep-import,.parent-panel,.parent-disclosure){background:#ffffffed;border-color:#dbe4f2;box-shadow:var(--page-shadow);border-radius:26px}
+.parent-studio :is(.prep-primary,.parent-panel .button.primary){background:#5868dc;border-color:#5665d7;box-shadow:0 4px 0 #4453b8;border-radius:16px}
+.parent-studio .prep-next-step{background:var(--page-card);border:1px solid #dbe4f2;box-shadow:none;border-radius:22px;padding:23px 25px}
+.parent-studio .prep-next-step h3{color:#2e466c;font-size:23px}
+.parent-studio .prep-next-step p,.parent-studio .prep-next-step .prep-kicker{color:#7b8ba5}
+.parent-studio .prep-next-step .prep-primary{background:#5868dc;color:white;border-color:#5665d7;box-shadow:0 4px 0 #4453b8}
+.parent-studio .prep-next-step .prep-secondary{background:white;color:#6b7fa4;border-color:#dbe4f2;box-shadow:none}
+.parent-studio .prep-next-step .prep-text-button{color:#8393ae}
+.parent-studio .prep-material{background:#f8faff;border:1px solid #e3e9f4;border-radius:20px}
+.parent-studio .parent-record-tabs,.parent-studio .parent-options{background:#f8faff;box-shadow:none}
+.parent-studio .preparation-steps li{padding:13px 15px;background:#ffffff8f;box-shadow:none}
+.parent-studio .preparation-steps li strong{font-size:13px;font-weight:600}
+.parent-studio .parent-save-row{padding-top:18px}
+.parent-studio .parent-save-row>span{font-size:13px}
+
+/* Challenge keeps its recording/review boundary, with one progress indicator. */
+.child-challenge{padding:clamp(44px,6vh,72px) 36px 48px}
+.child-challenge .quest-shell{width:min(988px,100%)}
+.child-challenge .quest-lobby-heading{min-height:88px;margin:28px 0 26px}
+.child-challenge .quest-lobby-heading h1{font-size:38px;letter-spacing:-1px;color:#2e466c}
+.child-challenge .quest-lobby-heading>.mascot{width:88px;height:88px}
+.child-challenge :is(.quest-resume-card,.quest-plan-card,.quest-plan-card.is-primary,.quest-question,.quest-review-card,.quest-finish){border:1px solid #dbe4f2;background:linear-gradient(120deg,#fff 45%,#f5f5ff);box-shadow:0 8px 24px #47638a08;color:#2e466c;border-radius:30px}
+.child-challenge :is(.quest-resume-card,.quest-plan-card.is-primary)::after{display:none}
+.child-challenge .quest-resume-copy>strong,.child-challenge .quest-plan-copy>h2{color:#2e466c;font-size:30px}
+.child-challenge .quest-resume-copy>small,.child-challenge .quest-plan-copy>p{color:#7b8ba5}
+.child-challenge .quest-resume-action,.child-challenge .quest-primary{background:#5868dc;color:white;border:1px solid #5665d7;border-radius:17px;box-shadow:0 4px 0 #4453b8;min-height:54px;font-size:18px;padding:12px 22px}
+.child-challenge .quest-resume-progress{background:#e5eaf4}
+.child-challenge .quest-resume-progress>span{background:#727cde}
+.child-challenge .quest-plan-count strong{color:#6273c7}
+.child-challenge .quest-plan-pictures>span{transform:none;border:1px solid #e1e6f0;box-shadow:0 4px 14px #50608f09;border-radius:20px;background:white}
+.child-challenge .quest-plan-pictures>span:nth-child(2){transform:translateY(-8px)}
+.child-challenge .quest-word-grid>button{border:1px solid #dbe4f2;background:white;box-shadow:0 4px 14px #50608f09;border-radius:23px}
+.child-challenge .quest-word-grid>button[aria-pressed=true]{border-color:#8d9ae3;background:#f4f5ff;box-shadow:0 0 0 1px #8d9ae344}
+.child-challenge .quest-question-top{background:transparent;border-bottom:1px solid #edf0f7;padding:18px 26px}
+.child-challenge .quest-active-progress{display:flex;align-items:center;gap:18px;margin:0 0 22px;width:100%}
+.child-challenge .quest-active-progress>div{flex:1;height:7px;background:#e5eaf4;box-shadow:none}
+.child-challenge .quest-active-progress>div>span{background:#727cde}
+.child-challenge .quest-active-progress>span{font-size:12px;color:#8291a9;white-space:nowrap}
+.child-challenge .quest-active-progress strong{color:#6171bf}
+.child-challenge .quest-nav{margin-bottom:22px}
+.child-challenge .quest-question-body{padding:25px 28px;gap:19px}
+.child-challenge .quest-question-actions{border-top:1px solid #edf0f7;background:#ffffff9c;padding:18px 26px}
+.child-challenge .quest-word{background:#f3f5ff;border-color:#e3e9f7;box-shadow:none}
+.child-challenge .quest-mic-button{background:#5868dc;box-shadow:0 4px 0 #4453b8;border-color:#5665d7;color:white}
+.child-challenge .quest-mic-button.is-recording{background:#bd5b7c;box-shadow:0 4px 0 #9c4766;border-color:#bd5b7c}
+.child-challenge .quest-selection-footer{border:1px solid #dbe4f2;border-radius:22px;box-shadow:0 6px 24px #50658b14;padding:16px 22px}
+.child-challenge .quest-selection-footer>.quest-button{min-height:56px;font-size:18px;padding:13px 22px;border-radius:17px}
+.child-challenge .quest-nav-button{border:1px solid #dbe4f2;box-shadow:none}
+.child-challenge .quest-recording-caption,.child-challenge .quest-encouragement{font-size:13px;color:#8491a8}
+dialog.quest-native-pause:not([open]){display:none}
+dialog.quest-native-pause[open]{display:flex;width:min(420px,calc(100% - 40px));max-height:calc(100dvh - 40px);margin:auto;padding:30px;border:1px solid #dbe4f2;border-radius:28px;background:white;box-shadow:0 24px 90px #2339532b;overflow:auto}
+dialog.quest-native-pause::backdrop{background:#243b5b59;backdrop-filter:blur(5px)}
+
+@media(max-width:760px){
+  .word-picker,.growth-page,.companion-library,.parent-page.parent-studio{padding:30px 20px 38px}
+  .word-picker .hub-heading,.growth-heading,.companion-library-header,.parent-space-heading{min-height:72px;margin:23px 0 24px}
+  .word-picker .hub-heading h1,.growth-heading h1,.companion-library h1,.parent-space-heading h1{font-size:29px;letter-spacing:-.7px}
+  .word-picker .hub-heading>.mascot,.growth-page .growth-heading>.mascot,.companion-library .companion-library-header>.mascot,.parent-studio .parent-space-heading>.mascot{width:72px;height:72px}
+  .word-picker .picker-grid{gap:13px}
+  .word-picker .picker-footer{padding:13px 15px;gap:10px}
+  .word-picker .picker-start{font-size:18px;min-width:118px;min-height:54px;padding:12px 16px}
+  .word-picker .picker-start>svg{width:21px;height:21px}
+  .word-picker .picker-selection-heading>strong{font-size:18px}
+  .word-picker .picker-selection-status{font-size:11px}
+  .word-picker .picker-options>summary{padding:5px 0;font-size:11px}
+  .growth-page .growth-highlight{padding:24px 22px;min-height:218px;border-radius:25px}
+  .growth-page .growth-highlight-copy>h2{font-size:25px}
+  .growth-page .growth-highlight-copy>p{font-size:12px}
+  .growth-page .growth-highlight-copy>button{font-size:17px;min-height:52px;padding:11px 17px}
+  .growth-page .growth-highlight-art>span{transform:translate(-8px,22px)}
+  .growth-page .growth-highlight-art>span:nth-child(2){transform:translate(7px,2px)}
+  .growth-page .growth-highlight-art>span:nth-child(3){transform:translate(-1px,49px)}
+  .growth-page .growth-summary>button{border-radius:20px}
+  .companion-card{border-radius:22px}
+  .companion-more{text-align:left;margin-top:14px}
+  .companion-more .companion-biography{font-size:14px;line-height:1.85}
+  .parent-studio .preparation-steps{gap:7px}
+  .parent-studio .preparation-steps li{padding:11px 7px}
+  .parent-studio .preparation-steps li strong{font-size:11px}
+  .parent-studio .prep-next-step{padding:20px 17px;border-radius:21px}
+  .parent-studio .prep-next-step h3{font-size:21px}
+  .child-challenge{padding:30px 20px 38px}
+  .child-challenge .quest-lobby-heading{min-height:72px;margin:23px 0 24px}
+  .child-challenge .quest-lobby-heading h1{font-size:29px;letter-spacing:-.7px}
+  .child-challenge .quest-lobby-heading>.mascot{width:72px;height:72px}
+  .child-challenge :is(.quest-resume-card,.quest-plan-card,.quest-plan-card.is-primary,.quest-question,.quest-review-card,.quest-finish){border-radius:25px}
+  .child-challenge .quest-resume-copy>strong,.child-challenge .quest-plan-copy>h2{font-size:25px}
+  .child-challenge .quest-resume-action,.child-challenge .quest-primary{font-size:17px;min-height:52px;padding:12px 17px;border-radius:15px}
+  .child-challenge .quest-question-top{padding:15px 18px}
+  .child-challenge .quest-question-body{padding:22px 17px;gap:16px}
+  .child-challenge .quest-question-actions{padding:15px 17px;gap:10px}
+  .child-challenge .quest-active-progress{gap:10px;margin-bottom:18px}
+  .child-challenge .quest-active-progress>span{font-size:11px}
+  .child-challenge .quest-selection-footer{padding:13px 15px;gap:10px}
+  .child-challenge .quest-selection-footer>.quest-button{font-size:17px;min-height:54px;padding:12px 15px}
+  .child-challenge .quest-selection-footer strong{font-size:18px}
+  .child-challenge .quest-selection-footer span{font-size:11px}
+  .child-challenge .quest-encouragement{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){.word-picker.page-enter,.growth-page.page-enter,.parent-studio.page-enter{animation:none}}

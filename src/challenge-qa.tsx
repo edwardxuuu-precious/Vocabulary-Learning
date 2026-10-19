@@ -5,6 +5,7 @@ import { AssessmentCenter } from './assessments';
 import { api, post } from './api';
 import './style.css';
 import './parent.css';
+import './page-system.css';
 function ChallengeQA() {
   const [state, setState] = useState<AppState>(), [grant, setGrant] = useState<AssessmentGrant>(), [parent, setParent] = useState(false), [active, setActive] = useState(true);
   const reload = useCallback(async () => { const state = await api<AppState>('/api/state'); setState(state); return state; }, []);

@@ -12,18 +12,21 @@ export function Medal({ locked = false, kind = 'skill' }: { locked?: boolean; ki
   return <span className={`growth-medal ${locked ? 'is-locked' : ''} medal-${kind}`} aria-hidden="true"><svg viewBox="0 0 88 100" fill="none"><path d="m23 57-7 37 28-13 28 13-7-37" fill="currentColor" opacity=".65" /><circle cx="44" cy="40" r="33" fill="currentColor" /><circle cx="44" cy="40" r="26" stroke="white" strokeWidth="3" opacity=".65" /><path d="m44 20 6 13 15 2-11 11 3 15-13-7-13 7 3-15-11-11 15-2Z" fill="white" /></svg></span>;
 }
 
-export function LearningReward({ growth, session, onGrowth, onTest, onHome, onAgain, onSelect }: { growth?: GrowthSummary; session: LearningSession | null; onGrowth: () => void; onTest: () => void; onHome: () => void; onAgain?: () => void; onSelect?: () => void }) {
+export function LearningReward({ growth, session, busy = false, onGrowth, onTest, onHome, onAgain, onSelect }: { growth?: GrowthSummary; session: LearningSession | null; busy?: boolean; onGrowth: () => void; onTest: () => void; onHome: () => void; onAgain?: () => void; onSelect?: () => void }) {
   const completedWords = (session?.completedWordIds ?? []).map(id => session?.activities?.find(activity => activity.wordId === id)?.word).filter(word => word !== undefined).slice(0, 3);
   return <main className="growth-reward flow-reward page-enter">
     <section className="reward-main-card" aria-labelledby="reward-title">
-      <div className="reward-companion"><Mascot character={companionFor(session?.id ?? 'reward', 19)} /></div>
-      <h1 id="reward-title">这一轮完成啦！</h1>
-      <p className="reward-round-count">完成了 <strong>{session?.completedWordIds.length ?? 0}</strong> 个词的练习</p>
+      <span className="reward-kicker"><LearningSymbol kind="check"/>这次的努力，记好啦</span>
+      <div className="reward-hero"><div><h1 id="reward-title">{session?.lessonPlanId?'这一段完成啦！':'这一轮完成啦！'}</h1>
+        <p className="reward-round-count">练习了 <strong>{session?.completedWordIds.length ?? 0}</strong> 个单词</p>
+        {session?.lessonTitle&&<p className="reward-review-note">{session.lessonTitle} · 本课 {session.lessonScopeCount} 词</p>}
+      </div><div className="reward-companion"><Mascot character={companionFor(session?.id ?? 'reward', 19)} /></div></div>
       {completedWords.length > 0 && <div className="reward-word-pictures" aria-label="本轮练习过的单词">{completedWords.map(word => <span key={word.id}><img src={word.imageUrl} alt={word.meaning} /></span>)}</div>}
-      {growth ? <div className="reward-saved-status"><span className="reward-check"><LearningSymbol kind="check" /></span><div><strong>{growth.todayCheckedIn ? '今天已打卡' : '本轮练习已保存'}</strong><small>累计学习 {growth.totalDays} 天</small></div></div> : <p className="reward-unavailable" role="status">成长记录暂未载入，请重新连接本机服务。</p>}
+      {session?.learningPolicy?.kind==='memory-loop'&&<p className="reward-reminder">明天再来，试试还能想起几个</p>}
+      {growth ? <div className="reward-saved-status"><span className="reward-check"><LearningSymbol kind="check" /></span><strong>{growth.todayCheckedIn ? '今天已打卡' : '本轮练习已保存'}</strong><small>累计学习 {growth.totalDays} 天</small></div> : <p className="reward-unavailable" role="status">成长记录暂未载入，可以回大厅再看看。</p>}
+      <div className="reward-main-actions"><button className="growth-primary" disabled={busy} onClick={onHome}>{session?.packGame?'回游戏选择':session?.practicePackId?'回整本复习':session?.lessonPlanId?'先休息，回大厅':'回学习大厅'}<LearningSymbol kind="arrow" /></button><button className="reward-growth-link" disabled={busy} onClick={onGrowth}>看看成长<LearningSymbol kind="arrow"/></button></div>
     </section>
-    <div className="reward-main-actions"><button className="growth-primary" onClick={onHome}>回学习大厅<LearningSymbol kind="arrow" /></button><button className="growth-secondary" onClick={onGrowth}>看看我的成长</button></div>
-    <details className="reward-more"><summary>还想继续玩<LearningSymbol kind="down" /></summary><div>{onAgain && <button onClick={onAgain}><LearningSymbol kind="play" />再练一轮</button>}{onSelect && <button onClick={onSelect}>自己选词<LearningSymbol kind="arrow" /></button>}<button onClick={onTest}>挑战本轮<LearningSymbol kind="arrow" /></button></div></details>
+    <details className="reward-more"><summary>其他玩法<LearningSymbol kind="down" /></summary><div>{onAgain && <button disabled={busy} onClick={onAgain}><LearningSymbol kind="play" />{session?.packGame?session.packGame.selection==='random'?'再随机一轮':'再玩这个玩法':session?.practicePackId?'再复习一轮':session?.lessonPlanId?'课堂下一段':'再练一轮'}</button>}{onSelect && <button disabled={busy} onClick={onSelect}>自己选词<LearningSymbol kind="arrow" /></button>}<button disabled={busy} onClick={onTest}>挑战本轮<LearningSymbol kind="arrow" /></button></div></details>
   </main>;
 }
 
@@ -89,15 +92,15 @@ function GrowthWords({ growth, words, initialFilter = 'practiced', onLearn }: { 
   </section>;
 }
 
-export function ChildGrowth({ growth, words = [], onBack, onTest, onLearn }: { growth?: GrowthSummary; words?: Word[]; onBack: () => void; onTest: () => void; onLearn?: () => void }) {
+export function ChildGrowth({ growth, words = [], backLabel = '回首页', onBack, onTest, onLearn }: { growth?: GrowthSummary; words?: Word[]; backLabel?: string; onBack: () => void; onTest: () => void; onLearn?: () => void }) {
   const [module, setModule] = useState<GrowthModule>('overview');
   const [wordFilter, setWordFilter] = useState<WordFilter>('practiced');
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [module]);
-  if (!growth) return <main className="growth-page"><nav className="growth-nav"><button onClick={onBack}><GrowthSymbol kind="back" />回首页</button></nav><header className="growth-heading"><h1>我的成长</h1><Mascot small /></header><section className="growth-panel"><p role="status">成长记录尚未载入，请重新连接本机服务。</p></section></main>;
+  if (!growth) return <main className="growth-page"><nav className="growth-nav"><button onClick={onBack}><GrowthSymbol kind="back" />{backLabel}</button></nav><header className="growth-heading"><h1>我的成长</h1><Mascot small /></header><section className="growth-panel"><p role="status">成长记录尚未载入，请重新连接本机服务。</p></section></main>;
   const earned = growth.badges.filter(badge => badge.unlocked);
   const openWords = (filter: WordFilter) => {setWordFilter(filter); setModule('words');};
   return <main className="growth-page page-enter" data-growth-module={module}>
-    <nav className="growth-nav" aria-label="成长导航"><button onClick={module === 'overview' ? onBack : () => setModule('overview')}><GrowthSymbol kind="back" />{module === 'overview' ? '回首页' : '成长首页'}</button></nav>
+    <nav className="growth-nav" aria-label="成长导航"><button onClick={onBack}><GrowthSymbol kind="back" />{backLabel}</button></nav>
     <header className="growth-heading"><h1>{module === 'overview' ? '我的成长' : growthModules.find(item => item.id === module)!.title}</h1><Mascot small /></header>
     <nav className="growth-module-nav" aria-label="成长模块">{growthModules.map(item => <button key={item.id} aria-label={item.title} aria-current={module === item.id ? 'page' : undefined} onClick={() => {if (item.id === 'words') setWordFilter('practiced'); setModule(item.id);}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={item.path} /></svg><span>{item.short}</span></button>)}</nav>
     {module === 'overview' && <>

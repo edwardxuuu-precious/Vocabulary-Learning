@@ -27,7 +27,7 @@ export function LearningGame({ activity, session, busy: appBusy, playing, onActi
   const prompt = isFlip ? saved.heard ? '听到的是哪一张？' : '点亮声音卡，找它的图片' : isSupply ? '听一听，把需要的物品送上车' : saved.revealed ? '听一听，和自己说的比一比' : '这个老朋友，英语怎么说？';
   return <main className={`lesson-page game-page game-${activity.kind}`}>
 <LearningTopbar session={session} onHome={onHome} onPause={onPause} />
-    <div className="lesson-guide"><Mascot small character={companionFor(session.id, Math.max(0, session.activities?.findIndex(item => item.id === activity.id) ?? 0))} /><h1>{activityTitles[activity.kind]}</h1>{session.tasks?.find(task => task.wordId === activity.wordId)?.mode === 'review' && <span className="lesson-review">复习</span>}</div>
+    <div className="lesson-guide"><Mascot small character={companionFor(session.id, Math.max(0, session.activities?.findIndex(item => item.id === activity.id) ?? 0))} /><h1>{activityTitles[activity.kind]}</h1>{!session.packGame && session.tasks?.find(task => task.wordId === activity.wordId)?.mode === 'review' && <span className="lesson-review">复习</span>}</div>
     <section className="game-stage" aria-label={activityTitles[activity.kind]}>
       <p className="game-prompt">{prompt}</p>
       {isPortal ? <>

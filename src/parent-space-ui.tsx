@@ -17,11 +17,11 @@ export function ParentSymbol({ kind }: { kind: ParentSymbolKind }) {
   return <svg className="parent-symbol" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[kind]} /></svg>;
 }
 
-export function ParentSpaceHeader({ tab, reviewing, onExit, onNavigate }: { tab: ParentTab; reviewing: number; onExit: () => void; onNavigate: (tab: Exclude<ParentTab, 'assets'>) => void }) {
+export function ParentSpaceHeader({ tab, reviewing, settingsDirty = false, onExit, onNavigate }: { tab: ParentTab; reviewing: number; settingsDirty?: boolean; onExit: () => void; onNavigate: (tab: Exclude<ParentTab, 'assets'>) => void }) {
   return <>
     <nav className="parent-home-nav" aria-label="家长空间返回"><button onClick={onExit}><ParentSymbol kind="back" />孩子首页</button></nav>
     <header className="parent-space-heading"><h1>家长空间</h1><Mascot small /></header>
-    <nav className="studio-tabs" aria-label="家长空间导航">{([{ id: 'packs', label: '备课', icon: 'book' }, { id: 'learning', label: '学习记录', icon: 'history' }, { id: 'settings', label: '设置', icon: 'settings' }] as const).map(item => <button key={item.id} aria-current={tab === item.id || item.id === 'packs' && tab === 'assets' ? 'page' : undefined} onClick={() => onNavigate(item.id)}><ParentSymbol kind={item.icon} />{item.label}{item.id === 'packs' && reviewing > 0 && <b aria-label={reviewing + '张图片待审核'}>{reviewing}</b>}</button>)}</nav>
+    <nav className="studio-tabs" aria-label="家长空间导航">{([{ id: 'packs', label: '备课', icon: 'book' }, { id: 'learning', label: '学习记录', icon: 'history' }, { id: 'settings', label: '设置', icon: 'settings' }] as const).map(item => <button key={item.id} aria-current={tab === item.id || item.id === 'packs' && tab === 'assets' ? 'page' : undefined} onClick={() => onNavigate(item.id)}><ParentSymbol kind={item.icon} />{item.label}{item.id==='settings'&&settingsDirty&&<b aria-label="设置有未保存更改">未保存</b>}{item.id === 'packs' && reviewing > 0 && <b aria-label={reviewing + '张图片待审核'}>{reviewing}</b>}</button>)}</nav>
   </>;
 }
 
