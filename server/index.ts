@@ -31,6 +31,7 @@ import { AssessmentGrants } from './assessment-grants.ts';
 import { createChallengeManager, type ChallengeServices } from './challenges.ts';
 import type { GamePlanOptions } from '../shared/game-registry.ts';
 import { createPracticeRecordings } from './practice-recordings.ts';
+import { allowedTestRoute, createTestMode } from './test-mode.ts';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = path.join(projectRoot, '.env');
@@ -79,7 +80,6 @@ export function createApp(options: AppOptions = {}) {
     if (!statusPromise) statusPromise = Promise.all([integration.probeIntegrations(), chatEnabled ? dialogue.status().catch(() => ({ configured: false, available: false, status: 'error', provider: 'codex' as const, detail: 'Codex 对话状态检查失败，请重试。' })) : Promise.resolve(disabledChat)]).then(([result, chat]) => { status = { ...result, dialogue: chat }; statusTime = Date.now(); if(chatEnabled&&!preparationStarted&&!closed){preparationStarted=true;void dialogue.prepare?.().catch(()=>{});}return status; }).catch(() => { status = { speech: { configured: false, available: false, status: 'error', detail: '服务配置检查失败，请稍后再试。' }, codex: { configured: false, available: false, status: 'error', detail: 'Codex 状态检查失败，请检查安装或登录状态。' }, dialogue: chatEnabled ? { configured: false, available: false, status: 'error', provider: 'codex', detail: 'Codex 对话状态暂不可用。' } : disabledChat }; statusTime = Date.now(); return status; }).finally(() => { statusPromise = null; });
     return statusPromise!;
   }
-  const state = async () => store.state(await serviceStatus());
   function toMediaUrl(filePath: string): string {
     const absolute = path.resolve(filePath), relative = path.relative(dataDir, absolute).split(path.sep).join('/');
     if (!safeRelative(relative) || !existsSync(absolute) || !realpathSync(absolute).startsWith(realpathSync(dataDir) + path.sep)) throw new AppError('生成素材不在允许的本地目录。', 'MEDIA_INVALID', 500);
@@ -179,6 +179,8 @@ export function createApp(options: AppOptions = {}) {
     },
     cancelWord:(id:string)=>{batchImageControllers.get(id)?.abort();for(const job of store.read().jobs.filter(job=>job.wordId===id&&['queued','running'].includes(job.status)))cancelImageJob(job.id);},
   });
+  const testMode = createTestMode(store, availableImage, options.challengeServices);
+  const formal = { store, assessmentGrants, practiceRecordings, challenges };
   const server = http.createServer(async (req, res) => {
     try {
       const host = req.headers.host ?? '';
@@ -191,9 +193,28 @@ export function createApp(options: AppOptions = {}) {
       if (!['GET', 'HEAD'].includes(req.method ?? 'GET')) {
         if ((origin && !allowed.has(origin)) || req.headers['sec-fetch-site'] === 'cross-site') throw new AppError('请求来源不被允许。', 'ORIGIN_FORBIDDEN', 403);
       }
-      if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization'); res.writeHead(204); res.end(); return; }
-      const url = new URL(req.url ?? '/', `http://${host}`), route = url.pathname;
+      if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS'); res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Playroom-Test'); res.writeHead(204); res.end(); return; }
+      const url = new URL(req.url ?? '/', `http://${host}`);
+      let route = url.pathname;
       if (route.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
+      if (route === '/api/test-mode' && req.method === 'POST' && !req.headers['x-playroom-test']) {
+        formal.assessmentGrants.require(req.headers.authorization);
+        return json(res, testMode.enter());
+      }
+      const testing = route.startsWith('/api/test/');
+      const token = typeof req.headers['x-playroom-test'] === 'string' ? req.headers['x-playroom-test'] : undefined;
+      if (token && !testing) throw new AppError('测试请求必须使用独立测试入口。', 'TEST_MODE_ROUTE_REQUIRED', 403);
+      const context = testing ? testMode.require(token) : undefined;
+      if (testing) {
+        route = '/api/' + route.slice('/api/test/'.length);
+        if (route === '/api/exit' && req.method === 'POST') { testMode.exit(token!); return json(res, { ok: true }); }
+        if (!allowedTestRoute(route, req.method ?? 'GET')) throw new AppError('请退出测试后，在家长空间管理共用词表、素材和设置。', 'TEST_MODE_READ_ONLY', 403);
+      }
+      const store = context?.store ?? formal.store;
+      const assessmentGrants = context?.grants ?? formal.assessmentGrants;
+      const practiceRecordings = context?.recordings ?? formal.practiceRecordings;
+      const challenges = context?.challenges ?? formal.challenges;
+      const state = async () => ({ ...store.state(await serviceStatus()), learningMode: testing ? 'test' as const : 'child' as const });
       if (req.method === 'GET' && route === '/api/health') return json(res, { ok: true, app: 'little-word-playroom', status: 'ok', local: true });
       if (req.method === 'GET' && route === '/api/parent-gate') return json(res, parentGate.status());
       if (req.method === 'POST' && route === '/api/parent-gate') return json(res, { ...parentGate.setup((await readJson(req, 1024)).pin), assessmentGrant: assessmentGrants.issue() });
@@ -526,7 +547,7 @@ export function createApp(options: AppOptions = {}) {
     reserve: seconds => store.reserve('stt', integration.estimateSttCost(seconds), seconds),
     settle: (id, seconds) => store.settle(id, seconds === 0 ? 0 : integration.estimateSttCost(seconds), seconds),
   });
-  return { server, store, dataDir, close: async () => { closed = true; claimPreparation();chatController?.abort(); for(const controller of ttsControllers)controller.abort();await Promise.all([packAudio.close(),packGames.close(),packImages.close(),imports.close(),challenges.close()]);await dialogue.close(); liveVoice.close(); for (const c of controllers.values()) c.abort();await Promise.allSettled(imageRuns.values()); await new Promise<void>((resolve, reject) => { if (!server.listening) return resolve(); server.close(error => error ? reject(error) : resolve()); server.closeIdleConnections(); }); store.close(); } };
+  return { server, store, dataDir, close: async () => { closed = true; claimPreparation();chatController?.abort(); for(const controller of ttsControllers)controller.abort();await Promise.all([packAudio.close(),packGames.close(),packImages.close(),imports.close(),challenges.close()]);await dialogue.close(); liveVoice.close(); for (const c of controllers.values()) c.abort();await Promise.allSettled(imageRuns.values()); await new Promise<void>((resolve, reject) => { if (!server.listening) return resolve(); server.close(error => error ? reject(error) : resolve()); server.closeIdleConnections(); }); await testMode.close(); store.close(); } };
 }
 
 function publicMessage(error: unknown) {

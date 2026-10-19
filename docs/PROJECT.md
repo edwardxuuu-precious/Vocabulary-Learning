@@ -36,6 +36,7 @@
 | 数据与 HTTP | `server/store.ts`、`server/index.ts`、`shared/contracts.ts` |
 | 家长入口 | `src/parent-gate.tsx`、`server/parent-gate.ts` |
 | 成长与视觉 | `shared/growth.ts`、`shared/badge-catalog.ts`、`shared/visual-theme.ts`、`shared/companions.ts`、`shared/learning-backgrounds.ts` |
+| 家长测试模式 | `server/test-mode.ts` 的独立 SQLite 与私有录音位于 `data/test-mode/`；`POST /api/test-mode` 需家长授权，`/api/test/*` 需独立临时令牌；`src/test-mode-context.ts` 统一 JSON、流与原音请求，`src/test-mode-ui.tsx` 提供入口、持续标识与测试记录 |
 | 外部服务 | `server/integrations/`；停用的实时语音/聊天适配器仍被合同、消费者和回归测试引用，不能仅凭开关关闭删除 |
 
 正式模块不因整理而改名。静态路径与哈希由 [ASSETS.json](ASSETS.json) 检查；来源保留在 [主题](autobot-theme-assets.md)、[首页](home-courtyard-v5.md)、[伙伴](companion-library.md) 及两个提示词 JSON。
@@ -57,6 +58,7 @@
 | 旧家长现场测试 | `npm.cmd run build:assessment-experience`、`npm.cmd run assessment:experience`；独立档案，默认 8799 |
 | 课堂范围与轮次管理 | `node --import tsx scripts/classroom-qa.ts --port=未占用端口`；40词隔离示例与测试PIN，所有云调用禁用；加 `--games` 开放已实现玩法供验收 |
 | 成长、导入与图片 | `scripts/growth-qa.ts`、`scripts/parent-import-qa.ts`、`scripts/pack-images-qa.ts` |
+| 学习进度清零 | `node --import tsx scripts/reset-learning-progress.ts` 默认只预览；明确授权并停服后加 `--apply`，私有数据库快照先验证，保留词表/素材/设置/PIN/用量/原音文件 |
 | 发音与游戏维护 | `scripts/cache-word-audio.ts`、`scripts/prepare-game-materials.ts`；默认检查，显式 `--apply` 才准备缺项，不自动交付 |
 
 `scripts/game-library-qa.ts --serve --batch=1 --memory-loop --synthetic-mic --port=未占用端口 --dist=dist` 可验收分段闭环；合成麦克风明确标识，`/__qa/day` 只推进独立档案时钟。需已有 12 词缓存清单，不加载 `.env` 或调用云服务。加 `--recall-ui` 可停在首个回忆题，并以带本机体验令牌的 `POST /__qa/failure?kind=demo|save|activity` 注入一次失败；仅此隔离工具提供故障入口。

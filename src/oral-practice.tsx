@@ -1,3 +1,4 @@
+import { modeFetch } from './test-mode-context';
 import { useEffect, useRef, useState } from 'react';
 import type { PracticeRecording, PracticeRecordingTarget } from '../shared/contracts';
 import { api, errorMessage } from './api';
@@ -51,7 +52,7 @@ export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,
   };
   const replay=async(take:PracticeRecording)=>{
     if(lock.current||busy||!active)return;lock.current=true;callbacks.current.stopAudio();const controller=new AbortController();owner.current=controller;setPhase('playing');setMessage('');let url='';
-    try{const response=await fetch(`/api/practice-recordings/${take.id}/audio?${query}`,{signal:controller.signal});if(!response.ok)throw new Error('录音暂时播不了，可以再试一次。');url=URL.createObjectURL(await response.blob());if(!controller.signal.aborted&&!await playBrowserAudio(url,{signal:controller.signal,onStart(){}},25000))throw new Error('录音暂时播不了，可以再试一次。');}
+    try{const response=await modeFetch(`/api/practice-recordings/${take.id}/audio?${query}`,{signal:controller.signal});if(!response.ok)throw new Error('录音暂时播不了，可以再试一次。');url=URL.createObjectURL(await response.blob());if(!controller.signal.aborted&&!await playBrowserAudio(url,{signal:controller.signal,onStart(){}},25000))throw new Error('录音暂时播不了，可以再试一次。');}
     catch(error){if(!controller.signal.aborted&&mounted.current)setMessage(errorMessage(error));}
     finally{if(url)URL.revokeObjectURL(url);if(owner.current===controller){owner.current=undefined;lock.current=false;if(mounted.current)setPhase('idle');}}
   };

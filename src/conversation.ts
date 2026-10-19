@@ -1,3 +1,4 @@
+import { modeFetch } from './test-mode-context';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChatContext, ChatReply, ChatStreamEvent, VoiceTone } from '../shared/contracts';
 import { api, errorMessage, post } from './api';
@@ -67,7 +68,7 @@ export function useConversation() {
     try {
       await cancellation.current;
       if (request !== generation.current) return null;
-      const response = await fetch('/api/chat/turn', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' }, body: JSON.stringify({ message: message.trim(), conversationId: conversationId.current, context }), signal: controller.signal });
+      const response = await modeFetch('/api/chat/turn', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' }, body: JSON.stringify({ message: message.trim(), conversationId: conversationId.current, context }), signal: controller.signal });
       if (!response.ok) { let text = `对话没有连接成功（${response.status}）`, code = ''; try { const detail = await response.json(); text = detail.error || text; code = detail.code || ''; } catch {} throw failedConversation(code, text); }
       if (!response.body) throw new Error('浏览器没有收到对话内容。');
       const reader = response.body.getReader(); const decoder = new TextDecoder();

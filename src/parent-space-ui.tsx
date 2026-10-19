@@ -29,12 +29,12 @@ export function ParentDisclosure({ title, description, icon, children }: { title
   return <details className="parent-disclosure"><summary><span className="parent-disclosure-icon"><ParentSymbol kind={icon} /></span><span className="parent-disclosure-copy"><strong>{title}</strong><span>{description}</span></span><ParentSymbol kind="down" /></summary><div className="parent-disclosure-content">{children}</div></details>;
 }
 
-export function ParentRecordSections({ challenges, recordings, overview, materials }: { challenges: ReactNode; recordings: ReactNode; overview: ReactNode; materials: ReactNode }) {
+export function ParentRecordSections({ challenges, recordings, overview, materials }: { challenges: ReactNode; recordings: ReactNode; overview: ReactNode; materials?: ReactNode }) {
   const [section, setSection] = useState<'challenges' | 'recordings' | 'overview'>('challenges');
   const [showMaterials, setShowMaterials] = useState(false);
   return <div className="parent-records">
     <div className="parent-record-tabs" role="group" aria-label="学习记录分类">{([{ id: 'challenges', label: '挑战核验' }, { id: 'recordings', label: '练习录音' }, { id: 'overview', label: '学习概览' }] as const).map(item => <button key={item.id} aria-pressed={section === item.id} onClick={() => setSection(item.id)}>{item.label}</button>)}</div>
     <div className="parent-record-content">{section === 'challenges' ? challenges : section === 'recordings' ? recordings : overview}</div>
-    <details className="parent-disclosure parent-game-materials" onToggle={event => setShowMaterials(event.currentTarget.open)}><summary><span className="parent-disclosure-icon"><ParentSymbol kind="book" /></span><span className="parent-disclosure-copy"><strong>游戏配套素材</strong><span>查看素材和审核状态</span></span><ParentSymbol kind="down" /></summary>{showMaterials && <div className="parent-disclosure-content">{materials}</div>}</details>
+    {materials && <details className="parent-disclosure parent-game-materials" onToggle={event => setShowMaterials(event.currentTarget.open)}><summary><span className="parent-disclosure-icon"><ParentSymbol kind="book" /></span><span className="parent-disclosure-copy"><strong>游戏配套素材</strong><span>查看素材和审核状态</span></span><ParentSymbol kind="down" /></summary>{showMaterials && <div className="parent-disclosure-content">{materials}</div>}</details>}
   </div>;
 }

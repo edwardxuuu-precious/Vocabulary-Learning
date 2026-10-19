@@ -1,3 +1,4 @@
+import { modeFetch } from './test-mode-context';
 import { PlaybackBlockedError, type PlaybackContext, type SpeechSegment, type StreamPlaybackResult } from './speech-controller';
 
 export interface StreamingSpeechEnvironment {
@@ -10,7 +11,7 @@ export interface StreamingSpeechEnvironment {
 }
 const browserEnvironment: StreamingSpeechEnvironment = {
   supported: () => typeof MediaSource !== 'undefined' && typeof MediaSource.isTypeSupported === 'function' && MediaSource.isTypeSupported('audio/mpeg'),
-  fetch: (...args) => fetch(...args),
+  fetch: (...args) => modeFetch(...args),
   createMediaSource: () => new MediaSource(),
   createAudio: () => new Audio(),
   createObjectURL: source => URL.createObjectURL(source),

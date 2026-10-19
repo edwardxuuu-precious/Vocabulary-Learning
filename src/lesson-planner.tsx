@@ -33,7 +33,7 @@ export function LessonPlanner({state,grant,reload,onBack}:{state:AppState;grant:
     <section className="lesson-plan-settings">
       <label>本课名称<input maxLength={80} value={title} onChange={e=>setTitle(e.target.value)} disabled={busy}/></label>
       <label>每段大约<select value={minutes} onChange={e=>setMinutes(Number(e.target.value))} disabled={busy}>{[5,8,10,15].map(n=><option key={n} value={n}>{n}分钟</option>)}</select></label>
-      <p>先确定整课范围，再勾选本次重点。系统按顺序拆成短段，新词先认识，学过的词直接练习。</p>
+      <p>先确定整课范围，再勾选本次重点。系统按顺序拆成短段，新词先认识，接触过的词直接练习。</p>
       {plan&&!fresh&&<button className="text-button" disabled={busy} onClick={()=>{setFresh(true);setTitle('新的课堂词表');setIds([]);setFocus([]);setMessage('');}}>新建另一课</button>}
     </section>
     <section className="lesson-scope" aria-label="本课单词顺序和本次重点">

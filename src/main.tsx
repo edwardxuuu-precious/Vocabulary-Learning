@@ -1,3 +1,6 @@
+import { testModeActive } from './test-mode-context';
+import { TestModeBanner, TestModeEntry, TestParentSpace } from './test-mode-ui';
+import { modeFetch } from './test-mode-context';
 import { packReplayRequest } from '../shared/pack-practice';
 import { MemoryRecall, LearningCheckpoint } from './memory-loop';
 import { pendingLearningCheckpoint, recallFirstActivity } from '../shared/learning-policy';
@@ -513,10 +516,10 @@ function App() {
   });
   const leaveChat = () => void run(async () => { recorder.cancel(); voice.stop(); if (interestReturn === 'play') await startSession(); else go(interestReturn); });
 
-  if (!state) return <main className="loading-screen"><Mascot small /><h1>单词游乐园</h1>{fatal ? <><p role="alert">{fatal}</p><button className="button primary" onClick={() => void load().catch(error => setFatal(errorMessage(error)))}>重新连接本地服务</button><p className="muted">请确认本机启动窗口仍在运行。</p></> : <p>小栗正在打开游乐园…</p>}</main>;
+  if (!state) return <>{testModeActive && <TestModeBanner />}<main className="loading-screen"><Mascot small /><h1>单词游乐园</h1>{fatal ? <><p role="alert">{fatal}</p><button className="button primary" onClick={() => void load().catch(error => setFatal(errorMessage(error)))}>重新连接本地服务</button><p className="muted">请确认本机启动窗口仍在运行。</p></> : <p>小栗正在打开游乐园…</p>}</main></>;
 
   const background = learningBackground((screen === 'reward' ? rewardSession?.id : session?.id) ?? assessmentDay());
-  return <div className={`app screen-${screen}`} data-learning-background={background.id} style={{ '--learning-scene': `url("${background.image}")` } as React.CSSProperties}>
+  return <>{testModeActive && <TestModeBanner />}<div className={`app screen-${screen}`} data-learning-background={background.id} style={{ '--learning-scene': `url("${background.image}")` } as React.CSSProperties}>
     {screen === 'interest' && <header className="topbar">
       <button className="brand" onClick={() => go('home')} aria-label="回到单词游乐园首页"><span className="brand-mark">✦</span><span>单词游乐园<small>小栗陪你学单词</small></span></button>
       <div className="header-right">
@@ -530,7 +533,7 @@ function App() {
     {CHAT_ENABLED && screen !== 'interest' && screen !== 'parent' && (conversation.busy || dialogueReply || conversation.error) && <section className="conversation-panel" aria-live="polite">{conversation.busy ? <p><span className="spinner" />小栗在想想…</p> : conversation.error ? <p>{conversation.error}</p> : <p>{voice.speaking && voice.currentText ? voice.currentText : dialogueReply?.text}</p>}{conversation.needsReset && <button className="text-button" onClick={restartConversation}>重新聊</button>}<button className="text-button" onClick={() => { interruptDialogue(); setDialogueReply(null); }}>关闭 / 停止</button></section>}
 
     {screen === 'home' && <EntryHome busy={busy} openParent={openParent} openGrowth={() => {growthReturn.current='home';go('growth');}} openCompanions={() => go('companions')} begin={needsPreparation ? () => go('waiting') : begin} />}
-    {screen === 'hub' && <LearningHub state={state} busy={busy} onStart={launch} onHome={() => go('home')} onSelect={() => go('select')} onBooks={() => go('books')} onGames={()=>go('book-games')} onManage={manageLearningSession} onLessonSettings={openLessonPlanner} onTest={() => openAssessment('hub')} onSpeak={word => {void voice.speakCached(word.term, 'en-US');}} />}
+    {screen === 'hub' && <LearningHub state={state} busy={busy} onStart={launch} onHome={() => go('home')} onSelect={() => go('select')} onBooks={() => go('books')} onGames={()=>go('book-games')} onManage={manageLearningSession} onLessonSettings={testModeActive ? undefined : openLessonPlanner} onTest={() => openAssessment('hub')} onSpeak={word => {void voice.speakCached(word.term, 'en-US');}} />}
     {screen === 'lesson-plan' && parentGrant && <LessonPlanner key={state.lessonPlan?.id??'new'} state={state} grant={parentGrant} reload={async()=>{const next=await load();setNotice('课堂安排已保存，可以回大厅开始一小段。');return next;}} onBack={()=>go('parent')} />}
     {screen === 'book-games' && <WordBookGames state={state} busy={busy} onStart={launch} onBack={()=>go('hub')} />}
     {screen === 'books' && <WordBookPractice state={state} busy={busy} onStart={launch} onBack={()=>go('hub')} onSelect={()=>go('select')} />}
@@ -636,12 +639,13 @@ function App() {
 
     {screen === 'reward' && <LearningReward busy={busy} growth={state.growth} session={rewardSession} onGrowth={() => {growthReturn.current='reward';go('growth');}} onTest={() => openAssessment('reward')} onAgain={rewardSession?.practicePackId?(packReplay?()=>launch(packReplay):undefined):rewardSession?.lessonPlanId===state.lessonPlan?.id&&state.lessonPlan?(lessonSegment(state.lessonPlan,state).words.length?()=>launch({mode:'lesson',lessonPlanId:state.lessonPlan!.id,lessonRevision:state.lessonPlan!.revision}):undefined):()=>launch({mode:'recommended'})} onSelect={() => go('select')} onHome={() => go(rewardSession?.packGame?'book-games':rewardSession?.practicePackId?'books':'hub')} />}
 
-    {screen === 'parent' && <ParentSpace state={state} grant={parentGrant} onGrant={setParentGrant} load={load} report={setNotice} editInterests={() => openInterest('parent')} onExit={() => go('home')} onTest={() => openAssessment('parent')} onLesson={openLessonPlanner} />}
+    {screen === 'parent' && testModeActive && <TestParentSpace state={state} grant={parentGrant} onGrant={setParentGrant} onTest={() => openAssessment('parent')} onExit={() => go('home')} />}
+    {screen === 'parent' && !testModeActive && <ParentSpace state={state} grant={parentGrant} onGrant={setParentGrant} load={load} report={setNotice} editInterests={() => openInterest('parent')} onExit={() => go('home')} onTest={() => openAssessment('parent')} onLesson={openLessonPlanner} />}
     {screen === 'assessment' && <AssessmentCenter parentMode={assessmentReturn === 'parent'} state={state} grant={parentGrant} onGrant={setParentGrant} reload={load} initialWordIds={assessmentWordIds} onExit={() => go(assessmentReturn)} />}
     {gate && <ParentGate onClose={() => setGate(false)} onUnlock={grant => { setParentGrant(grant); setGate(false); go(gateDestination); }} />}
     {pause && <LearningPause restLabel={session?.packGame?'先休息，回游戏选择':undefined} onContinue={() => setPause(false)} onRest={returnFromPlay} />}
 
-  </div>;
+  </div></>;
 }
 
 function ProviderStatusCard({ title, subtitle, status, setup, symbol }: { title: string; subtitle: string; status: ServiceStatus; setup: string; symbol: string }) {
@@ -680,7 +684,7 @@ function ParentSpace({ state, grant, onGrant, load, report, editInterests, onExi
   };
 
   const backup = () => void act(async () => {
-    const response = await fetch('/api/backup');
+    const response = await modeFetch('/api/backup');
     if (!response.ok) throw new Error('备份未能完成，请重试。');
     const blob = await response.blob();
     const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `单词游乐园备份-${new Date().toLocaleDateString('sv-SE')}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 2000);
@@ -688,6 +692,7 @@ function ParentSpace({ state, grant, onGrant, load, report, editInterests, onExi
 
   return <main className="parent-page parent-studio page-enter">
     <ParentSpaceHeader tab={tab} reviewing={reviewing} settingsDirty={settingsDirty} onExit={onExit} onNavigate={next => { setTab(next); window.scrollTo({ top: 0 }); }} />
+    <TestModeEntry grant={grant} />
     {tab === 'learning' && <ParentRecordSections challenges={<section className="parent-panel parent-challenge-records"><h2>挑战与测试记录</h2><p>回听、核验孩子的挑战，或进行家长现场测试。</p><button className="button primary" onClick={onTest}>核验与现场测试<Icon name="arrow" size={18} /></button><AssessmentReport state={state} /></section>} recordings={<PracticeRecordingHistory grant={grant} onGrant={onGrant} />} materials={<GameMaterialLibrary state={state} grant={grant} onGrant={onGrant} reload={load} />} overview={<LearningOverview state={state} />} />}
     {<div hidden={tab !== 'packs'}><PackWorkbench state={state} statuses={packAudio.statuses} statusErrors={packAudio.errors} refreshAudio={packAudio.refresh} imageStatuses={packImages.statuses} imageErrors={packImages.errors} refreshImages={packImages.refresh} reload={load} report={report} showImages={showPackImages} onExit={onExit} onLesson={onLesson} packId={assetPackId} selectPack={setAssetPackId} handoff={handoff} showSettings={() => { setTab('settings'); window.scrollTo({ top: 0 }); }} /></div>}
     {tab === 'assets' && <PackImageReview state={state} packId={assetPackId} setPackId={setAssetPackId} status={packImages.statuses[assetPackId]} statusError={packImages.errors[assetPackId]} refreshImages={packImages.refresh} reload={load} report={report} editWord={word => { setEditingWord(word); setEditedTerm(word.term); setEditedMeaning(word.meaning); setEditedPos(word.partOfSpeech); }} backToPacks={() => setTab('packs')} audioStatus={packAudio.statuses[assetPackId]} handoff={handoff} />}

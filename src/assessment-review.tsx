@@ -1,3 +1,4 @@
+import { modeFetch } from './test-mode-context';
 import { useEffect, useRef, useState } from 'react';
 import type { AppState, AssessmentGrant, AssessmentItem, AssessmentResult } from '../shared/contracts';
 import { assessmentLabels, assessmentResultLabels } from '../shared/assessment';
@@ -20,7 +21,7 @@ export function AssessmentReviewCenter({ state, grant, onGrant, reload, onExit }
     finally { lock.current = false; setBusy(false); }
   };
   const hear = (sessionId: string, itemId: string) => void operation(async () => {
-    const response = await fetch(`/api/assessments/${sessionId}/audio?itemId=${encodeURIComponent(itemId)}`, { headers: { Authorization: `Bearer ${grant!.token}` } });
+    const response = await modeFetch(`/api/assessments/${sessionId}/audio?itemId=${encodeURIComponent(itemId)}`, { headers: { Authorization: `Bearer ${grant!.token}` } });
     if (!response.ok) { let message = '原音暂不可用。'; try { message = (await response.json()).error; } catch {} throw new Error(message); }
     if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
     audioUrl.current = URL.createObjectURL(await response.blob()); setAudio({ id: `${sessionId}:${itemId}`, url: audioUrl.current });
