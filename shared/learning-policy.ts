@@ -36,7 +36,7 @@ export function arrangeMemoryLoop(tasks: LearningTask[], activities: LearningAct
   return rows.map(a => a.step === 'recall' ? { id:a.id, wordId:a.wordId, step:a.step, kind:'portal', word:a.word, choices:[] } : a);
 }
 
-export function freezeMemoryLoop(activities: LearningActivity[]): MemoryLoopPolicy {
+export function freezeMemoryLoop(activities: LearningActivity[], version: 1 | 2 | 3 = 1): MemoryLoopPolicy {
   const checkpoints: string[] = [];
   let count = 0;
   for (let index = 0; index < activities.length - 1; index++) {
@@ -46,7 +46,7 @@ export function freezeMemoryLoop(activities: LearningActivity[]): MemoryLoopPoli
       checkpoints.push(activity.id); count = 0;
     }
   }
-  return { version:1, kind:'memory-loop', segmentSize:8, checkpoints };
+  return { version, kind:'memory-loop', segmentSize:8, checkpoints };
 }
 
 export const memoryLoopSession = (session: LearningSession | null | undefined) => session?.learningPolicy?.kind === 'memory-loop';
@@ -88,7 +88,7 @@ export function transitionMemoryRecall(previous: ActivityState, action: Activity
 export function validMemoryLoopPolicy(session: LearningSession): boolean {
   const p=session.learningPolicy;
   if (p===undefined) return session.acknowledgedCheckpoints===undefined;
-  if (!p || p.version!==1 || p.kind!=='memory-loop' || p.segmentSize!==8 || !session.activities || Object.keys(p).some(k=>!['version','kind','segmentSize','checkpoints'].includes(k))) return false;
+  if (!p || ![1,2,3].includes(p.version) || p.kind!=='memory-loop' || p.segmentSize!==8 || !session.activities || Object.keys(p).some(k=>!['version','kind','segmentSize','checkpoints'].includes(k))) return false;
   if (!Array.isArray(p.checkpoints) || !session.tasks || session.activities.some(a=>a.step==='recall'&&(a.kind!=='portal'||a.choices.length!==0))) return false;
   if (JSON.stringify(session.tasks)!==JSON.stringify(memoryLoopTasks(session.tasks))) return false;
   if (session.activities.map(a=>a.id).join('|')!==arrangeMemoryLoop(session.tasks,session.activities).map(a=>a.id).join('|')) return false;

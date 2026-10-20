@@ -4,6 +4,7 @@ export const introductionPhases = ['english', 'meaning', 'english-again', 'pictu
 export type IntroductionPhase = typeof introductionPhases[number];
 export interface IntroductionState { phase: IntroductionPhase; waiting: boolean; audioFailed: boolean; transitionFailed?: boolean }
 export interface IntroductionRuntime {
+  compact?: boolean;
   speak: (segments: SpeechSegment[]) => Promise<boolean>;
   stop: () => void;
   update: (state: IntroductionState) => void;
@@ -67,7 +68,7 @@ export class WordIntroductionController {
         await (this.runtime.wait ?? wait)(phase === 'meaning' || phase === 'summary' ? readingTime : 1400, abort.signal);
         if (!current()) return;
       }
-      this.index++;
+      this.index = this.runtime.compact && phase === 'meaning' ? introductionPhases.indexOf('ready') : this.index + 1;
     }
   }
 }

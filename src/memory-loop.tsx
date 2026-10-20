@@ -29,7 +29,7 @@ export function MemoryRecall({session,activity,busy,playing,audioProgress,onActi
           <span className="memory-demo-copy"><span>{demoLabel}</span>{demoPhase==='playing'&&audioProgress!==undefined&&<span className="memory-audio-progress" aria-hidden="true"><i style={{width:`${audioProgress*100}%`}}/></span>}</span>
         </button>
       </div>
-      <OralPractice target={{sessionId:session.id,activityId:activity.id}} active={!busy&&!playing&&!demonstrating} busy={busy} stopAudio={stopAudio} onBusy={setRecording} readOnly={accepted} variant="memory" complete={()=>void onAction(accepted?'next':'finish',undefined,!accepted)} onSkip={accepted?undefined:()=>void onAction('skip')}/>
+      <OralPractice target={{sessionId:session.id,activityId:activity.id,planVersion:session.learningPolicy?.version??1}} active={!busy&&!playing&&!demonstrating} busy={busy} stopAudio={stopAudio} onBusy={setRecording} readOnly={accepted} variant="memory" complete={()=>void onAction(accepted?'next':'finish',undefined,!accepted)} onSkip={accepted?undefined:()=>void onAction('skip')}/>
       {demoPhase==='error'&&<p className="memory-audio-error" role="status">示范暂时播不了，可以重试或先自己说。</p>}
     </section>
   </main>;

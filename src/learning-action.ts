@@ -1,7 +1,7 @@
 import type { ActivityAction, AppState } from '../shared/contracts';
 import { currentActivity } from '../shared/game-plan';
 
-type Request = { sessionId: string; activityId: string; action: ActivityAction; selectedId?: string };
+type Request = { planVersion?:1|2|3; sessionId: string; activityId: string; action: ActivityAction; selectedId?: string };
 
 /** Continue only after the server has saved this activity's actual result. */
 export async function submitLearningAction(request: Request, {
@@ -19,7 +19,7 @@ export async function submitLearningAction(request: Request, {
   const outcome = session?.activityStates?.[request.activityId]?.outcome;
   if ((advance || request.action === 'skip') && isActive() && session?.id === request.sessionId
     && currentActivity(session)?.id === request.activityId && (outcome === 'correct' || outcome === 'practice')) {
-    state = await submit({ sessionId: request.sessionId, activityId: request.activityId, action: 'next' });
+    state = await submit({ sessionId: request.sessionId, activityId: request.activityId, action: 'next', ...(request.planVersion===undefined?{}:{planVersion:request.planVersion}) });
     update(state);
     advanced = true;
   }

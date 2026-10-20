@@ -1,3 +1,4 @@
+import { AudioCheck } from './audio-check';
 import { useState } from 'react';
 import type { AppState, AssessmentGrant } from '../shared/contracts';
 import { api, errorMessage } from './api';
@@ -23,5 +24,5 @@ export function TestModeEntry({ grant }: { grant?: AssessmentGrant }) {
 }
 
 export function TestParentSpace({ state, grant, onGrant, onTest, onExit }: { state: AppState; grant?: AssessmentGrant; onGrant: (grant?: AssessmentGrant) => void; onTest: () => void; onExit: () => void }) {
-  return <main className="parent-page parent-studio page-enter"><nav className="parent-home-nav"><button onClick={onExit}>← 回测试首页</button></nav><header className="parent-space-heading"><h1>测试记录</h1></header><p>这里只显示家长试用记录。共用词表、素材与设置请退出测试后管理。</p><ParentRecordSections challenges={<section className="parent-panel"><h2>测试测评与核验</h2><button className="button primary" onClick={onTest}>核验与现场测试</button><AssessmentReport state={state} /></section>} recordings={<PracticeRecordingHistory grant={grant} onGrant={onGrant} />} overview={<LearningOverview state={state} />} /></main>;
+  return <main className="parent-page parent-studio page-enter"><nav className="parent-home-nav"><button onClick={onExit}>← 回测试首页</button></nav><header className="parent-space-heading"><h1>测试记录</h1></header><p>这里只显示家长试用记录。共用词表、素材与设置请退出测试后管理。</p><AudioCheck words={state.words}/><ParentRecordSections challenges={<section className="parent-panel"><h2>测试测评与核验</h2><button className="button primary" onClick={onTest}>核验与现场测试</button><AssessmentReport state={state} /></section>} recordings={<PracticeRecordingHistory grant={grant} onGrant={onGrant} />} overview={<LearningOverview state={state} />} /></main>;
 }

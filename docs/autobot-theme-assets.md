@@ -63,4 +63,4 @@ Edit target: the provided Arcee character. This is an identity-preserving mechan
 
 make完整构图已获家长确认并采用：`data/images/parent-approved-make-20261017-fullframe/illustration.png`，1254×1254。原已批准图片保留在原目录，替换证据、原图额外副本与前后数据在`artifacts/word-image-layout-20261017/`；只替换图片URL，没有重置词义、学习版本、记录、会话或用量。其他批准图片不自动重画或批准。
 
-真实单词验证：`scripts/autobot-image-smoke.ts` 仅生成一个 apple 资产，证据在忽略的 `artifacts/autobot-cover-qa/`，未写入正式词书或学习记录。
+历史 apple 单图验证的证据保留在忽略的 `artifacts/autobot-cover-qa/`，未写入正式词书或学习记录；一次性生成脚本不作为日常备课入口，当前素材生成统一经过家长备课与审核流程。

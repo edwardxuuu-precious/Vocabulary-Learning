@@ -1,5 +1,6 @@
 import { modeFetch } from './test-mode-context';
 import type { ApiError } from '../shared/contracts';
+export class ApiRequestError extends Error { constructor(message:string, readonly code?:string, readonly status?:number) { super(message); } }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
@@ -7,8 +8,10 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const response = await modeFetch(path, { ...options, headers });
   if (!response.ok) {
     let message = `请求没有完成（${response.status}）`;
-    try { message = ((await response.json()) as ApiError).error || message; } catch { /* Keep the HTTP status. */ }
-    throw new Error(message);
+    let code:string|undefined;
+    try { const body=(await response.json()) as ApiError; message=body.error||message;code=body.code; } catch { /* Keep the HTTP status. */ }
+    if(code==='SESSION_PLAN_CHANGED'&&typeof window!=='undefined')window.dispatchEvent(new Event('learning-plan-changed'));
+    throw new ApiRequestError(message,code,response.status);
   }
   return response.json() as Promise<T>;
 }

@@ -1,3 +1,4 @@
+import { markAudioOutputCold } from './buffered-audio';
 import type { PreparedRecording } from './follow-along';
 import { requestMicrophoneStream } from './microphone-access';
 
@@ -20,6 +21,7 @@ export async function prepareBrowserRecording(signal: AbortSignal): Promise<Prep
     closed = true; clearInterval(meter); clearTimeout(limit); clearTimeout(stopTimeout);
     signal.removeEventListener('abort', cancel);
     stream.getTracks().forEach(track => track.stop());
+    markAudioOutputCold();
     if (context) void context.close().catch(() => {});
   };
   const cancel = () => {

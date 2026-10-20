@@ -3,7 +3,13 @@ import { api, errorMessage } from './api';
 import type { RecognitionResponse, SpeechResponse, VoiceTone } from '../shared/contracts';
 import { SpeechPlaybackController, type SpeechSegment, type SpeechState } from './speech-controller';
 import { playBrowserAudio, playBrowserLocal } from './browser-speech';
+import { audioEngine, browserAudioAvailable, stopBrowserAudio } from './buffered-audio';
 import { playBrowserStream } from './browser-stream-speech';
+
+export async function prefetchCachedSpeech(text:string,locale:'en-US'|'zh-CN',signal:AbortSignal) {
+  if(!browserAudioAvailable()||signal.aborted)return;
+  try{const asset=await api<SpeechResponse>('/api/speech/tts',{method:'POST',body:JSON.stringify({text,locale,tone:'clear',cacheOnly:true}),signal});if(!signal.aborted&&asset.audioUrl)await audioEngine().prefetch(asset.audioUrl);}catch{/* Missing cache never initiates synthesis or changes learning. */}
+}
 
 export function useVoice(enabled: boolean, beforeSpeak?: { current: () => void }) {
   const [state, setState] = useState<SpeechState>({ speaking: false, localMode: false, currentText: '', message: '' });
@@ -13,14 +19,14 @@ export function useVoice(enabled: boolean, beforeSpeak?: { current: () => void }
   if (!controllerRef.current) controllerRef.current = new SpeechPlaybackController({
     isEnabled: () => enabledRef.current,
     beforeSpeak: () => beforeSpeakRef.current?.current(),
-    playStream: (segment, context) => segment.allowLocalFallback === false ? Promise.resolve('unsupported') : playBrowserStream(segment, context),
+    playStream: (segment, context) => segment.cacheOnly || segment.text.length <= 200 || segment.allowLocalFallback === false ? Promise.resolve('unsupported') : playBrowserStream(segment, context),
     requestAudio: async ({ allowLocalFallback: _local, ...segment }, signal) => api<SpeechResponse>('/api/speech/tts', { method: 'POST', body: JSON.stringify({ ...segment, tone: segment.tone ?? 'clear' }), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) }),
     playAudio: (url, context) => playBrowserAudio(url, context, 90000, {onPlayingOnly:true}),
     playLocal: playBrowserLocal,
     update: patch => { if (mounted.current) setState(previous => ({ ...previous, ...patch })); },
   });
   const controller = controllerRef.current;
-  const stop = useCallback(() => controller.stop(), [controller]);
+  const stop = useCallback(() => {controller.stop();stopBrowserAudio();}, [controller]);
   const speak = useCallback((text: string, locale: 'zh-CN' | 'en-US' = 'zh-CN', tone: VoiceTone = 'clear') => controller.speak({ text, locale, tone }), [controller]);
   const speakCached = useCallback((text: string,locale:'en-US'|'zh-CN'='en-US') => controller.speak({ text, locale, tone: 'clear', cacheOnly: true }), [controller]);
   const speakSequence = useCallback((segments: SpeechSegment[]) => controller.speakSequence(segments), [controller]);

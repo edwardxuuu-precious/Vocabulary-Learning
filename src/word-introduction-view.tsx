@@ -14,9 +14,9 @@ function IntroIcon({ sound = false }: { sound?: boolean }) {
   return <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{sound ? <><path d="m11 4-6 5H2v6h3l6 5Z" /><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" /></> : <path d="M4 12h15m-6-6 6 6-6 6" />}</svg>;
 }
 
-export function WordIntroduction({ word, active, busy, audioEnabled, speak, getPlaybackId, stopIfPlayback, onComplete }: {
+export function WordIntroduction({ word, active, busy, audioEnabled, speak, getPlaybackId, stopIfPlayback, onComplete, compact=false }: {
   word: Word; active: boolean; busy: boolean; audioEnabled: boolean; speak: (segments: SpeechSegment[]) => Promise<boolean>;
-  getPlaybackId: () => number; stopIfPlayback: (id: number) => void; onComplete: () => Promise<boolean>;
+  getPlaybackId: () => number; stopIfPlayback: (id: number) => void; onComplete: () => Promise<boolean>; compact?:boolean;
 }) {
   const callbacks = useRef({ speak, getPlaybackId, stopIfPlayback, onComplete, audioEnabled, busy }); callbacks.current = { speak, getPlaybackId, stopIfPlayback, onComplete, audioEnabled, busy };
   const activeRef = useRef(active); activeRef.current = active;
@@ -25,6 +25,7 @@ export function WordIntroduction({ word, active, busy, audioEnabled, speak, getP
   const playback = useRef<number | undefined>(undefined);
   const [state, setState] = useState<IntroductionState>({ phase: 'english', waiting: false, audioFailed: false });
   const [controller] = useState(() => new WordIntroductionController(word.term, word.meaning, {
+    compact,
     speak: segments => { const result = callbacks.current.speak(segments); playback.current = callbacks.current.getPlaybackId(); return result; },
     stop: () => { if (playback.current !== undefined) callbacks.current.stopIfPlayback(playback.current); playback.current = undefined; },
     update: setState,
@@ -37,7 +38,7 @@ export function WordIntroduction({ word, active, busy, audioEnabled, speak, getP
     resume(); document.addEventListener('visibilitychange', resume); window.addEventListener('pagehide', leave);
     return () => { clearStart(); controller.cancel(); document.removeEventListener('visibilitychange', resume); window.removeEventListener('pagehide', leave); };
   }, [active, controller]);
-  const index = introductionPhases.indexOf(state.phase), showMeaning = index >= 1, showPicture = index >= 3;
+  const index = introductionPhases.indexOf(state.phase), showMeaning = compact || index >= 1, showPicture = compact || index >= 3;
   const phaseLabels = { english: audioEnabled ? '听英文' : '看看英文', meaning: '看看意思', 'english-again': audioEnabled ? '再听英文' : '再看英文', picture: '看看图片', summary: '一起回顾', ready: '准备开始练习' };
   return <div className="word-introduction" data-phase={state.phase} data-waiting={state.waiting || undefined}>
     <div className="introduction-scene">

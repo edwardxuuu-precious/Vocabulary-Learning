@@ -6,6 +6,7 @@ import { prepareChallengeRecording } from './challenge-recording';
 import type { PreparedRecording } from './follow-along';
 import { playBrowserAudio } from './browser-speech';
 import { PlaybackIcon } from './playback-icon';
+import { playFeedbackCue } from './buffered-audio';
 import './oral-practice.css';
 
 export function RecordingIcon({stop=false}:{stop?:boolean}) {
@@ -20,7 +21,7 @@ export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,
   const [loaded,setLoaded]=useState(false);
   const owner=useRef<AbortController|undefined>(undefined),capture=useRef<PreparedRecording|undefined>(undefined),mounted=useRef(true),lock=useRef(false),autoStarted=useRef(false);
   const callbacks=useRef({stopAudio,onReady,onBusy,demonstrate});callbacks.current={stopAudio,onReady,onBusy,demonstrate};
-  const query=new URLSearchParams({...target}).toString(),saved=takes.filter(t=>t.status==='ready'),ready=saved.length>=rounds;
+  const query=new URLSearchParams(Object.fromEntries(Object.entries(target).filter(([,value])=>value!==undefined).map(([key,value])=>[key,String(value)]))).toString(),saved=takes.filter(t=>t.status==='ready'),ready=saved.length>=rounds;
   const cancel=()=>{owner.current?.abort();owner.current=undefined;capture.current?.cancel();capture.current=undefined;lock.current=false;callbacks.current.stopAudio();if(mounted.current)setPhase(previous=>previous==='loading'?'loading':'idle');};
   useEffect(()=>{mounted.current=true;const controller=new AbortController();void api<PracticeRecording[]>(`/api/practice-recordings?${query}`,{signal:controller.signal}).then(rows=>{if(mounted.current)setTakes(rows);}).catch(error=>{if(!controller.signal.aborted)setMessage(errorMessage(error));}).finally(()=>{if(!controller.signal.aborted&&mounted.current){setLoaded(true);setPhase('idle');}});return()=>{mounted.current=false;controller.abort();cancel();callbacks.current.onBusy?.(false);};},[target.sessionId,target.activityId]);
   useEffect(()=>{callbacks.current.onReady?.(ready);},[ready]);
@@ -32,6 +33,7 @@ export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,
     const rows=await api<PracticeRecording[]>(`/api/practice-recordings?${query}&takeId=${take.id}`,{method:'POST',headers:{'Content-Type':'audio/wav'},body:take.blob,signal:controller.signal});
     if(controller.signal.aborted||!mounted.current)return;
     setTakes(rows);setPending(undefined);setMessage('');
+    void playFeedbackCue('saved',`recording:${take.id}`);
   };
   const start=async(retry=false)=>{
     if(lock.current||!loaded||busy||!active||readOnly||phase!=='idle')return;lock.current=true;setMessage('');

@@ -58,7 +58,7 @@ export function ExpandedLearningGame({ activity: a, session, busy: appBusy, play
         <div className="extra-gate-actions" role="group" aria-label="判断声音与图片是否匹配"><button disabled={busy || accepted || !state.heard} onClick={() => onAction('choose','yes')} aria-label="声音和图片一样"><span aria-hidden="true">✓</span>是它</button><button disabled={busy || accepted || !state.heard} onClick={() => onAction('choose','no')} aria-label="声音和图片不一样"><span aria-hidden="true">↔</span>不是它</button></div>
       </>}
       {a.kind === 'treasure' && <>
-        <p className="game-prompt">{state.concealed ? '听听声音，它藏在哪一格？' : '看看三个伙伴分别住在哪'}</p>
+        <p className="game-prompt">{state.concealed ? '听听声音，它藏在哪一格？' : '看看伙伴分别住在哪'}</p>
         <div className="game-picture-choices extra-treasure" role="group" aria-label="藏宝格">{a.choices.map((choice, index) => picture(choice, index, !!state.concealed))}</div>
         {state.concealed ? audio : <button className="game-audio" disabled={busy || accepted} onClick={() => onAction('conceal')}><span aria-hidden="true">▦</span>记好啦，合上格子</button>}
       </>}
@@ -71,13 +71,13 @@ export function ExpandedLearningGame({ activity: a, session, busy: appBusy, play
         <p className="game-prompt">{state.revealed ? '找回来啦，听听它的英文' : state.concealed ? '谁不见了？先说说它的英文' : '先看看，记住这几个伙伴'}</p>
         <div className="game-picture-choices extra-missing-board">{a.choices.map(choice => <div className={`extra-memory-picture ${state.concealed && !state.revealed && choice.id === a.wordId ? 'is-empty' : ''}`} key={choice.id}>{state.concealed && !state.revealed && choice.id === a.wordId ? <span aria-label="不见的伙伴">?</span> : <img src={choice.imageUrl} alt={choice.meaning} />}</div>)}</div>
         {state.revealed && <p className="game-revealed-word">{a.word.term}</p>}
-        {state.concealed&&<OralPractice target={{sessionId:session.id,activityId:a.id}} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={!!state.revealed}/>}
+        {state.concealed&&<OralPractice target={{sessionId:session.id,planVersion:session.learningPolicy?.version??1,activityId:a.id}} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={!!state.revealed}/>}
         {state.concealed ? <button className="game-audio" disabled={busy || !state.revealed&&(accepted || !oralReady&&!oralSkipped)} onClick={() => onAction('reveal')} aria-label={state.revealed ? '再听答案' : '揭晓并听答案'}><span aria-hidden="true">✦</span>{playing ? '播放中' : state.revealed ? '再听听' : '揭晓 · 听一听'}</button> : <button className="game-audio" disabled={busy || accepted} onClick={() => onAction('conceal')}><span aria-hidden="true">◌</span>藏起一个伙伴</button>}
       </>}
       {a.kind === 'think-choice' && <>
         <p className="game-prompt">{state.optionsVisible ? '听几个声音，再选一个' : '先想想，这个词你会说吗？'}</p>
         <div className="extra-think-picture"><img src={a.word.imageUrl} alt={a.word.meaning} /></div>
-        <OralPractice target={{sessionId:session.id,activityId:a.id}} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={!!state.optionsVisible}/>
+        <OralPractice target={{sessionId:session.id,planVersion:session.learningPolicy?.version??1,activityId:a.id}} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={!!state.optionsVisible}/>
         {state.optionsVisible ? <div className="extra-sound-options" role="group" aria-label="声音选项">{a.choices.map((choice, index) => <div className={`extra-sound-row ${state.selectedId === choice.id ? state.outcome === 'correct' ? 'is-correct' : 'is-retry' : ''}`} key={choice.id}><button disabled={busy || accepted} onClick={() => onAction('listen-option', choice.id)} aria-label={`听声音${index + 1}`}><span aria-hidden="true">♫</span>{playing && state.heardOptionIds?.at(-1) === choice.id ? '播放中' : `声音 ${index + 1}`}</button><button disabled={busy || accepted || !state.heardOptionIds?.includes(choice.id)} onClick={() => onAction('choose', choice.id)} aria-label={`选择声音${index + 1}`}>选这个</button></div>)}</div> : <button className="game-audio" disabled={busy || accepted || !oralReady&&!oralSkipped} onClick={() => onAction('show-options')}><span aria-hidden="true">♪</span>我想好啦，听选项</button>}
       </>}
       <div className={`game-feedback ${hint?'has-feedback':''}`} role="status" aria-live="polite">{hint}</div>

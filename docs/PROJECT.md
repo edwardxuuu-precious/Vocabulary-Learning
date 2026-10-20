@@ -19,7 +19,22 @@
 | `dist/`、`node_modules/` | 可重建/重装的本机输出；忽略 |
 | `.env.example`、`.env` | 无密钥模板与私有配置；只有模板提交 |
 
-根目录保留运行配置、锁文件、`index.html`、README、AGENTS 和启停 `.cmd`。历史整份文档与停用工具从当前文件树移除，用 Git 追溯；任务与隔离证据保留。旧调试 schema 已删除；生成调试输出继续由忽略规则和打包边界排除。
+根目录只保留启动、构建、依赖和协作入口。历史实现用 Git 追溯，任务与隔离证据保留；可重新生成的旧构建与解压副本依赖不属于证据真源。
+
+## 技术框架与调用方向
+
+React 19 + TypeScript + Vite 构建儿童和家长界面；Node.js 24 本机 HTTP 服务提供 API、静态页面和私有媒体访问，SQLite 保存事实。`shared/` 的纯函数负责冻结学习编排、校验目标与素材、计算复习和成长，前后端共用合同。
+
+```text
+src/ 页面与交互 ── src/api.ts ── server/index.ts 路由/授权
+        │                              │
+        └──── shared/ 合同与策略 ───────┤
+                                       ├─ server/store.ts → data/playroom.sqlite
+                                       ├─ 私有录音/素材管理 → data/
+                                       └─ integrations/ → ElevenLabs / 官方 Codex
+```
+
+儿童主线是讲解 → 自动游戏 → 主动回忆 → 保存休息点 → 完成与跨天复习。短音频集中走缓冲播放器；测评核验与练习参与分开写入。家长测试使用独立数据库和原音目录，共用词表、批准素材与缓存。正式运行只依赖项目代码、`public/`、构建产物、私有配置和 `data/`，不依赖隔离体验目录或其他 worktree。
 
 ## 模块定位
 
@@ -28,10 +43,11 @@
 | 页面协调 | `src/main.tsx`、`src/entry-home.tsx`、`src/learning-hub.tsx`、`src/learning-topbar.tsx`、`src/learning-flow.css`；选词/挑战/成长/图鉴/家长共用样式 `src/page-system.css` |
 | 备课、编辑与审核 | `src/pack-workbench.tsx`、`src/pack-editor.tsx`、`src/pack-image-review-panel.tsx`、`server/import-preparation.ts`、`server/pack-audio.ts`、`server/pack-images.ts` |
 | 课堂范围与轮次管理 | `shared/lesson-plan.ts`、`src/lesson-planner.tsx`、`src/learning-hub.tsx`、`server/store.ts` |
-| 学习计划与恢复 | `shared/learning.ts`、`shared/learning-policy.ts`、`shared/learning-goals.ts`、`shared/game-plan.ts`、`src/learning-session.ts` |
+| 学习计划与恢复 | `shared/learning.ts`、`shared/learning-policy.ts`、`shared/mainline-experience.ts`、`shared/adaptive-mainline.ts`、`shared/learning-goals.ts`、`shared/game-plan.ts`、`src/learning-session.ts` |
 | 整本词表复习与游戏 | `shared/pack-practice.ts`、`shared/pack-games.ts`、`src/word-book-practice.tsx`、`src/word-book-games.tsx`；复用轮次接口，书与玩法快照由 `server/store.ts` 校验保存，`GET /api/pack-games` 返回真实可玩目录 |
 | 游戏与素材 | `shared/game-registry.ts`、`shared/game-materials.ts`、`shared/game-material-builder.ts`、`server/game-validation.ts`、`server/pack-game-audio.ts` |
 | 讲解、跟读与录音 | `src/word-introduction.ts`、`src/recall-demonstration.ts`、`src/memory-loop.tsx`、`src/memory-recall.css`、`src/oral-practice.tsx`、`server/practice-recordings.ts` |
+| 声音与反馈 | `src/buffered-audio.ts` 统一短音频、预热和提示音；`src/browser-speech.ts` 兼容回退与原始对照；`src/buffered-player.tsx` 私有回放；`src/audio-check.tsx` 家长声音检查 |
 | 挑战与核验 | `src/child-challenge.tsx`、`src/assessment-review.tsx`、`server/challenges.ts`、`server/assessments.ts`、`server/assessment-grants.ts` |
 | 数据与 HTTP | `server/store.ts`、`server/index.ts`、`shared/contracts.ts` |
 | 家长入口 | `src/parent-gate.tsx`、`server/parent-gate.ts` |
@@ -54,6 +70,7 @@
 | 学习大厅、跨批与多轮 | `node --import tsx scripts/learning-hub-qa.ts --port=未占用端口`；独立示例，关闭语音并拒绝云调用 |
 | 游戏库与素材 | `scripts/game-library-qa.ts`、`scripts/game-material-fixtures.ts`、`scripts/game-demo-assets.ps1`；演示素材前提见脚本，输出留在 `artifacts/` |
 | 自动编排 | `scripts/automatic-games-qa.ts`；复用本机缓存，固定 8828，启动前确认空闲 |
+| 新版主线与旧轮次升级 | `node --import tsx scripts/mainline-qa.ts --port=未占用端口`；须本机8787已有批准音图，禁用云、明确模拟麦克风；加 `--legacy` 验证检查点升级，不写孩子档案 |
 | 自主挑战 | `scripts/challenge-qa.vite.ts`、`scripts/challenge-qa.ts`；明确转写/初判替身，独立原音 |
 | 旧家长现场测试 | `npm.cmd run build:assessment-experience`、`npm.cmd run assessment:experience`；独立档案，默认 8799 |
 | 课堂范围与轮次管理 | `node --import tsx scripts/classroom-qa.ts --port=未占用端口`；40词隔离示例与测试PIN，所有云调用禁用；加 `--games` 开放已实现玩法供验收 |

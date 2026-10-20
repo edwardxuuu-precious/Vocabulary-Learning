@@ -258,11 +258,15 @@ export function createApp(options: AppOptions = {}) {
         assessmentGrants.require(req.headers.authorization);
         store.saveLessonPlan(await readJson(req, 100000), availableImage); return json(res, await state());
       }
+      if (req.method === 'POST' && route === '/api/session/upgrade-experience') { const input=await readJson(req,4096),data=store.read(),session=data.sessions.find(s=>s.id===input.sessionId);const readyMaterialKeys=await readyGameMaterialKeys(data.words,data.words.filter(w=>session?.wordIds.includes(w.id)),availableImage,async cue=>!!await integration.getCachedSpeech({...cue,tone:'clear',dataDir}));store.upgradeExperience(input,{...options.learningGames,readyMaterialKeys});return json(res,await state()); }
       if (req.method === 'POST' && route === '/api/session/end') {
-        const session = store.manageSession(await readJson(req, 4096)); return json(res, { session, state: await state() });
+        const input=await readJson(req,4096),data=store.read(),saved=data.sessions.find(s=>s.id===input.sessionId);
+        const ids=saved?.packGame?.scopeWordIds??saved?.wordIds??[];
+        const readyMaterialKeys=input.action==='restart'?await readyGameMaterialKeys(data.words,data.words.filter(w=>ids.includes(w.id)),availableImage,async cue=>!!await integration.getCachedSpeech({...cue,tone:'clear',dataDir})):[];
+        const session = store.manageSession(input,{...options.learningGames,readyMaterialKeys}); return json(res, { session, state: await state() });
       }
       if(route==='/api/practice-recordings'||/^\/api\/practice-recordings\/[^/]+\/audio$/.test(route)){
-        const target=url.searchParams.has('sessionId')?{sessionId:url.searchParams.get('sessionId')??'',activityId:url.searchParams.get('activityId')??''}:undefined;
+        const target=url.searchParams.has('sessionId')?{sessionId:url.searchParams.get('sessionId')??'',activityId:url.searchParams.get('activityId')??'',...(url.searchParams.has('planVersion')?{planVersion:Number(url.searchParams.get('planVersion')) as 1|2|3}:{})}:undefined;
         if(!target||req.headers.authorization)assessmentGrants.require(req.headers.authorization);
         if(req.method==='GET'&&route==='/api/practice-recordings')return json(res,practiceRecordings.list(target));
         if(req.method==='POST'&&route==='/api/practice-recordings'&&target){

@@ -33,7 +33,7 @@ export function LearningGame({ activity, session, busy: appBusy, playing, onActi
       {isPortal ? <>
         <div className="game-portal-subject"><div className={`game-portal-window ${saved.revealed ? 'is-open' : ''}`}><div className="game-portal-ring" aria-hidden="true" /><img src={activity.word.imageUrl} alt={activity.word.meaning} /></div>
         {saved.revealed && <p className="game-revealed-word">{activity.word.term}</p>}</div>
-        <OralPractice target={{sessionId:session.id,activityId:activity.id}} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={!!saved.revealed}/>
+        <OralPractice target={{sessionId:session.id,planVersion:session.learningPolicy?.version??1,activityId:activity.id}} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={!!saved.revealed}/>
         <button className="game-audio game-reveal" disabled={busy || !saved.revealed&&(accepted || !oralReady&&!oralSkipped)} onClick={() => onAction('reveal')} aria-label={saved.revealed ? '再听答案' : '揭晓并听答案'}><span aria-hidden="true">{playing ? '♫' : saved.revealed ? '♪' : '✦'}</span>{playing ? '播放中' : saved.revealed ? '再听一听' : '揭晓 · 听一听'}</button>
       </> : <>
         {isFlip && <div className="game-flip-track" aria-label={`已完成${finishedCount}轮，配对${matched.size}张，共${flipGroup.length}张`}>

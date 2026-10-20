@@ -1,7 +1,8 @@
+import { audioEngine, browserAudioAvailable } from './buffered-audio';
 import { PlaybackBlockedError, type PlaybackContext, type SpeechSegment } from './speech-controller';
 
 /** Every browser player settles on cancellation, error, end or a bounded missing-event timeout. */
-export function playBrowserAudio(url: string, context: PlaybackContext, timeoutMs = 90000, options: { volume?: number; onPlayingOnly?: boolean } = {}): Promise<boolean> {
+export function playOriginalBrowserAudio(url: string, context: PlaybackContext, timeoutMs = 90000, options: { volume?: number; onPlayingOnly?: boolean } = {}): Promise<boolean> {
   return new Promise((resolve, reject) => {
     let audio: HTMLAudioElement;
     try { audio = new Audio(url); } catch { resolve(false); return; }
@@ -55,4 +56,9 @@ export function playBrowserLocal(segment: SpeechSegment, context: PlaybackContex
     utterance.onend = () => done(true); utterance.onerror = () => done(false);
     try { synth.speak(utterance); } catch { done(false); }
   });
+}
+
+/** Short speech and private takes share one decoded output path. */
+export function playBrowserAudio(url: string, context: PlaybackContext, timeoutMs = 90000, options: { volume?: number; onPlayingOnly?: boolean } = {}): Promise<boolean> {
+  return browserAudioAvailable() ? audioEngine().play(url, { ...context, signal: AbortSignal.any([context.signal, AbortSignal.timeout(timeoutMs)]) }, options.volume) : playOriginalBrowserAudio(url, context, timeoutMs, options);
 }

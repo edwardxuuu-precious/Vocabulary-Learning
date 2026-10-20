@@ -25,7 +25,7 @@ export function buildActivities(tasks: LearningTask[], words: Word[], random = M
   const newKinds = gameRegistry.filter(game => !familiar.has(game.kind) && groups.some(group=>group.some(task=>task.steps.some(step=>eligibleGames(step,group.map(t=>byId.get(t.wordId)!),options).some(candidate=>candidate.kind===game.kind)))));
   const novel = options.forcedKind ?? (options.randomize && newKinds.length ? newKinds[Math.floor(random() * newKinds.length)].kind : undefined);
   const pick = (step: LearningActivity['step'], members: Word[], fallback: LearningActivity['kind'], objective = false): LearningActivity['kind'] => {
-    let pool = eligibleGames(step, members, options).filter(game => (!objective || !game.practiceOnly) && (familiar.has(game.kind) || game.kind === novel));
+    let pool = eligibleGames(step, members, options).filter(game => !(step==='recognize'&&game.kind==='repair') && (!objective || !game.practiceOnly) && (familiar.has(game.kind) || game.kind === novel));
     if (options.forcedKind) {
       const forced = pool.find(game => game.kind === options.forcedKind);
       return forced?.kind ?? (pool.some(game => game.kind === fallback) ? fallback : 'standard');

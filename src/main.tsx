@@ -1,3 +1,5 @@
+import { configureFeedback, playFeedbackCue, unlockBrowserAudio } from './buffered-audio';
+import { AudioCheck } from './audio-check';
 import { testModeActive } from './test-mode-context';
 import { TestModeBanner, TestModeEntry, TestParentSpace } from './test-mode-ui';
 import { modeFetch } from './test-mode-context';
@@ -34,7 +36,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ActivityAction, AppState, ChatAction, ChatReply, IllustrationJob, ImportRow, LearningAttempt, LearningSession, LearningStartRequest, LearningStep, RecognitionResponse, ServiceStatus, Skill, Word } from '../shared/contracts';
 import { api, errorMessage, patch, post } from './api';
-import { useRecorder, useVoice } from './voice';
+import { prefetchCachedSpeech, useRecorder, useVoice } from './voice';
 import { useLiveRecorder } from './live-recorder';
 import { useConversation } from './conversation';
 import { useListeningFeedback } from './listening-feedback';
@@ -141,6 +143,7 @@ function App() {
   const [micPurpose, setMicPurpose] = useState<'command' | 'interest' | 'answer' | 'confirm'>('command');
   const cancelRecording = useRef<() => void>(() => {});
   const voice = useVoice(state?.settings.voiceEnabled ?? true, cancelRecording);
+  useEffect(()=>configureFeedback(Boolean(state?.settings.voiceEnabled && state.settings.feedbackSoundsEnabled!==false)),[state?.settings.voiceEnabled,state?.settings.feedbackSoundsEnabled]);
   const legacyRecorder = useRecorder(voice.stop);
   const liveRecorder = useLiveRecorder(voice.stop);
   const recorder = state?.integrations.stt?.provider === 'azure' ? legacyRecorder : liveRecorder;
@@ -162,8 +165,8 @@ function App() {
   useEffect(() => { void load().catch(error => setFatal(errorMessage(error))); }, [load]);
   useEffect(() => {
     const refresh = () => { if (!document.hidden) void load().catch(() => {}); };
-    window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh);
-    return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+    window.addEventListener('learning-plan-changed', refresh);window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh);
+    return () => { window.removeEventListener('learning-plan-changed', refresh);window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
   }, [load]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 7000); return () => clearTimeout(timer); }, [notice]);
   useEffect(() => { if (voice.message && !(screen === 'play' && state?.activeSession && currentActivity(state.activeSession)?.step === 'learn')) setNotice(voice.message); }, [voice.message]);
@@ -178,6 +181,7 @@ function App() {
   const word = state?.words.find(item => item.id === currentId);
   const activity = session ? currentActivity(session) : undefined;
   const learningCheckpoint = session ? pendingLearningCheckpoint(session) : undefined;
+  useEffect(()=>{if(screen!=='play'||!state?.settings.voiceEnabled||pause||gate||!session?.activities)return;const abort=new AbortController(),index=session.activities.findIndex(a=>a.id===activity?.id);const words=[...new Map(session.activities.slice(Math.max(0,index)).map(a=>[a.wordId,a.word])).values()].slice(0,3);for(const w of words){void prefetchCachedSpeech(w.term,'en-US',abort.signal);void prefetchCachedSpeech(`意思是，${w.meaning.replace(/[。！？!?]+$/u,'')}。`,'zh-CN',abort.signal);}return()=>abort.abort();},[screen,session?.id,activity?.id,pause,gate,state?.settings.voiceEnabled]);
   const memoryRecall = !!(session && activity && recallFirstActivity(session,activity));
   const gameActionLock = useRef(false);
   const [oralBusy,setOralBusy]=useState(false);
@@ -241,6 +245,9 @@ function App() {
   };
   useEffect(() => { if (screen === 'play' && state?.activeSession?.tasks) restorePosition(state); }, [screen, session?.id, currentId, word?.learningVersion, serverPosition?.step]);
   useEffect(()=>{setBasicHeardIds([]);setBasicAudioUnavailable(false);},[session?.id,word?.id,step,activity?.id]);
+  const continueCheckpoint=async(active:LearningSession,checkpointId:string)=>!!active.learningPolicy&&active.learningPolicy.version<3&&!active.practicePackId
+    ? post('/api/session/upgrade-experience',{sessionId:active.id,checkpointId,expectedVersion:active.learningPolicy!.version,targetVersion:3})
+    : patch('/api/session',{sessionId:active.id,checkpointId,planVersion:active.learningPolicy?.version??1});
   const startSession = async (request: LearningStartRequest = {mode: 'recommended'}) => {
     if (request.mode !== 'resume') request={...request,strategy:request.strategy??state?.settings.learningStrategy??'memory-loop'};
     if (startLock.current) return;
@@ -253,7 +260,7 @@ function App() {
       let next = await load();
       const checkpoint = request.mode === 'resume' && next.activeSession?.id === started.id ? pendingLearningCheckpoint(next.activeSession) : undefined;
       if (checkpoint) {
-        await patch('/api/session', { sessionId: started.id, checkpointId: checkpoint });
+        await continueCheckpoint(next.activeSession!, checkpoint);
         next = await load();
       }
       if (started.completedAt) { setRewardSession(started); startRetry.current = undefined; go('reward'); return; }
@@ -264,7 +271,7 @@ function App() {
   const openLessonPlanner = () => { if(parentGrant) go('lesson-plan'); else {setGateDestination('lesson-plan');setGate(true);} };
   const manageLearningSession = (sessionId:string,action:'reselect'|'restart') => void run(async()=>{
     recorder.cancel(); interruptDialogue();
-    const response=await post<{session?:LearningSession;state:AppState}>('/api/session/end',{sessionId,action});
+    const response=await post<{session?:LearningSession;state:AppState}>('/api/session/end',{sessionId,action,planVersion:[state?.activeSession,...(state?.resumableSessions??[])].find(s=>s?.id===sessionId)?.learningPolicy?.version??1});
     const next=await load();
     if(action==='restart'&&response.session&&!response.session.completedAt&&!response.session.suspendedAt&&next.activeSession?.id===response.session.id){restorePosition(next);go('play');}
     else if(action==='restart')go('hub');
@@ -273,7 +280,7 @@ function App() {
   const begin = () => go('hub');
   const launch = (request: LearningStartRequest) => void run(() => startSession(request));
   const completeRound = async (sessionId: string) => {
-    const next = await patch<AppState>('/api/session', {sessionId, complete: true});
+    const next = await patch<AppState>('/api/session', {sessionId, complete: true,planVersion:session?.learningPolicy?.version??1});
     setState(next); setRewardSession(next.lastCompletedSession ?? null); go('reward');
   };
   useEffect(() => {
@@ -312,10 +319,14 @@ function App() {
     let audioResult:boolean|undefined;
     return run(async () => {
       try {
-        const result = await submitLearningAction({ sessionId: session.id, activityId: activity.id, action, ...(selectedId ? { selectedId } : {}) }, {
+        const result = await submitLearningAction({ sessionId: session.id, planVersion:session.learningPolicy?.version??1, activityId: activity.id, action, ...(selectedId ? { selectedId } : {}) }, {
           submit: request => post<AppState>('/api/session/activity', request), update: setState, advance, isActive,
         });
         const updated = result.state;
+        const oldCount=state?.attempts.filter(a=>a.sessionId===session.id&&a.activityId===activity.id).length??0;
+        const attempts=updated.attempts.filter(a=>a.sessionId===session.id&&a.activityId===activity.id);
+        const last=attempts.at(-1);
+        if(isActive()&&attempts.length>oldCount&&last&&!last.oralStatus&&action!=='skip'&&action!=='next'){await playFeedbackCue(last.correct?'correct':updated.activeSession?.activityStates?.[activity.id]?.outcome==='try'?'retry':'saved',`attempt:${last.id}`);}
         const audioWords = gameAudioWords(activity, action, selectedId, updated.activeSession?.activityStates?.[activity.id]);
         for (const audioWord of audioWords) {
           if (!isActive()) break;
@@ -326,7 +337,7 @@ function App() {
           if (!isActive()) break;
           audioResult=played;
           if (!played) {
-            const failed = await post<AppState>('/api/session/activity', { sessionId: session.id, activityId: activity.id, action: 'audio-failed' });
+            const failed = await post<AppState>('/api/session/activity', { sessionId: session.id, planVersion:session.learningPolicy?.version??1, activityId: activity.id, action: 'audio-failed' });
             setState(failed);
             break;
           }
@@ -342,14 +353,17 @@ function App() {
 
   const recordAttempt = async (skill: Skill, correct: boolean, source: LearningAttempt['source'] = 'click', practiceOnly = false) => {
     if (!word || !session) return;
-    await post('/api/attempts', { id: crypto.randomUUID(), wordId: word.id, learningVersion: word.learningVersion ?? 0, step, skill, correct, hinted, practiceOnly, source, sessionId: session.id });
+    return post<LearningAttempt>('/api/attempts', { id: crypto.randomUUID(), wordId: word.id, learningVersion: word.learningVersion ?? 0, step, skill, correct, hinted, practiceOnly, source, sessionId: session.id,planVersion:session.learningPolicy?.version??1 });
   };
   const answer = (id: string) => void run(async () => {
     if (feedback === 'correct' || !word) return;
+    const generation=narrationGeneration.current;
     setSelected(id);
     const correct = id === word.id;
     const guided=options.length<2||!basicHeardIds.includes(step==='sound'?id:word.id);
-    await recordAttempt('listen', correct, 'click', guided);
+    const saved=await recordAttempt('listen', correct, 'click', guided);
+    if(generation!==narrationGeneration.current||document.hidden)return;
+    if(saved)await playFeedbackCue(correct?'correct':'retry',`attempt:${saved.id}`);
     setFeedback(correct ? 'correct' : 'try');
     setPracticeOnly(guided);
     if (!correct) markHinted();
@@ -358,7 +372,7 @@ function App() {
   const finishWord = async () => {
     recorder.cancel(); interruptDialogue();
     if (!word) return;
-    await patch('/api/session', { sessionId: session?.id, completedWordId: word.id });
+    await patch('/api/session', { sessionId: session?.id,planVersion:session?.learningPolicy?.version??1, completedWordId: word.id });
     const next = await load();
     const finished = next.activeSession && next.activeSession.wordIds.every(id => next.activeSession!.completedWordIds.includes(id));
     if (finished) { await completeRound(session!.id); }
@@ -366,7 +380,7 @@ function App() {
   };
   const completePlannedStep = async () => {
     if (!session?.tasks || !word) return;
-    await patch('/api/session', { sessionId: session.id, completedStep: { wordId: word.id, step } });
+    await patch('/api/session', { sessionId: session.id,planVersion:session.learningPolicy?.version??1, completedStep: { wordId: word.id, step } });
     const updated = await load();
     const active = updated.activeSession;
     if (active && active.wordIds.every(id => active.completedWordIds.includes(id))) {
@@ -376,7 +390,7 @@ function App() {
   const completeAssessmentPractice = (oralStatus?:'recorded'|'skipped') => void run(async () => {
     if (!session || !word) return;
     const dimension = practiceDimension(step); if (!dimension) return;
-    const updated = await post<AppState>('/api/session/assessment-practice', { sessionId: session.id, wordId: word.id, learningVersion: word.learningVersion ?? 0, dimension, ...(oralStatus?{oralStatus}:{}) });
+    const updated = await post<AppState>('/api/session/assessment-practice', { sessionId: session.id,planVersion:session.learningPolicy?.version??1, wordId: word.id, learningVersion: word.learningVersion ?? 0, dimension, ...(oralStatus?{oralStatus}:{}) });
     setState(updated);
     const active = updated.activeSession;
     if (active && active.wordIds.every(id => active.completedWordIds.includes(id))) { await completeRound(session!.id); }
@@ -409,6 +423,7 @@ function App() {
     if (!word) return;
     const correct = spelling.map(id => letters.find(item => item.id === id)?.letter).join('') === word.term.toLowerCase();
     await recordAttempt('spell', correct);
+    await playFeedbackCue(correct?'correct':'retry',`basic:${session?.id}:${activity?.id}:${crypto.randomUUID()}`);
     setFeedback(correct ? 'correct' : 'try'); setPracticeOnly(false);
     if (!correct) markHinted();
   });
@@ -519,7 +534,7 @@ function App() {
   if (!state) return <>{testModeActive && <TestModeBanner />}<main className="loading-screen"><Mascot small /><h1>单词游乐园</h1>{fatal ? <><p role="alert">{fatal}</p><button className="button primary" onClick={() => void load().catch(error => setFatal(errorMessage(error)))}>重新连接本地服务</button><p className="muted">请确认本机启动窗口仍在运行。</p></> : <p>小栗正在打开游乐园…</p>}</main></>;
 
   const background = learningBackground((screen === 'reward' ? rewardSession?.id : session?.id) ?? assessmentDay());
-  return <>{testModeActive && <TestModeBanner />}<div className={`app screen-${screen}`} data-learning-background={background.id} style={{ '--learning-scene': `url("${background.image}")` } as React.CSSProperties}>
+  return <>{testModeActive && <TestModeBanner />}<div onPointerDownCapture={()=>void unlockBrowserAudio()} onKeyDownCapture={()=>void unlockBrowserAudio()} className={`app screen-${screen}`} data-learning-background={background.id} style={{ '--learning-scene': `url("${background.image}")` } as React.CSSProperties}>
     {screen === 'interest' && <header className="topbar">
       <button className="brand" onClick={() => go('home')} aria-label="回到单词游乐园首页"><span className="brand-mark">✦</span><span>单词游乐园<small>小栗陪你学单词</small></span></button>
       <div className="header-right">
@@ -585,7 +600,7 @@ function App() {
       <p className="chat-footer"><span>✦</span> 小小的你，大大的好奇心。</p>
     </main>}
 
-    {screen === 'play' && learningCheckpoint && session && <LearningCheckpoint session={session} busy={busy} onRest={()=>go('hub')} onContinue={()=>void run(async()=>{await patch('/api/session',{sessionId:session.id,checkpointId:learningCheckpoint});const next=await load();restorePosition(next);})}/>}
+    {screen === 'play' && learningCheckpoint && session && <LearningCheckpoint session={session} busy={busy} onRest={()=>go('hub')} onContinue={()=>void run(async()=>{await continueCheckpoint(session,learningCheckpoint);const next=await load();restorePosition(next);})}/>}
     {screen === 'play' && !learningCheckpoint && memoryRecall && session && activity && <MemoryRecall key={session.id+activity.id} session={session} activity={activity} busy={busy||pause||gate} playing={voice.speaking} audioProgress={voice.progress} onAction={gameAction} onHome={()=>go('hub')} onPause={pauseLearning} stopAudio={voice.stop}/>}
     {screen === 'play' && !learningCheckpoint && session && activity && isGoalCheckpoint(activity.step) && <GoalGame key={activity.id} activity={activity} session={session} attempts={state.attempts} busy={busy || pause || gate} playing={voice.speaking} onAction={gameAction} onHome={() => go('hub')} onPause={pauseLearning} stopAudio={voice.stop} />}
     {screen === 'play' && !learningCheckpoint && !memoryRecall && session && activity && !isGoalCheckpoint(activity.step) && activity.kind !== 'standard' && <LearningGame key={activity.id} activity={activity} session={session} busy={busy || pause || gate} playing={voice.speaking} onAction={gameAction} onHome={returnFromPlay} onPause={pauseLearning} stopAudio={voice.stop} />}
@@ -593,8 +608,8 @@ function App() {
 <LearningTopbar session={session} onHome={() => go('hub')} onPause={pauseLearning} />
       <div className="lesson-guide"><Mascot small character={companion} /><h1>{practiceDimension(step) ? `${assessmentLabels[practiceDimension(step)!]} · 练一练` : step === 'learn' ? '认识新朋友' : wordGamePlan(word, true).find(game => game.step === step)?.title}</h1>{currentTask?.mode === 'review' && <span className="lesson-review">复习</span>}</div>
       <section className="lesson-content" aria-label="当前单词任务">
-        {practiceDimension(step) && <AssessmentPracticeView target={{sessionId:session.id,activityId:activity?.id??`${word.id}:${step}`}} stopAudio={voice.stop} key={`${session.id}:${word.id}:${step}`} word={word} dimension={practiceDimension(step)!} choices={options} busy={busy || pause || gate} play={voice.speakCached} complete={completeAssessmentPractice} />}
-        {step === 'learn' && <WordIntroduction key={`${word.id}:${word.learningVersion}:${word.term}:${word.meaning}`} word={word} active={!pause && !gate} busy={busy} audioEnabled={state.settings.voiceEnabled} speak={voice.speakSequence} getPlaybackId={voice.getPlaybackId} stopIfPlayback={voice.stopIfPlayback} onComplete={completeIntroduction} />}
+        {practiceDimension(step) && <AssessmentPracticeView target={{sessionId:session.id,planVersion:session.learningPolicy?.version??1,activityId:activity?.id??`${word.id}:${step}`}} stopAudio={voice.stop} key={`${session.id}:${word.id}:${step}`} word={word} dimension={practiceDimension(step)!} choices={options} busy={busy || pause || gate} play={voice.speakCached} complete={completeAssessmentPractice} />}
+        {step === 'learn' && <WordIntroduction compact={(session.learningPolicy?.version??1)>=2} key={`${word.id}:${word.learningVersion}:${word.term}:${word.meaning}`} word={word} active={!pause && !gate} busy={busy} audioEnabled={state.settings.voiceEnabled} speak={voice.speakSequence} getPlaybackId={voice.getPlaybackId} stopIfPlayback={voice.stopIfPlayback} onComplete={completeIntroduction} />}
         {step === 'listen' && <div className="lesson-listen">
           <button className={`lesson-audio ${voice.speaking ? 'is-playing' : ''}`} onClick={() => void playBasicAudio(word.term,word.id)} aria-label="再听一次英文单词"><Icon name="sound" size={30} /><span>听一听</span></button>
           <div className="lesson-pictures">{options.map(option => <button key={option.id} disabled={busy || voice.speaking || feedback === 'correct'||!basicHeardIds.includes(word.id)&&!basicAudioUnavailable} className={`lesson-picture-choice ${selected === option.id ? feedback === 'correct' ? 'is-correct' : 'is-retry' : ''}`} onClick={() => answer(option.id)} aria-label={`选择${option.meaning}`}><img src={option.imageUrl} alt={option.meaning} /><span className="lesson-choice-mark" aria-hidden="true">{selected === option.id && feedback === 'correct' ? <Icon name="check" size={26} /> : selected === option.id ? <Icon name="refresh" size={22} /> : null}</span></button>)}</div>
@@ -620,7 +635,7 @@ function App() {
         </div>}
         {step === 'recall' && <div className="lesson-practice">
           <div className="lesson-picture"><img src={word.imageUrl} alt={word.meaning} /></div>
-          <RecallPractice target={{sessionId:session.id,activityId:activity?.id??`${word.id}:${step}`}} term={word.term} playing={voice.speaking} onBusy={setOralBusy} key={`${session.id}:${word.id}:${word.learningVersion ?? 0}`} active={!pause && !gate} busy={busy} completed={feedback === 'correct'}
+          <RecallPractice target={{sessionId:session.id,planVersion:session.learningPolicy?.version??1,activityId:activity?.id??`${word.id}:${step}`}} term={word.term} playing={voice.speaking} onBusy={setOralBusy} key={`${session.id}:${word.id}:${word.learningVersion ?? 0}`} active={!pause && !gate} busy={busy} completed={feedback === 'correct'}
             demonstrate={() => { markHinted(); return voice.speakCached(word.term); }} stopAudio={voice.stop} onComplete={practiceRecall} />
         </div>}
         {step === 'spell' && <div className="lesson-spelling">
@@ -696,7 +711,7 @@ function ParentSpace({ state, grant, onGrant, load, report, editInterests, onExi
     {tab === 'learning' && <ParentRecordSections challenges={<section className="parent-panel parent-challenge-records"><h2>挑战与测试记录</h2><p>回听、核验孩子的挑战，或进行家长现场测试。</p><button className="button primary" onClick={onTest}>核验与现场测试<Icon name="arrow" size={18} /></button><AssessmentReport state={state} /></section>} recordings={<PracticeRecordingHistory grant={grant} onGrant={onGrant} />} materials={<GameMaterialLibrary state={state} grant={grant} onGrant={onGrant} reload={load} />} overview={<LearningOverview state={state} />} />}
     {<div hidden={tab !== 'packs'}><PackWorkbench state={state} statuses={packAudio.statuses} statusErrors={packAudio.errors} refreshAudio={packAudio.refresh} imageStatuses={packImages.statuses} imageErrors={packImages.errors} refreshImages={packImages.refresh} reload={load} report={report} showImages={showPackImages} onExit={onExit} onLesson={onLesson} packId={assetPackId} selectPack={setAssetPackId} handoff={handoff} showSettings={() => { setTab('settings'); window.scrollTo({ top: 0 }); }} /></div>}
     {tab === 'assets' && <PackImageReview state={state} packId={assetPackId} setPackId={setAssetPackId} status={packImages.statuses[assetPackId]} statusError={packImages.errors[assetPackId]} refreshImages={packImages.refresh} reload={load} report={report} editWord={word => { setEditingWord(word); setEditedTerm(word.term); setEditedMeaning(word.meaning); setEditedPos(word.partOfSpeech); }} backToPacks={() => setTab('packs')} audioStatus={packAudio.statuses[assetPackId]} handoff={handoff} />}
-    {tab === 'settings' && <div className="parent-settings-layout"><section className="parent-panel parent-preferences"><div className="panel-heading"><h2>学习设置</h2><span>按孩子的节奏调整</span></div><div className="setting-fields"><label>新轮次学习方式<select disabled={busy} value={settings.learningStrategy??'memory-loop'} onChange={event=>setSettings({...settings,learningStrategy:event.target.value as 'classic'|'memory-loop'})}><option value="memory-loop">连贯学习 · 分段回忆</option><option value="classic">原有顺序</option></select><small>已开始的轮次保持原计划</small></label>{([{ key: 'dailyNewWords', label: '每天新词', unit: '个', min: 1, max: 10 }, { key: 'dailyReviewWords', label: '每天复习上限', unit: '个', min: 0, max: 30 }, { key: 'sessionMinutes', label: '每轮参考时长', unit: '分钟', min: 3, max: 30 }] as const).map(item => <label className="number-setting" key={item.key}><span>{item.label}</span><span><input type="number" min={item.min} max={item.max} value={settings[item.key]} onChange={event => setSettings(previous => ({ ...previous, [item.key]: Number(event.target.value) }))} />{item.unit}</span></label>)}<label className="switch-setting"><div><strong>单词发音</strong><small>播放英文示范和中文释义，支持点喇叭重听。</small></div><input type="checkbox" checked={settings.voiceEnabled} onChange={event => setSettings(previous => ({ ...previous, voiceEnabled: event.target.checked }))} /></label><details className="parent-options"><summary>更多游戏与预算选项<ParentSymbol kind="down" /></summary><div className="parent-option-fields"><label className="switch-setting"><div><strong>字母拼搭</strong><small>零基础可先关闭；开启后才记录拼写练习。</small></div><input type="checkbox" checked={settings.spellingEnabled} onChange={event => setSettings(previous => ({ ...previous, spellingEnabled: event.target.checked }))} /></label><label className="switch-setting"><div><strong>亲子出题游戏</strong><small>有家长陪玩时开启“我来出题”；只记录练习。</small></div><input type="checkbox" checked={Boolean(settings.familyGamesEnabled)} onChange={event => setSettings(previous => ({ ...previous, familyGamesEnabled: event.target.checked }))} /></label><label className="switch-setting"><div><strong>进阶情境游戏</strong><small>孩子熟悉已审核的短句、否定和组合后开启。</small></div><input type="checkbox" checked={Boolean(settings.contextGamesEnabled)} onChange={event=>setSettings(previous=>({...previous,contextGamesEnabled:event.target.checked}))}/></label><label className="number-setting"><span>每月语音 API 预算<small>人民币估算；到达上限停止新增调用。</small></span><span>¥<input type="number" min="0" max="1000" value={settings.monthlyBudgetCny} onChange={event => setSettings(previous => ({ ...previous, monthlyBudgetCny: Number(event.target.value) }))} /></span></label></div></details></div><div className="parent-save-row"><span role="status">{settingsDirty ? '有未保存的更改' : '设置已保存'}</span><button className="button primary compact-button" disabled={busy || !settingsDirty} onClick={() => void act(async () => { await patch('/api/settings', settings); }, '学习设置已保存。')}>保存设置<Icon name="check" size={17} /></button></div></section><ParentDisclosure title="服务与用量" description={'发音：' + (state.integrations.tts ?? state.integrations.speech).status + ' · 生图：' + state.integrations.codex.status} icon="services"><section className="parent-panel service-panel"><div className="panel-heading"><h2>服务状态</h2><span>以实际连接结果为准</span></div><p className="muted">ElevenLabs TTS 提供英文示范和认识页中文释义，重复播放优先使用本地缓存。Codex 账号用于补全中文、词性和准备单词图片。</p><div className="service-hint">使用现有免费额度，不发起充值或付费升级。额度不足时停止云服务调用，可以继续点击练习。密钥只配置在本机 .env，不会放进浏览器。</div>{SPEECH_INPUT_ENABLED && <ProviderStatusCard title={`${inputProviderName(state.integrations.stt)} 语音输入`} subtitle="边说边显示 · 停顿后提交整句话" status={state.integrations.stt ?? state.integrations.speech} setup={inputProviderSetup(state.integrations.stt)} symbol="◖" />}<ProviderStatusCard title={state.integrations.tts?.provider === 'azure' ? 'Azure 单词发音（已显式选择）' : 'ElevenLabs TTS 单词发音'} subtitle="清晰英文示范 · 本地缓存" status={state.integrations.tts ?? state.integrations.speech} setup={state.integrations.tts?.provider === 'azure' ? '已显式选择 Azure，请在本机 .env 配置 AZURE_SPEECH_KEY 和 AZURE_SPEECH_REGION 后重启。' : '单词发音使用本机 .env 中的 ELEVENLABS_API_KEY 和 ELEVENLABS_VOICE_ID。英文示范使用已有缓存；中文首次合成前确认免费额度，成功后缓存。密钥需有 user_read 只读权限；无法确认时暂停中文朗读，可点击继续。'} symbol="♫" />{CHAT_ENABLED && <ProviderStatusCard title="Codex OAuth 对话" subtitle="理解孩子原话 · 提出下一步" status={state.integrations.dialogue ?? { configured: false, available: false, status: '尚未验证', detail: '请先连接官方 Codex 账号，再发送一句话验证真实对话。' }} setup="使用下方官方 Codex 登录。对话未接通时只显示明确标注的引导演示；不会把固定脚本当成 AI 回复。" symbol="✦" />}<div className="service-card"><div className="service-top"><span className="service-icon codex-icon">✳</span><div><h3>Codex 账号生图</h3><span>官方 OAuth · 使用你的订阅额度</span></div><span className={`service-dot ${state.integrations.codex.available ? 'available' : ''}`} /></div><strong className="service-label">{state.integrations.codex.status}</strong><p>{state.integrations.codex.detail}</p><button className="button secondary compact-button" disabled={busy} onClick={() => void act(async () => { const response = await post<{ status: string; authUrl?: string; message: string }>('/api/integrations/codex/connect'); setLoginUrl(response.authUrl || ''); setLoginMessage(response.message); })}>连接 / 检查 Codex<Icon name="arrow" size={17} /></button>{loginMessage && <p className="login-message" role="status">{loginMessage}</p>}{loginUrl && <a className="auth-link" href={loginUrl} target="_blank" rel="noreferrer">打开官方授权页面 ↗</a>}</div><div className="privacy-note"><Icon name="check" size={17} /><p>密钥留在本机服务端。认识页只读英文与家长确认的中文释义；练习录音保存在本机私有目录，可在当前活动回听；历史回听需家长授权。</p></div></section><section className="parent-panel usage-panel"><div className="panel-heading"><h2>本月用量</h2><span>{state.usage.month}</span></div><div className="budget-line"><strong>¥{state.usage.estimatedCny.toFixed(2)}</strong><span>/ ¥{state.usage.budgetCny} 估算预算</span></div><div className="budget-track"><span style={{ width: `${Math.min(100, state.usage.budgetCny ? state.usage.estimatedCny / state.usage.budgetCny * 100 : 0)}%` }} /></div><div className="usage-details"><span>合成 {state.usage.ttsCharacters.toLocaleString()} 字符</span><span>历史识别 {Math.round(state.usage.sttSeconds)} 秒</span><span>生图任务 {state.usage.imageJobs} 次</span></div><p className="panel-footnote">免费额度调用也按单价折算，作为本地预算记录；此处金额不代表实际扣款，实际以服务商用量和账单为准。Codex 订阅额度单独计量，本地页面无法读取你的剩余额度。</p></section></ParentDisclosure><ParentDisclosure title="备份与家长 PIN" description="本机备份、恢复与入口保护" icon="shield"><section className="parent-panel"><div className="panel-heading"><h2>本地备份</h2></div><p className="muted">备份包含词表、学习进度和图片音频，不含服务密钥。恢复前，系统会保留旧副本。</p><div className="backup-actions"><button className="button secondary compact-button" disabled={busy} onClick={backup}><Icon name="download" size={18} />下载备份</button><button className="button secondary compact-button" disabled={busy} onClick={() => restoreInput.current?.click()}><Icon name="upload" size={18} />选择备份恢复</button><input type="file" ref={restoreInput} accept=".json" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void file.text().then(setRestoreText).catch(error => report(errorMessage(error))); event.target.value = ''; }} /></div></section><ParentPinSettings /></ParentDisclosure></div>}
+    {tab === 'settings' && <div className="parent-settings-layout"><section className="parent-panel parent-preferences"><div className="panel-heading"><h2>学习设置</h2><span>按孩子的节奏调整</span></div><div className="setting-fields"><label>新轮次学习方式<select disabled={busy} value={settings.learningStrategy??'memory-loop'} onChange={event=>setSettings({...settings,learningStrategy:event.target.value as 'classic'|'memory-loop'})}><option value="memory-loop">连贯学习 · 分段回忆</option><option value="classic">原有顺序</option></select><small>已开始的轮次保持原计划</small></label>{([{ key: 'dailyNewWords', label: '每天新词', unit: '个', min: 1, max: 10 }, { key: 'dailyReviewWords', label: '每天复习上限', unit: '个', min: 0, max: 30 }, { key: 'sessionMinutes', label: '每轮参考时长', unit: '分钟', min: 3, max: 30 }] as const).map(item => <label className="number-setting" key={item.key}><span>{item.label}</span><span><input type="number" min={item.min} max={item.max} value={settings[item.key]} onChange={event => setSettings(previous => ({ ...previous, [item.key]: Number(event.target.value) }))} />{item.unit}</span></label>)}<label className="switch-setting"><div><strong>声音总开关</strong><small>播放英文示范和中文释义，支持点喇叭重听。</small></div><input type="checkbox" checked={settings.voiceEnabled} onChange={event => setSettings(previous => ({ ...previous, voiceEnabled: event.target.checked }))} /></label><label className="switch-setting"><div><strong>答题提示音</strong><small>选对、再试一次与录音保存时播放轻提示音。</small></div><input type="checkbox" checked={settings.feedbackSoundsEnabled!==false} onChange={event=>setSettings(previous=>({...previous,feedbackSoundsEnabled:event.target.checked}))}/></label><AudioCheck words={state.words}/><details className="parent-options"><summary>更多游戏与预算选项<ParentSymbol kind="down" /></summary><div className="parent-option-fields"><label className="switch-setting"><div><strong>字母拼搭</strong><small>零基础可先关闭；开启后才记录拼写练习。</small></div><input type="checkbox" checked={settings.spellingEnabled} onChange={event => setSettings(previous => ({ ...previous, spellingEnabled: event.target.checked }))} /></label><label className="switch-setting"><div><strong>亲子出题游戏</strong><small>有家长陪玩时开启“我来出题”；只记录练习。</small></div><input type="checkbox" checked={Boolean(settings.familyGamesEnabled)} onChange={event => setSettings(previous => ({ ...previous, familyGamesEnabled: event.target.checked }))} /></label><label className="switch-setting"><div><strong>进阶情境游戏</strong><small>孩子熟悉已审核的短句、否定和组合后开启。</small></div><input type="checkbox" checked={Boolean(settings.contextGamesEnabled)} onChange={event=>setSettings(previous=>({...previous,contextGamesEnabled:event.target.checked}))}/></label><label className="number-setting"><span>每月语音 API 预算<small>人民币估算；到达上限停止新增调用。</small></span><span>¥<input type="number" min="0" max="1000" value={settings.monthlyBudgetCny} onChange={event => setSettings(previous => ({ ...previous, monthlyBudgetCny: Number(event.target.value) }))} /></span></label></div></details></div><div className="parent-save-row"><span role="status">{settingsDirty ? '有未保存的更改' : '设置已保存'}</span><button className="button primary compact-button" disabled={busy || !settingsDirty} onClick={() => void act(async () => { await patch('/api/settings', settings); }, '学习设置已保存。')}>保存设置<Icon name="check" size={17} /></button></div></section><ParentDisclosure title="服务与用量" description={'发音：' + (state.integrations.tts ?? state.integrations.speech).status + ' · 生图：' + state.integrations.codex.status} icon="services"><section className="parent-panel service-panel"><div className="panel-heading"><h2>服务状态</h2><span>以实际连接结果为准</span></div><p className="muted">ElevenLabs TTS 提供英文示范和认识页中文释义，重复播放优先使用本地缓存。Codex 账号用于补全中文、词性和准备单词图片。</p><div className="service-hint">使用现有免费额度，不发起充值或付费升级。额度不足时停止云服务调用，可以继续点击练习。密钥只配置在本机 .env，不会放进浏览器。</div>{SPEECH_INPUT_ENABLED && <ProviderStatusCard title={`${inputProviderName(state.integrations.stt)} 语音输入`} subtitle="边说边显示 · 停顿后提交整句话" status={state.integrations.stt ?? state.integrations.speech} setup={inputProviderSetup(state.integrations.stt)} symbol="◖" />}<ProviderStatusCard title={state.integrations.tts?.provider === 'azure' ? 'Azure 单词发音（已显式选择）' : 'ElevenLabs TTS 单词发音'} subtitle="清晰英文示范 · 本地缓存" status={state.integrations.tts ?? state.integrations.speech} setup={state.integrations.tts?.provider === 'azure' ? '已显式选择 Azure，请在本机 .env 配置 AZURE_SPEECH_KEY 和 AZURE_SPEECH_REGION 后重启。' : '单词发音使用本机 .env 中的 ELEVENLABS_API_KEY 和 ELEVENLABS_VOICE_ID。英文示范使用已有缓存；中文首次合成前确认免费额度，成功后缓存。密钥需有 user_read 只读权限；无法确认时暂停中文朗读，可点击继续。'} symbol="♫" />{CHAT_ENABLED && <ProviderStatusCard title="Codex OAuth 对话" subtitle="理解孩子原话 · 提出下一步" status={state.integrations.dialogue ?? { configured: false, available: false, status: '尚未验证', detail: '请先连接官方 Codex 账号，再发送一句话验证真实对话。' }} setup="使用下方官方 Codex 登录。对话未接通时只显示明确标注的引导演示；不会把固定脚本当成 AI 回复。" symbol="✦" />}<div className="service-card"><div className="service-top"><span className="service-icon codex-icon">✳</span><div><h3>Codex 账号生图</h3><span>官方 OAuth · 使用你的订阅额度</span></div><span className={`service-dot ${state.integrations.codex.available ? 'available' : ''}`} /></div><strong className="service-label">{state.integrations.codex.status}</strong><p>{state.integrations.codex.detail}</p><button className="button secondary compact-button" disabled={busy} onClick={() => void act(async () => { const response = await post<{ status: string; authUrl?: string; message: string }>('/api/integrations/codex/connect'); setLoginUrl(response.authUrl || ''); setLoginMessage(response.message); })}>连接 / 检查 Codex<Icon name="arrow" size={17} /></button>{loginMessage && <p className="login-message" role="status">{loginMessage}</p>}{loginUrl && <a className="auth-link" href={loginUrl} target="_blank" rel="noreferrer">打开官方授权页面 ↗</a>}</div><div className="privacy-note"><Icon name="check" size={17} /><p>密钥留在本机服务端。认识页只读英文与家长确认的中文释义；练习录音保存在本机私有目录，可在当前活动回听；历史回听需家长授权。</p></div></section><section className="parent-panel usage-panel"><div className="panel-heading"><h2>本月用量</h2><span>{state.usage.month}</span></div><div className="budget-line"><strong>¥{state.usage.estimatedCny.toFixed(2)}</strong><span>/ ¥{state.usage.budgetCny} 估算预算</span></div><div className="budget-track"><span style={{ width: `${Math.min(100, state.usage.budgetCny ? state.usage.estimatedCny / state.usage.budgetCny * 100 : 0)}%` }} /></div><div className="usage-details"><span>合成 {state.usage.ttsCharacters.toLocaleString()} 字符</span><span>历史识别 {Math.round(state.usage.sttSeconds)} 秒</span><span>生图任务 {state.usage.imageJobs} 次</span></div><p className="panel-footnote">免费额度调用也按单价折算，作为本地预算记录；此处金额不代表实际扣款，实际以服务商用量和账单为准。Codex 订阅额度单独计量，本地页面无法读取你的剩余额度。</p></section></ParentDisclosure><ParentDisclosure title="备份与家长 PIN" description="本机备份、恢复与入口保护" icon="shield"><section className="parent-panel"><div className="panel-heading"><h2>本地备份</h2></div><p className="muted">备份包含词表、学习进度和图片音频，不含服务密钥。恢复前，系统会保留旧副本。</p><div className="backup-actions"><button className="button secondary compact-button" disabled={busy} onClick={backup}><Icon name="download" size={18} />下载备份</button><button className="button secondary compact-button" disabled={busy} onClick={() => restoreInput.current?.click()}><Icon name="upload" size={18} />选择备份恢复</button><input type="file" ref={restoreInput} accept=".json" hidden onChange={event => { const file = event.target.files?.[0]; if (file) void file.text().then(setRestoreText).catch(error => report(errorMessage(error))); event.target.value = ''; }} /></div></section><ParentPinSettings /></ParentDisclosure></div>}
     <footer className="parent-footer">本机保存 · 家长确认后，孩子才能学习</footer>
     {editingWord && <div className="modal-backdrop"><section className="modal edit-word-modal" role="dialog" aria-modal="true" aria-labelledby="edit-word-title"><button className="icon-button modal-close" onClick={() => setEditingWord(null)} aria-label="取消编辑"><Icon name="close" /></button><span className="modal-emoji">✏️</span><h2 id="edit-word-title">把词义，说明白一点</h2><p>修改英文或中文义项后，会重新准备图片，<br />并重置这个词的掌握进度。</p><form onSubmit={event => { event.preventDefault(); void act(async () => { await patch(`/api/words/${editingWord.id}`, { term: editedTerm.trim(), meaning: editedMeaning.trim(), ...(editedPos ? { partOfSpeech: editedPos } : {}) }); setEditingWord(null); }, '词条已更新，请重新准备并确认图片。'); }}><label className="field-label" htmlFor="edit-term">英文</label><input id="edit-term" value={editedTerm} onChange={event => setEditedTerm(event.target.value)} maxLength={60} required autoFocus /><label className="field-label" htmlFor="edit-meaning">这次要学的中文意思</label><input id="edit-meaning" value={editedMeaning} onChange={event => setEditedMeaning(event.target.value)} maxLength={120} required /><label className="field-label" htmlFor="edit-pos">词性</label><select id="edit-pos" value={editedPos ?? ''} onChange={event => setEditedPos(event.target.value as Word['partOfSpeech'])}><option value="">未标注</option>{partsOfSpeech.map(pos => <option key={pos} value={pos}>{partOfSpeechLabels[pos]}</option>)}</select><button className="button primary" disabled={busy || !editedTerm.trim() || !editedMeaning.trim()} type="submit">保存这个词<Icon name="check" /></button></form></section></div>}
     {restoreText && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="restore-title"><span className="modal-emoji">📦</span><h2 id="restore-title">恢复这份学习备份？</h2><p>当前词表和进度会替换为备份内容。<br />恢复前会自动保留当前副本。</p><button className="button primary" disabled={busy} onClick={() => void act(async () => { let data: unknown; try { data = JSON.parse(restoreText); } catch { throw new Error('这个文件不是有效的 JSON 备份。'); } await post('/api/restore', data); setRestoreText(''); }, '备份已恢复。')}>确认恢复<Icon name="check" /></button><button className="text-button" disabled={busy} onClick={() => setRestoreText('')}>先不恢复</button></section></div>}

@@ -9,6 +9,8 @@ import { currentActivity } from '../shared/game-plan.ts';
 import { pendingLearningCheckpoint } from '../shared/learning-policy.ts';
 import { assessmentCurrent } from '../shared/assessment.ts';
 import { createTestMode } from '../server/test-mode.ts';
+import { Store } from '../server/store.ts';
+import { finishGoalFixture } from './helpers/goal-steps.ts';
 import type { AssessmentSession, AppState, LearningSession } from '../shared/contracts.ts';
 
 const offline = { configured: false, available: false, status: 'test', detail: '无云调用' };
@@ -184,4 +186,31 @@ test('test file and streaming speech reuse the actual shared cache without copyi
     assert.equal(stream.status, 200); assert.equal(stream.headers.get('x-tts-cached'), 'true'); assert.deepEqual(Buffer.from(await stream.arrayBuffer()), bytes);
     assert.equal(existsSync(join(f.dir, 'test-mode', 'speech', 'shared.mp3')), false); assert.deepEqual(f.app.store.read(), before);
   } finally { await f.close(); }
+});
+
+
+test('checkpoint upgrade HTTP is idempotent and isolated; stale page and recording requests return version conflict',async()=>{
+  const f=await fixture();try{
+    const isolated=new Store(join(f.dir,'test-mode'),f.app.store.clock);
+    isolated.mutate(d=>{const source=f.app.store.read();d.words=source.words;d.packs=source.packs;});
+    const session=isolated.startSession(false,{}, {strategy:'memory-loop'});
+    while(!pendingLearningCheckpoint(isolated.read().sessions.at(-1)!)){
+      const s=isolated.read().sessions.at(-1)!,a=currentActivity(s)!;
+      if(finishGoalFixture(isolated,s,a))continue;
+      if(a.step==='recall'){for(const action of ['skip','next'])isolated.activityEvent({sessionId:s.id,activityId:a.id,action});continue;}
+      if(a.step!=='learn')isolated.attempt({sessionId:s.id,wordId:a.wordId,step:a.step,skill:a.step==='sound'?'listen':a.step,correct:true,hinted:false,source:'click'});
+      isolated.updateSession({sessionId:s.id,completedStep:{wordId:a.wordId,step:a.step}});
+    }
+    const checkpointId=pendingLearningCheckpoint(isolated.read().sessions.at(-1)!)!;isolated.close();
+    const before=structuredClone(f.app.store.read());await f.enter();
+    const body={sessionId:session.id,checkpointId,expectedVersion:1,targetVersion:3};
+    const upgraded=await f.json<AppState>('/session/upgrade-experience','POST',body);
+    assert.equal(upgraded.activeSession?.learningPolicy?.version,3);
+    assert.deepEqual((await f.json<AppState>('/session/upgrade-experience','POST',body)).activeSession,upgraded.activeSession);
+    const a=currentActivity(upgraded.activeSession!)!;
+    for(const [route,method,payload] of [['/session/activity','POST',{sessionId:session.id,activityId:a.id,action:'skip',planVersion:1}],['/session','PATCH',{sessionId:session.id,completedStep:{wordId:a.wordId,step:a.step}}]] as const){const response=await f.testing(route,method,payload);assert.equal(response.status,409);assert.equal((await response.json()).code,'SESSION_PLAN_CHANGED');}
+    const response=await f.testing(`/practice-recordings?sessionId=${session.id}&activityId=${a.id}&planVersion=1`);assert.equal(response.status,409);assert.equal((await response.json()).code,'SESSION_PLAN_CHANGED');
+    assert.deepEqual(f.app.store.read(),before);
+    assert.equal((await f.call('/api/test/session/upgrade-experience','POST',body)).status,403);
+  }finally{await f.close();}
 });
