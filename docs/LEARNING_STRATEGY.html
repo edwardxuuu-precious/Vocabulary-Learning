@@ -20,6 +20,7 @@
   <div class="sidebar-bottom">代码审视：2026-10-18<br>6–8 岁 · 中文母语 · 英语起步<br>单孩 · Windows 本机<br><button id="print-report" type="button">打印 / 保存为 PDF</button></div>
 </aside>
 <main class="main">
+<div class="note"><strong>当前业务规划与进度已转到固定工作台。</strong> 本页保留研究依据、诊断和原33项任务定义；当前31项业务任务、依赖、审批和量化进度请看 <a href="PROJECT_DASHBOARD.html">项目工作台</a>，状态真源见 <a href="TASK_TREE.md">任务树</a>。下方旧定义不表示当前全部待做或全部完成。</div>
 <header class="hero">
   <div class="hero-tag">产品策略 · 基于当前项目的完整优化规划</div>
   <h1>让孩子想学，<br>也记得住。</h1>
@@ -109,7 +110,7 @@
 </section>
 
 <section id="tasks" class="section">
-  <div class="section-head"><div><h2><span class="section-index">06 / 完整任务树</span>从基线到试验，再到可持续扩展</h2><p>点击任何任务查看产出、依赖、代码落点和验收。全部是规划任务；只有阶段门槛通过，才扩大范围。任务编号可用于后续逐项执行。</p></div></div>
+  <div class="section-head"><div><h2><span class="section-index">06 / 研究任务定义</span>从基线到试验，再到可持续扩展</h2><p>这里保留原33项研究规划的产出、依赖和验收定义；当前业务拆分与进度已在任务树逐项映射，不依据本页旧编号直接推断完成情况。</p></div></div>
   <div class="stage-roadmap"><div class="stage-card"><span class="tag">阶段 0 · 定义与观察</span><h4>知道孩子卡在哪里</h4><p>手工基线、证据词典、对照方案与现状回归。</p><small>门槛：观察与验收口径确定</small></div><div class="stage-card"><span class="tag">阶段 1 · 核心闭环</span><h4>让一个小段顺畅可恢复</h4><p>策略合同、冻结分支、回忆帮助路径和熟悉机制。</p><small>门槛：完整小段真实走通</small></div><div class="stage-card"><span class="tag">阶段 2 · 跨天与迁移</span><h4>验证隔天真的想得起</h4><p>分维度复习、匹配词组试验、家长反馈与实物迁移。</p><small>门槛：延迟结果与兴趣不冲突</small></div><div class="stage-card"><span class="tag">阶段 3 · 审慎扩展</span><h4>根据证据扩大内容与机制</h4><p>审核后的新场景、玩法逐个进入、验证后默认启用。</p><small>门槛：有收益，负担可控</small></div></div>
   <h3>第一条交付主线 · 分支前提见各任务</h3><div class="critical-path" id="critical-path" aria-label="关键交付链"></div>
   <div class="task-toolbar"><label>查找任务、目标或文件<input type="search" id="task-search" placeholder="例如：回忆、音频、C2" autocomplete="off"></label><label>优先级<select id="priority-filter" aria-label="优先级"><option value="all">全部优先级</option><option value="P0">P0 · 首轮必做</option><option value="P1">P1 · 闭环增强</option><option value="P2">P2 · 验证后扩展</option></select></label><label>阶段<select id="phase-filter" aria-label="阶段"><option value="all">全部阶段</option><option value="0">阶段 0 · 定义与观察</option><option value="1">阶段 1 · 核心闭环</option><option value="2">阶段 2 · 跨天与迁移</option><option value="3">阶段 3 · 审慎扩展</option></select></label><button class="filter-button" id="expand-tree" type="button">收起分支</button></div>
@@ -141,7 +142,7 @@
   </div>
   <div class="card" style="margin-top:22px"><h3>本项目证据入口</h3><p class="small">产品与架构：<a href="MVP.md">MVP</a> · <a href="PROJECT.md">PROJECT</a> · <a href="GAME_UI_DESIGN.md">游戏 UI</a> · <a href="CHILD_GROWTH.md">成长规则</a>。当前工作入口：<a href="TASK_TREE.md">任务树</a> · <a href="ACCEPTANCE.md">验收</a>。</p><p class="small muted">代码审视基于审视时的本机工作区，包含当时尚未提交的改动；文件和函数定位比历史任务日志更优先。本报告为策略与实施规划，不更改孩子成绩、词表、原音、额度或正式调度。</p></div>
 </section>
-<footer class="footer"><p>建议的第一步：完成 A1–A4 的基线和合同定义，再沿关键依赖链做一个可恢复的小段原型；使用孩子的实际表现决定后续扩展。</p><p>单文件离线可读；脚本仅控制本页筛选、任务详情与示例说明。外部链接仅在点击时打开。无追踪、无接口调用。</p></footer>
+<footer class="footer"><p>当前执行从新业务任务树的A01整体确认开始；本页原A1–H4仅用于追溯研究定义，映射和实际状态见固定项目工作台。</p><p>单文件离线可读；脚本仅控制本页筛选、任务详情与示例说明。外部链接仅在点击时打开。无追踪、无接口调用。</p></footer>
 </main>
 <dialog id="task-detail" class="task-detail" aria-labelledby="detail-title"><div class="detail-head"><div id="detail-meta" class="pills"></div><h3 id="detail-title"></h3><button type="button" class="dialog-close" id="close-detail" aria-label="关闭任务详情">关闭</button></div><div id="detail-body" class="detail-body"></div><div class="detail-footer">本页保存规划定义；实施状态以项目任务树为准，验证结果见当前验收。</div></dialog>
 

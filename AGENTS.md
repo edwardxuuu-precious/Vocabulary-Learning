@@ -4,7 +4,12 @@
 - 面向 6–8 岁中文母语孩子的单孩 Windows 本机网页应用，默认只在本地运行。
 - 先读 `README.md`（使用与命令）、`docs/PROJECT.md`（目录与模块）、`docs/MVP.md`（产品规则）。
 - 接口类型以 `shared/contracts.ts` 为准，HTTP 行为以 `server/index.ts` 和 API 测试为准；进度只维护在 `docs/TASK_TREE.md`，验证只维护在 `docs/ACCEPTANCE.md`。
+- 固定项目工作台是 `docs/PROJECT_DASHBOARD.html`，从任务树、`docs/PROJECT_WORKFLOW.md`、`docs/BUSINESS_RECORDS.md`和当前验收生成；修改相应来源后运行 `npm.cmd run dashboard:build`，不手改展示内的数据。业务任务开始先查关联经验卡，结案按W5回写；指标、版本、审批与有限结案规则以工作流为准。
+- 入口规则/场景见 `docs/ENTRY_RULES.md`；原型只用独立示例，源码生成 `docs/ENTRY_PROTOTYPE.html`（`npm.cmd run prototype:build`）。工程准备、正式接入、孩子验证分别登记，不能将原型样例作为学习基线或将检查点相加到本版业务叶子任务。
+- 项目专用Skill入口在 `docs/skills/`，调用与工程/真人边界见 `docs/TRIAL_HANDOFF.md`；任务事实仍只回原真源，不写全局记忆。
 - 静态资源真源是 `shared/visual-theme.ts`、`shared/companions.ts`、`shared/learning-backgrounds.ts` 和 `docs/ASSETS.json`。历史日志、旧截图和账号额度不能当作当前事实。
+- 已选定的变形金刚主题、批准角色/背景和现有视觉设计必须延续到原型与正式页面；业务流程改动不构成换主题授权。除非用户明确要求，不另起视觉风格，不重画或替换批准素材。
+- 面向用户的体验默认使用其已交付词书与原批准词图/发音；工程示例须显式开启、清楚标注并与真实档案隔离，不能用硬编码通用词或emoji替代上传内容后作为孩子入口。
 
 ## 开始与协作
 - 每轮先在 `Work_Progress/YYYY-MM-DD/` 创建中文任务记录，优先运行 `python -X utf8 ~/.codex/bin/task_log.py`；结束前回写实际结果、验证与限制。
@@ -21,6 +26,7 @@
 
 ## 产品正确性与私有数据
 - 儿童路径无需打字或理解长说明；录音、播放失败可重试或点击继续，不能记为答错或虚构成功。
+- 家长词表导入默认沿用 `docs/IMPORT_REVIEW.md` 的已确认流程与界面：保留未改词的补全及人工修改，只补新增/改动/缺项；疑似拼写问题在原行给出建议，由家长采用或保留原词，并提供“全部/待处理”筛选。流程修改须保持这些默认行为。
 - 正式词书必须先预览并确认词义，再准备发音与图片，批准所见图片版本，最后由家长显式交付。12 个内置词只作停用示例，不能自动填入正式词表。
 - 独立答对、有提示、跟读、录音完成、主动回忆和正式测评分开；同日重复答对不重复晋级。AI 建议与录音保存不直接写入口头正式成绩，不提供虚构发音分数。
 - 自主挑战创建、作答和提交免 PIN；核验、回听、重试及旧现场测试须家长授权。按所见版本批量确认后才更新正式口头证据。

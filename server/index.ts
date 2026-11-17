@@ -1,5 +1,10 @@
+import {studyRuntimeState} from './study-execution.ts';
+import {sentenceLesson} from '../shared/sentence-study.ts';
+import { BusinessObservations } from './business-observations.ts';
+import { entryRecommendation } from '../shared/entry-recommendation.ts';
 import { lessonSegment } from '../shared/lesson-plan.ts';
 import { packGameCatalogue } from '../shared/pack-games.ts';
+import { learnedReviewWords } from '../shared/learning-entry.ts';
 import { gameRegistry } from '../shared/game-registry.ts';
 import { readyGameMaterialKeys } from './game-material-readiness.ts';
 import { prepareGameAudio } from './game-audio-preparation.ts';
@@ -43,12 +48,14 @@ const unavailable: IntegrationStatus = {
 type Providers = typeof providers;
 interface ImageSnapshot { term:string; meaning:string; partOfSpeech?:Word['partOfSpeech']; pictureHint?:string; assetStatus:Word['assetStatus']; interests:string[]; interestVersion:number }
 type AppDialogue=Omit<ReturnType<typeof createDialogueProvider>,'prepare'|'prepareTurn'|'cancelPreparation'>&{prepare?:(conversationId?:string)=>Promise<unknown>;prepareTurn?:(conversationId?:string)=>Promise<void>;cancelPreparation?:()=>Promise<void>};
-export interface AppOptions { rootDir?: string; dataDir?: string; integrations?: Partial<Providers>; dialogue?: AppDialogue; clock?: () => Date; diagnostics?: boolean; chatEnabled?: boolean; learningGames?: GamePlanOptions; challengeServices?: ChallengeServices }
+export interface AppOptions { studyExecution?:boolean; observationAudience?:import('../shared/contracts.ts').ObservationAudience; rootDir?: string; dataDir?: string; integrations?: Partial<Providers>; dialogue?: AppDialogue; clock?: () => Date; diagnostics?: boolean; chatEnabled?: boolean; learningGames?: GamePlanOptions; challengeServices?: ChallengeServices }
 
 export function createApp(options: AppOptions = {}) {
+  const studyEnabled=options.studyExecution??process.env.STUDY_EXECUTION_ENABLED!=='false';
   const rootDir = options.rootDir ?? projectRoot;
   const dataDir = path.resolve(options.dataDir ?? process.env.PLAYROOM_DATA_DIR ?? path.join(rootDir, 'data'));
   const store = new Store(dataDir, options.clock);
+  if(studyEnabled)store.enableSingleLearningTask();
   const parentGate = new ParentGate(dataDir);
   const assessmentGrants = new AssessmentGrants(options.clock ? () => options.clock!().getTime() : Date.now);
   const practiceRecordings = createPracticeRecordings(store);
@@ -180,6 +187,7 @@ export function createApp(options: AppOptions = {}) {
     cancelWord:(id:string)=>{batchImageControllers.get(id)?.abort();for(const job of store.read().jobs.filter(job=>job.wordId===id&&['queued','running'].includes(job.status)))cancelImageJob(job.id);},
   });
   const testMode = createTestMode(store, availableImage, options.challengeServices);
+  const observations=new WeakMap<Store,BusinessObservations>();
   const formal = { store, assessmentGrants, practiceRecordings, challenges };
   const server = http.createServer(async (req, res) => {
     try {
@@ -214,7 +222,51 @@ export function createApp(options: AppOptions = {}) {
       const assessmentGrants = context?.grants ?? formal.assessmentGrants;
       const practiceRecordings = context?.recordings ?? formal.practiceRecordings;
       const challenges = context?.challenges ?? formal.challenges;
-      const state = async () => ({ ...store.state(await serviceStatus()), learningMode: testing ? 'test' as const : 'child' as const });
+      const readiness=async()=>{
+        const data=store.read(),enabled=new Set(data.packs.filter(pack=>pack.enabled&&!pack.isSample&&!pack.deletedAt).map(pack=>pack.id));
+        const rows=await Promise.all(data.words.filter(word=>enabled.has(word.packId)&&!word.deletedAt&&word.assetStatus==='approved'&&word.imageUrl!=='/assets/placeholder.svg'&&availableImage(word.imageUrl)).map(async word=>{
+          try{const file=await integration.getCachedSpeech({text:word.term,locale:'en-US',tone:'clear',dataDir});return file&&toMediaUrl(file)?{id:word.id,snapshot:JSON.stringify(word)}:undefined;}catch{return undefined;}
+        }));
+        const current=store.read(),packs=new Set(current.packs.filter(pack=>pack.enabled&&!pack.isSample&&!pack.deletedAt).map(pack=>pack.id));
+        return rows.flatMap(row=>row&&current.words.some(word=>word.id===row.id&&packs.has(word.packId)&&JSON.stringify(word)===row.snapshot)?[row.id]:[]);
+      };
+      const state = async () => {const learningReadyWordIds=await readiness(),integrations=await serviceStatus(),mode=testing?'test' as const:'child' as const;return { ...store.state(integrations), learningReadyWordIds, learningMode:mode,study:studyEnabled?studyRuntimeState(store.read(),learningReadyWordIds,store.clock(),mode):undefined };};
+      if(route.startsWith('/api/study')&&!studyEnabled)throw new AppError('学习入口已切回兼容执行，现有记录仍保留。','STUDY_DISABLED',409);
+      if(route==='/api/study'&&req.method==='GET')return json(res,(await state()).study);
+      if(route==='/api/study/save'&&req.method==='POST'){
+        const target=store.saveStudyPosition(await readJson(req,4096),testing?'test':'child');return json(res,{target,state:await state()});
+      }
+      if(route==='/api/screen-time'&&req.method==='GET')return json(res,store.screenTime.view());
+      if(route==='/api/screen-time'&&req.method==='POST'){
+        const body=await readJson(req,1024);
+        if(Object.keys(body).some(key=>!['clientId','active'].includes(key))||typeof body.clientId!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(body.clientId)||typeof body.active!=='boolean')throw new AppError('用屏状态无效。');
+        return json(res,store.screenTime.heartbeat(body.clientId,body.active));
+      }
+      if(route==='/api/screen-time/unlock'&&req.method==='POST'){
+        assessmentGrants.require(req.headers.authorization);return json(res,store.screenTime.unlock());
+      }
+      const childAction=req.method==='POST'&&['/api/study/start','/api/sentence-study','/api/session/start','/api/session/activity','/api/session/assessment-practice','/api/session/review-support','/api/attempts','/api/assessments','/api/speech/tts','/api/speech/tts/stream'].includes(route)
+        ||req.method==='POST'&&/^\/api\/assessments\/[^/]+\/(responses|actions)$/.test(route)
+        ||req.method==='PATCH'&&route==='/api/session';
+      if(childAction&&store.screenTime.view().breakUntil){
+        if(req.headers.authorization)assessmentGrants.require(req.headers.authorization);
+        else throw new AppError('已经连续用屏15分钟，请休息5分钟，或请家长验证后继续。','SCREEN_REST_REQUIRED',423);
+      }
+      if(route==='/api/study/start'&&req.method==='POST'){
+        const body=await readJson(req,4096),ready=await readiness();
+        const target=store.startStudy(body,ready,testing?'test':'child');return json(res,{target,state:await state()});
+      }
+      const business=()=>{let instance=observations.get(store);if(!instance){instance=new BusinessObservations(store,testing?'test':options.observationAudience??'child');observations.set(store,instance);}return instance;};
+      if(route.startsWith('/api/business')){
+        if(req.method==='POST'&&route==='/api/business/events')return json(res,business().events(await readJson(req,24000)));
+        assessmentGrants.require(req.headers.authorization);
+        if(req.method==='GET'&&route==='/api/business')return json(res,business().view());
+        if(req.method==='GET'&&route==='/api/business/export'){res.setHeader('Content-Disposition','attachment; filename="private-business-observations.json"');return json(res,business().export());}
+        if(req.method==='POST'&&route==='/api/business/opportunities')return json(res,business().opportunity(await readJson(req,4096)));
+        if(req.method==='POST'&&route==='/api/business/efforts')return json(res,business().effort(await readJson(req,4096),await readiness()));
+        if(req.method==='POST'&&route==='/api/business/probes')return json(res,business().probe(await readJson(req,16000)));
+        throw new AppError('没有这个观察操作。','NOT_FOUND',404);
+      }
       if (req.method === 'GET' && route === '/api/health') return json(res, { ok: true, app: 'little-word-playroom', status: 'ok', local: true });
       if (req.method === 'GET' && route === '/api/parent-gate') return json(res, parentGate.status());
       if (req.method === 'POST' && route === '/api/parent-gate') return json(res, { ...parentGate.setup((await readJson(req, 1024)).pin), assessmentGrant: assessmentGrants.issue() });
@@ -245,7 +297,9 @@ export function createApp(options: AppOptions = {}) {
           if (req.headers['content-type'] !== 'audio/wav') throw new AppError('录音必须是 WAV。');
           const version = Number(url.searchParams.get('version'));
           if (!url.searchParams.has('version') || !Number.isSafeInteger(version) || version < 0) throw new AppError('录音版本无效。');
-          return json(res, challenges.upload(id, url.searchParams.get('itemId') ?? '', version, await readBody(req, 640044)));
+          const cueVersion=url.searchParams.has('cueVersion')?Number(url.searchParams.get('cueVersion')):undefined;
+          if(cueVersion!==undefined&&cueVersion!==1&&cueVersion!==2)throw new AppError('测试题面版本无效。');
+          return json(res, challenges.upload(id, url.searchParams.get('itemId') ?? '', version, await readBody(req, 640044),cueVersion));
         }
         if (req.method === 'POST' && operation === 'submit') return json(res, challenges.submit(id));
         if (req.method === 'POST' && operation === 'review') return json(res, challenges.review(id, await readJson(req, 12000)));
@@ -253,6 +307,7 @@ export function createApp(options: AppOptions = {}) {
         if (req.method === 'GET' && operation === 'audio') { const audio = challenges.audio(id, url.searchParams.get('itemId') ?? ''); res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': audio.length }); res.end(audio); return; }
         throw new AppError('不支持该测试操作。', 'METHOD_NOT_ALLOWED', 405);
       }
+      if(req.method==='POST'&&route==='/api/sentence-study'){const body=await readJson(req,4096);if(body.action==='demonstrate'&&body.source==='audio'){const word=store.read().words.find(w=>w.id===body.wordId);const lesson=word&&sentenceLesson(word);if(!lesson||!await integration.getCachedSpeech({text:lesson.full,locale:'en-US',tone:'clear',dataDir}))throw new AppError('短句发音尚未准备好，请大人带着读。','AUDIO_CACHE_MISSING',409);}return json(res,store.sentenceStudy(body));}
       if (req.method === 'GET' && route === '/api/state') return json(res, await state());
       if (req.method === 'POST' && route === '/api/lesson-plan') {
         assessmentGrants.require(req.headers.authorization);
@@ -383,7 +438,7 @@ export function createApp(options: AppOptions = {}) {
       }
       if (req.method === 'POST' && route === '/api/integrations/codex/connect') { const result = await integration.beginCodexLogin(); statusTime = 0; return json(res, result); }
       if (req.method === 'POST' && route === '/api/import/preview') return json(res, parseImport((await readJson(req)).text));
-      if (req.method === 'POST' && route === '/api/import/enrich') { const body = await readJson(req); return json(res, imports.start(body.text, body.rows), 202); }
+      if (req.method === 'POST' && route === '/api/import/enrich') { const body = await readJson(req); return json(res, imports.start(body.text, body.rows, body.onlyTerms), 202); }
       const importMatch = route.match(/^\/api\/import\/enrich\/([^/]+)(\/cancel)?$/);
       if (importMatch) {
         const id = decodeURIComponent(importMatch[1]);
@@ -506,17 +561,22 @@ export function createApp(options: AppOptions = {}) {
         const data=store.read(),packId=url.searchParams.get('packId');
         const pack=data.packs.find(pack=>pack.id===packId&&pack.enabled&&!pack.deletedAt&&!pack.isSample);
         if(!pack)throw new AppError('这本词表还没有交给孩子学习。','SESSION_WORDS',409);
-        const words=data.words.filter(word=>word.packId===pack.id&&word.assetStatus==='approved');
+        const entry=url.searchParams.get('entry');if(entry!==null&&entry!=='review')throw new AppError('玩法入口无效。');
+        const words=(entry==='review'?learnedReviewWords(data,store.clock()):data.words).filter(word=>word.packId===pack.id&&word.assetStatus==='approved'&&!word.deletedAt);
         const readyMaterialKeys=await readyGameMaterialKeys(data.words,words,availableImage,async cue=>!!await integration.getCachedSpeech({...cue,tone:'clear',dataDir}));
         const allowedKinds=options.learningGames?.allowedKinds ?? gameRegistry.map(game=>game.kind);
         return json(res,packGameCatalogue(words,{familyEnabled:data.settings.familyGamesEnabled===true,contextEnabled:data.settings.contextGamesEnabled===true,...options.learningGames,readyMaterialKeys,
           allowedKinds:allowedKinds.filter(kind=>data.settings.spellingEnabled||gameRegistry.find(game=>game.kind===kind)?.step!=='spell')}));
       }
       if (req.method === 'POST' && route === '/api/session/start') {
-        const input=await readJson(req,1_000_000,true),data=store.read(),daily=dailyLearningPlan(data,store.clock()),ids=input.mode==='lesson'&&data.lessonPlan?lessonSegment(data.lessonPlan,data).tasks.map(t=>t.wordId):Array.isArray(input.wordIds)?input.wordIds:(daily.tasks.length?daily.tasks:supplementalLearningPlan(data,store.clock()).tasks).map(t=>t.wordId);
+        const input=await readJson(req,1_000_000,true),readyWordIds=await readiness(),data=store.read(),daily=input.entry==='learn'||input.entry==='review'?entryRecommendation({...data,learningReadyWordIds:readyWordIds,settings:{...data.settings,learningStrategy:input.strategy==='classic'?'classic':input.strategy==='memory-loop'?'memory-loop':data.settings.learningStrategy??'memory-loop'}},input.entry,store.clock()):dailyLearningPlan(data,store.clock()),ids=input.mode==='lesson'&&data.lessonPlan?lessonSegment(data.lessonPlan,data).tasks.map(t=>t.wordId):Array.isArray(input.wordIds)?input.wordIds:(daily.tasks.length||input.entry?daily.tasks:supplementalLearningPlan(data,store.clock()).tasks).map(t=>t.wordId);
         const readyMaterialKeys=await readyGameMaterialKeys(data.words,data.words.filter(w=>ids.includes(w.id)),availableImage,async cue=>!!await integration.getCachedSpeech({...cue,tone:'clear',dataDir}));
-        return json(res,store.startSession('random',{...options.learningGames,readyMaterialKeys},input));
+        if(input.entry&&JSON.stringify([data.words,data.packs,data.lessonPlan])!==JSON.stringify([store.read().words,store.read().packs,store.read().lessonPlan]))throw new AppError('词语或安排刚刚变化，请刷新后再开始。','RECOMMENDATION_CHANGED',409);
+        return json(res,store.startSession('random',{...options.learningGames,readyMaterialKeys},input, (input.entry==='learn'||input.entry==='review')&&(input.mode===undefined||input.mode==='recommended')?readyWordIds:undefined));
       }
+      if (req.method === 'POST' && route === '/api/session/review-support') { store.reviewSupportEvent(await readJson(req,4096)); return json(res, await state()); }
+      if(req.method==='POST'&&route==='/api/session/daily-choice'){store.saveDailyLearningChoice(await readJson(req,50000),await readiness());return json(res,await state());}
+      if (req.method === 'POST' && route === '/api/session/save-position') { store.saveLearningPosition(await readJson(req,4096)); return json(res, await state()); }
       if (req.method === 'POST' && route === '/api/session/activity') { store.activityEvent(await readJson(req)); return json(res, await state()); }
       if (req.method === 'POST' && route === '/api/session/assessment-practice') { store.assessmentPractice(await readJson(req, 4096)); return json(res, await state()); }
       if (req.method === 'POST' && route === '/api/attempts') { const attempt = store.attempt(await readJson(req)); return json(res, attempt); }

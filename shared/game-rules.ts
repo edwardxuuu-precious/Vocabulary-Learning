@@ -7,7 +7,7 @@ import { transitionBatchTwo, validBatchState } from './game-batch-two.ts';
 import { isGoalCheckpoint } from './learning-goals.ts';
 import { transitionGoal, validGoalState } from './goal-game-rules.ts';
 
-export const gameActions: ActivityAction[] = ['listen','choose','reveal','skip','next','audio-failed','conceal','show-options','listen-option','pick','undo','submit','uncover','draw','compare','finish','compose','hand-over','guess','letter','tap','place','run','reset','swap','guide','clue'];
+export const gameActions: ActivityAction[] = ['rules-seen','rules-help','listen','choose','reveal','skip','next','audio-failed','conceal','show-options','listen-option','pick','undo','submit','uncover','draw','compare','finish','compose','hand-over','guess','letter','tap','place','run','reset','swap','guide','clue'];
 export const activityStateKeys = ['heard','revealed','hinted','audioUnavailable','selectedId','outcome','concealed','optionsVisible','heardOptionIds','selectedIds','uncoveredTiles','drawing','composed','handedOver','gesture','guessId','letterPath',...extendedStateKeys];
 export const gameAccepted = (state: ActivityState) => state.outcome === 'correct' || state.outcome === 'practice';
 export function gameAudioWord(activity: LearningActivity, action: ActivityAction, selectedId?: string) {

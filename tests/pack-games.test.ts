@@ -17,11 +17,12 @@ function seed(store:Store){
   const images=store.read().words.map(word=>word.imageUrl);
   const book=store.createPack('玩法词表',Array.from({length:13},(_,i)=>({term:`word${String.fromCharCode(97+i)}`,meaning:`词义${i}`})));
   store.mutate(data=>{data.settings.voiceEnabled=false;data.settings.dailyNewWords=1;data.packs.find(p=>p.id===book.id)!.enabled=true;data.words.filter(w=>w.packId===book.id).forEach((w,i)=>{w.assetStatus='approved';w.partOfSpeech='noun';w.imageUrl=images[i%images.length];});});
+  store.mutate(data=>{const ids=data.words.filter(word=>word.packId===book.id).map(word=>word.id);data.sessions.push({id:'prior-game-introductions',wordIds:ids,completedWordIds:ids,startedAt:'2026-10-01T00:00:00Z',completedAt:'2026-10-01T00:00:00Z',rewardGranted:false,exposures:ids.map(wordId=>({wordId,learningVersion:0,introducedAt:'2026-10-01T00:00:00Z'}))});});
   return {book,ids:store.read().words.filter(w=>w.packId===book.id).map(w=>w.id)};
 }
 function fixture(){
   const dir=mkdtempSync(join(tmpdir(),'pack-games-'));let store=new Store(dir,()=>new Date('2026-10-18T01:00:00Z'));const {book,ids}=seed(store);
-  return {get store(){return store;},book,ids,request(game?:string){return {mode:'practice',packId:book.id,wordIds:ids,strategy:game?'classic':'memory-loop',...(game?{game}:{})} as Parameters<Store['startSession']>[2];},
+  return {get store(){return store;},book,ids,request(game?:string){return {entry:'review',mode:'practice',packId:book.id,wordIds:ids,strategy:game?'classic':'memory-loop',...(game?{game}:{})} as Parameters<Store['startSession']>[2];},
     restart(){store.close();store=new Store(dir,()=>new Date('2026-10-18T01:00:00Z'));},close(){store.close();assert.ok(dir.startsWith(join(tmpdir(),'pack-games-')));rmSync(dir,{recursive:true,force:true});}};
 }
 const active=(store:Store)=>store.state(status).activeSession!;

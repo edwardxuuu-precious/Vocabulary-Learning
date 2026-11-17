@@ -26,7 +26,7 @@ export function microphoneFailureMessage(error: unknown, permission: PermissionS
   return '这次没能打开麦克风。可以再试一次，或先跳过。';
 }
 
-async function readPermission(): Promise<PermissionState | 'unknown'> {
+export async function microphonePermission(): Promise<PermissionState | 'unknown'> {
   if (!navigator.permissions?.query) return 'unknown';
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -43,7 +43,7 @@ export async function requestMicrophoneStream(constraints: MediaStreamConstraint
   try { return await navigator.mediaDevices.getUserMedia(constraints); }
   catch (error) {
     const name = error && typeof error === 'object' ? (error as { name?: string }).name : undefined;
-    const permission = name === 'NotAllowedError' || name === 'PermissionDeniedError' ? await readPermission() : 'unknown';
+    const permission = name === 'NotAllowedError' || name === 'PermissionDeniedError' ? await microphonePermission() : 'unknown';
     throw new MicrophoneAccessError(microphoneFailureMessage(error, permission), error);
   }
 }

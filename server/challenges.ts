@@ -1,3 +1,4 @@
+import {challengeReviewResult} from '../shared/assessment-cues.ts';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -49,7 +50,7 @@ export function createChallengeManager(options: { store: Store; dataDir: string;
       const snapshot = challenge(store.read(), id);
       for (const item of snapshot.items) {
         if (closed || signal.aborted) return;
-        if (item.response?.kind !== 'recording' || item.reviews?.length || item.transcript) continue;
+        if (item.response?.kind !== 'recording' || item.reviews?.length || item.transcript||['unavailable','unconfirmed'].includes(challengeReviewResult(item,'correct',store.read().words))) continue;
         assertChallengeAssets(store.read(), item, imageAvailable);
         const audio = item.response.recording!;
         if (audio.status !== 'ready') throw new AppError('原音缺失，请重新测试或标记未确认。');
@@ -64,8 +65,8 @@ export function createChallengeManager(options: { store: Store; dataDir: string;
       }
       if (closed || signal.aborted) return;
       update(id, runId, session => { session.job!.status = 'grading'; session.job!.stage = 'grade'; });
-      const pending = challenge(store.read(), id).items.filter(item => item.transcript && !item.proposal && !item.reviews?.length);
-      const answers = pending.map(item => ({ id: item.id, dimension: item.dimension, term: item.word.term, meaning: item.word.meaning, transcript: item.transcript!.text }));
+      const pending = challenge(store.read(), id).items.filter(item => item.transcript && !item.proposal && !item.reviews?.length&&!['unavailable','unconfirmed'].includes(challengeReviewResult(item,'correct',store.read().words)));
+      const answers = pending.map(item => ({ id: item.id, dimension: item.dimension, term: item.word.term, meaning: item.word.meaning,...(item.response?.cueVersion!==undefined&&item.cue?{cue:item.cue.text,...(item.cue.sentence?{sentence:item.cue.sentence}:{})}:{}), transcript: item.transcript!.text }));
       if (answers.length) {
         for (const item of pending) assertChallengeAssets(store.read(), item, imageAvailable);
         const suggestions = validateGradingSuggestions({ items: await grade(answers, signal) }, answers);
@@ -94,14 +95,15 @@ export function createChallengeManager(options: { store: Store; dataDir: string;
   return {
     cleanup,
     busy: () => Boolean(running),
-    upload(id: string, itemId: string, expectedVersion: number, audio: Buffer) {
+    upload(id: string, itemId: string, expectedVersion: number, audio: Buffer,cueVersion?:unknown) {
+      if(cueVersion!==undefined&&cueVersion!==1&&cueVersion!==2)throw new AppError('测试题面版本无效。');
       const seconds = validateChallengeWav(audio), sha256 = createHash('sha256').update(audio).digest('hex');
       const previous = currentChallengeItem(store.read(), challenge(store.read(), id), itemId, imageAvailable).response?.recording;
       if (previous?.sha256 === sha256) return challenge(store.read(), id);
       const recording = { id: randomUUID(), bytes: audio.length, seconds, sha256, status: 'ready' as const };
       writeFileSync(file(recording.id), audio, { flag: 'wx' });
       let result: AssessmentSession;
-      try { result = store.mutate(data => saveChallengeResponse(data, id, { itemId, expectedVersion, action: 'record' }, store.clock(), imageAvailable, recording)); }
+      try { result = store.mutate(data => saveChallengeResponse(data, id, { itemId, expectedVersion, action: 'record',...(cueVersion!==undefined?{cueVersion}:{}) }, store.clock(), imageAvailable, recording)); }
       catch (error) { unlinkSync(file(recording.id)); throw error; }
       cleanup(); return result;
     },

@@ -5,6 +5,7 @@ export type { CompanionCharacter } from './companions';
 export const visualTheme = {
   id: 'transformers-mecha-v2',
   label: 'Q版变形金刚 · 机械面罩',
+  brandIcon: '/assets/brand/playroom-simple.svg',
   homeDesktop: '/assets/brand/autobot-courtyard-desktop-v5.png',
   homePortrait: '/assets/brand/autobot-courtyard-portrait-v5.png',
   characters: companionCharacters,

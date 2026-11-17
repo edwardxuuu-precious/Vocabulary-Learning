@@ -2,15 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { companionCharacters, companionFor, companionIds } from '../shared/companions.ts';
+import { companionBiographies, companionCharacters, companionFor, companionIds, originalCompanionIds } from '../shared/companions.ts';
 import { illustrationPrompt } from '../server/integrations/codex.ts';
 
 test('every catalogue companion has a distinct local portrait, including both factions', () => {
-  assert.ok(companionIds.length >= 20);
+  assert.equal(companionIds.length, 100);
+  assert.equal(companionIds.filter(id => companionCharacters[id].faction === 'autobot').length, 50);
+  assert.equal(companionIds.filter(id => companionCharacters[id].faction === 'decepticon').length, 50);
   assert.equal(new Set(companionIds.map(id => companionCharacters[id].image)).size, companionIds.length);
   for (const id of companionIds) assert.ok(existsSync(resolve('public', '.' + companionCharacters[id].image)), `Missing portrait: ${id}`);
   assert.ok(companionIds.some(id => companionCharacters[id].faction === 'autobot'));
   assert.ok(companionIds.some(id => companionCharacters[id].faction === 'decepticon'));
+});
+
+test('all one hundred characters have distinct names, original biographies, and the original portraits keep their paths', () => {
+  assert.equal(new Set(companionIds.map(id => companionCharacters[id].englishName)).size, 100);
+  assert.equal(new Set(companionIds.map(id => companionCharacters[id].name)).size, 100);
+  assert.equal(new Set(companionIds.map(id => companionBiographies[id])).size, 100);
+  for (const id of companionIds) assert.ok(companionBiographies[id].length >= 80, id);
+  assert.equal(originalCompanionIds.length, 20);
+  for (const id of originalCompanionIds) assert.ok(!companionCharacters[id].image.includes('companions-v2/'), id);
+  assert.ok(!companionIds.some(id => ['galvatron', 'rodimusprime', 'goldbug', 'orionpax'].includes(id)), 'An upgraded form must not count as another character.');
 });
 
 test('a task rotation visits all companions before repeating and restores the same companion', () => {

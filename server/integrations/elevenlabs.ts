@@ -69,18 +69,23 @@ export function createElevenLabsProvider(options: ElevenLabsOptions = {}) {
   }
   async function verifyFreeQuota(input: TtsInput, signal: AbortSignal) {
     if (!input.freeOnly) return;
-    const failure = () => new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', '暂时无法确认 ElevenLabs 免费额度，中文讲解已暂停；请家长开启密钥的 user_read 权限后重试，也可以点箭头继续。');
+    const failure = (message='免费额度查询连接失败，请检查网络或代理后重试；已有缓存仍可播放。') => new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', message);
     let response: Response;
     try { response = await request('https://api.elevenlabs.io/v1/user/subscription', { method: 'GET', redirect: 'error', signal, headers: { 'xi-api-key': config(input.locale).key! } }); }
     catch { throwIfAborted(input.signal); throw failure(); }
-    if (!response.ok) { await response.body?.cancel().catch(() => {}); throw failure(); }
+    if (!response.ok) {
+      let missingPermission=false;
+      if(response.status===403)try{const detail=await response.json();missingPermission=JSON.stringify(detail?.detail??'').includes('user_read');}catch{}
+      await response.body?.cancel().catch(() => {});
+      throw failure(missingPermission?'免费额度查询缺少 user_read 只读权限，请家长检查密钥权限后重试。':response.status===401?'免费额度查询未通过密钥验证，请家长检查当前配置。':`免费额度查询暂不可用（HTTP ${response.status}），请稍后重试；已有缓存仍可播放。`);
+    }
     let quota: { tier?: string; character_count?: number; character_limit?: number; max_credit_limit_extension?: number | string; status?: string };
     try { quota = await response.json(); } catch { throw failure(); }
     throwIfAborted(input.signal);
     if (!quota || typeof quota !== 'object' || quota.tier !== 'free' || quota.max_credit_limit_extension !== 0 || !['free', 'active', 'trialing'].includes(quota.status ?? '') ||
         typeof quota.character_count !== 'number' || !Number.isFinite(quota.character_count) || quota.character_count < 0 ||
         typeof quota.character_limit !== 'number' || !Number.isFinite(quota.character_limit) || quota.character_limit - quota.character_count < [...input.text].length) {
-      throw new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', '未确认有足够的免费额度，中文讲解已暂停；已有缓存仍可播放，也可以点箭头继续。');
+      throw new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', '未确认有足够的免费额度，示范发音准备已暂停；已有缓存仍可播放。');
     }
   }
   function status(): ServiceStatus {
@@ -92,6 +97,8 @@ export function createElevenLabsProvider(options: ElevenLabsOptions = {}) {
     } catch (error) { return { provider: 'elevenlabs', configured: false, available: false, status: 'error', detail: error instanceof IntegrationError ? error.message : 'ElevenLabs 配置无效。' }; }
   }
   async function trimCache(directory: string, keepPath: string) {
+    // Curriculum audio is a retained local asset. Pruning requires explicit caller limits.
+    if(options.maxCacheFiles===undefined&&options.maxCacheBytes===undefined)return;
     const files = await readdir(directory, { withFileTypes: true });
     const entries = await Promise.all(files.filter(file => file.isFile() && /^[a-f0-9]{64}\.mp3$/.test(file.name)).map(async file => {
       const path = join(directory, file.name); const info = await stat(path); return { path, bytes: info.size, at: info.mtimeMs };

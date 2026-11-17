@@ -24,10 +24,10 @@ export function syntheticWav(seed = 1, seconds = .3) {
   for (let index = 0; index < count; index++) audio.writeInt16LE(Math.round(Math.sin(index * (.05 + seed * .001)) * 3000), 44 + index * 2);
   return audio;
 }
-function fixture() {
+function fixture(count = 6) {
   const dir = mkdtempSync(path.join(tmpdir(), 'word-challenge-')); let now = new Date('2026-10-17T04:00:00Z');
   const store = new Store(dir, () => now); store.enablePack('starter', true);
-  const ids = store.read().words.slice(0, 6).map(word => word.id);
+  const ids = store.read().words.slice(0, count).map(word => word.id);
   store.mutate(data => { data.sessions.push({ id: 'lesson', wordIds: ids, completedWordIds: ids, startedAt: now.toISOString(), completedAt: now.toISOString(), rewardGranted: true }); data.attempts.push(...ids.map(wordId => ({ id: wordId, sessionId: 'lesson', wordId, learningVersion: 0, skill: 'listen' as const, correct: true, hinted: false, source: 'click' as const, createdAt: now.toISOString() }))); });
   return { dir, store, ids, now: () => now, advance: (days = 1) => { now = new Date(now.getTime() + days * DAY); }, dispose: () => { store.close(); assert.ok(dir.startsWith(path.join(tmpdir(), 'word-challenge-'))); rmSync(dir, { recursive: true, force: true }); } };
 }
@@ -43,24 +43,24 @@ const reviewRows = (session: AssessmentSession, result = 'correct') => ({ items:
 async function until(predicate: () => boolean) { for (let i = 0; i < 300; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 5)); } assert.fail('后台测试任务未完成'); }
 
 test('child HTTP can start, upload and resume without PIN; only review/replay/retry and onsite judgement require a grant', async () => {
-  const f = fixture(); let stt = 0, grades = 0;
+  const f = fixture(10); let stt = 0, grades = 0;
   const app = createApp({ dataDir: f.dir, clock: f.now, integrations: { probeIntegrations: async () => statuses }, challengeServices: { transcribe: async () => { stt++; return 'apple'; }, grade: async answers => { grades++; return answers.map(answer => ({ id: answer.id, verdict: 'matched', reason: '识别内容相符' })); } } });
   try {
     await new Promise<void>(resolve => app.server.listen(0, '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
     const call = (url: string, body?: unknown, token?: string, extra = {}) => fetch(base + url, { method: body === undefined ? 'GET' : 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...extra }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-    assert.equal((await call('/api/assessments', { wordIds: f.ids })).status, 400);
+    assert.equal((await call('/api/assessments', { wordIds: f.store.read().words.slice(0,11).map(word=>word.id) })).status, 400);
     assert.equal((await call('/api/assessments', { wordIds: [f.ids[0]] }, undefined, { Origin: 'https://other.example' })).status, 403);
-    let session: AssessmentSession = await (await call('/api/assessments', { wordIds: f.ids.slice(0, 5) })).json();
-    assert.equal(session.items.length, 20); assert.equal(session.workflow, 'recorded');
+    let session: AssessmentSession = await (await call('/api/assessments', { wordIds: f.ids,cueVersion:2 })).json();
+    assert.equal(session.items.length, 40); assert.equal(session.workflow, 'recorded');
     const url = `/api/assessments/${session.id}`;
     assert.equal((await call(url)).status, 200);
     assert.equal((await call(url + '/actions', { itemId: session.items[0].id, action: 'judge', judgement: 'correct' })).status, 400);
     assert.equal((await call(url + '/responses', { itemId: session.items[2].id, action: 'skip', expectedVersion: 0 })).status, 409);
-    const upload = (itemId: string, version: number, bytes = syntheticWav()) => fetch(base + `${url}/recordings?itemId=${encodeURIComponent(itemId)}&version=${version}`, { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: bytes });
+    const upload = (itemId: string, version: number, bytes = syntheticWav()) => fetch(base + `${url}/recordings?itemId=${encodeURIComponent(itemId)}&version=${version}${session.items.find(item=>item.id===itemId)?.dimension==='zh-en'?'&cueVersion=2':''}`, { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: bytes });
     assert.equal((await upload(session.items[0].id, 0, Buffer.alloc(44))).status, 400);
     session = await (await upload(session.items[0].id, 0)).json();
-    const saved = session.items[0].response;
+    const saved = session.items[0].response;assert.equal(saved!.cueVersion,2);
     session = await (await upload(session.items[0].id, 0)).json(); assert.deepEqual(session.items[0].response, saved);
     session = await (await upload(session.items[0].id, 1, syntheticWav(2))).json(); assert.equal(session.items[0].response!.version, 2);
     while (assessmentCurrent(session)) {
@@ -75,17 +75,17 @@ test('child HTTP can start, upload and resume without PIN; only review/replay/re
     session = await (await call(url + '/submit', {})).json(); assert.ok(session.submittedAt);
     await call(url + '/submit', {});
     await until(() => app.store.read().assessments!.find(row => row.id === session.id)?.job?.status === 'review');
-    assert.equal(stt, 15); assert.equal(grades, 1);
-    assert.equal(app.store.read().assessmentAttempts!.length, 5);
+    assert.equal(stt, 30); assert.equal(grades, 1);
+    assert.equal(app.store.read().assessmentAttempts!.length, 10);
     assert.equal((await upload(session.items[0].id, 2)).status, 409);
     assert.equal((await call(url + '/review', reviewRows(session))).status, 403);
     assert.equal((await call(url + '/retry', {})).status, 403);
     session = await (await call(url)).json();
     const stale = reviewRows(session); stale.items[0].proposalVersion = 0;
     assert.equal((await call(url + '/review', stale, token)).status, 409);
-    assert.equal(app.store.read().assessmentAttempts!.length, 5);
+    assert.equal(app.store.read().assessmentAttempts!.length, 10);
     assert.equal((await call(url + '/review', reviewRows(session), token)).status, 200);
-    assert.equal(app.store.read().assessmentAttempts!.length, 20);
+    assert.equal(app.store.read().assessmentAttempts!.length, 40);
     assert.equal(readdirSync(path.join(f.dir, 'assessment-recordings')).length, 0);
     assert.equal((await call(url + '/audio?itemId=' + encodeURIComponent(session.items[0].id), undefined, token)).status, 404);
     assert.equal((await call(url + '/review', reviewRows(session), token)).status, 409);
@@ -234,7 +234,7 @@ test('Scribe batch preflight fails closed for unknown/paid/exhausted quota and u
 });
 
 test('Codex grader uses an ephemeral locked-down structured turn, requires subscription quota, and rejects tool/protocol errors', async () => {
-  const answers: GradingAnswer[] = [{ id: 'apple:read', dimension: 'read', term: 'apple', meaning: '苹果', transcript: 'apple' }];
+  const answers: GradingAnswer[] = Array.from({length:30},(_,index)=>({id:`word-${index}:read`,dimension:'read',term:'apple',meaning:'苹果',transcript:'apple'}));
   let account = 'chatgpt', percent = 10, tool = false, bad = false, closed = 0, turns = 0;
   const factory = ({ args }: { args: string[] }) => {
     assert.ok(args.includes('web_search="disabled"')); assert.ok(args.some(arg => arg.includes('filesystem=') && arg.includes('deny')));
@@ -248,7 +248,7 @@ test('Codex grader uses an ephemeral locked-down structured turn, requires subsc
       if (method === 'turn/start') {
         turns++; assert.ok(params!.outputSchema); assert.equal(params!.permissions, 'word_dialogue');
         // Deliberately deliver before RPC response to cover fast-notification races.
-        listener({ method: 'item/completed', params: { threadId: 'thread', turnId: 'turn', item: { type: tool ? 'commandExecution' : 'agentMessage', text: JSON.stringify({ items: bad ? [] : [{ id: answers[0].id, verdict: 'matched', reason: '内容相符，不代表发音评分' }] }) } } });
+        listener({ method: 'item/completed', params: { threadId: 'thread', turnId: 'turn', item: { type: tool ? 'commandExecution' : 'agentMessage', text: JSON.stringify({ items: bad ? [] : answers.map(answer=>({id:answer.id,verdict:'matched',reason:'内容相符，不代表发音评分'})) }) } } });
         listener({ method: 'turn/completed', params: { threadId: 'thread', turn: { id: 'turn', status: 'completed' } } });
         return { turn: { id: 'turn' } };
       }
@@ -258,7 +258,7 @@ test('Codex grader uses an ephemeral locked-down structured turn, requires subsc
   const dir = mkdtempSync(path.join(tmpdir(), 'word-challenge-grader-'));
   try {
     const grade = createAssessmentGrader({ dataDir: dir, transportFactory: factory });
-    assert.equal((await grade(answers, new AbortController().signal))[0].verdict, 'matched');
+    assert.equal((await grade(answers, new AbortController().signal)).length,30);await assert.rejects(grade([...answers,answers[0]],new AbortController().signal),/题量无效/);
     account = 'apiKey'; await assert.rejects(grade(answers, new AbortController().signal), /订阅/); account = 'chatgpt';
     percent = 100; await assert.rejects(grade(answers, new AbortController().signal), /剩余额度/); percent = 10;
     tool = true; await assert.rejects(grade(answers, new AbortController().signal), /未完成/); tool = false;

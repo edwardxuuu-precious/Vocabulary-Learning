@@ -13,12 +13,12 @@ import type { AssessmentResult, AssessmentSession, IntegrationStatus } from '../
 const unavailable = { configured: false, available: false, status: 'test_disabled', detail: '隔离测试不上云' };
 const statuses: IntegrationStatus = { speech: unavailable, codex: unavailable };
 const DAY = 86_400_000;
-function fixture() {
+function fixture(count = 6) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'word-assessment-'));
   let now = new Date('2026-10-17T02:00:00.000Z');
   const store = new Store(dir, () => now);
   store.enablePack('starter', true); // Explicit sample opt-in in this isolated fixture.
-  const ids = store.read().words.slice(0, 6).map(word => word.id);
+  const ids = store.read().words.slice(0, count).map(word => word.id);
   store.mutate(data => {
     data.sessions.push({ id: 'history', wordIds: ids, completedWordIds: ids, startedAt: new Date(now.getTime() - DAY).toISOString(), completedAt: new Date(now.getTime() - DAY).toISOString(), rewardGranted: true });
     data.attempts.push(...ids.map(wordId => ({ id: `history:${wordId}`, sessionId: 'history', wordId, learningVersion: 0, skill: 'recall' as const, correct: false, hinted: false, practiceOnly: true, source: 'click' as const, createdAt: now.toISOString() })));
@@ -34,20 +34,20 @@ function finish(store: Store, session: AssessmentSession, result: AssessmentResu
   return session;
 }
 
-test('five-word assessments freeze 20 grouped items, require learned enabled words, and reject excessive or duplicate selections', () => {
-  const f = fixture();
+test('ten-word assessments freeze 40 grouped items, require learned enabled words, and reject excessive or duplicate selections', () => {
+  const f = fixture(11);
   try {
     const original = f.store.read();
-    const session = f.store.createAssessment({ wordIds: f.ids.slice(0, 5) });
-    assert.equal(session.items.length, 20);
-    assert.deepEqual(session.items.map(item => item.dimension), assessmentDimensions.flatMap(dimension => Array(5).fill(dimension)));
+    const session = f.store.createAssessment({ wordIds: f.ids.slice(0, 10) });
+    assert.equal(session.items.length, 40);
+    assert.deepEqual(session.items.map(item => item.dimension), assessmentDimensions.flatMap(dimension => Array(10).fill(dimension)));
     assert.ok(session.items.filter(item => item.dimension === 'look').every(item => item.choices.length >= 2 && item.choices.length <= 3));
     assert.deepEqual(f.store.read().attempts, original.attempts);
     assert.deepEqual(f.store.read().progress, original.progress);
     assert.deepEqual(f.store.read().stickers, original.stickers);
-    assert.throws(() => f.store.createAssessment({ wordIds: f.ids }), /1–5/);
-    assert.throws(() => f.store.createAssessment({ wordIds: [f.ids[0], f.ids[0]] }), /1–5/);
-    assert.throws(() => f.store.createAssessment({ wordIds: ['starter-sun'] }), /已学/);
+    assert.throws(() => f.store.createAssessment({ wordIds: f.ids }), /1–10/);
+    assert.throws(() => f.store.createAssessment({ wordIds: [f.ids[0], f.ids[0]] }), /1–10/);
+    assert.throws(() => f.store.createAssessment({ wordIds: ['starter-run'] }), /已学/);
     f.store.enablePack('starter', false);
     assert.throws(() => f.store.createAssessment({ wordIds: [f.ids[0]] }), /已学/);
   } finally { f.close(); }

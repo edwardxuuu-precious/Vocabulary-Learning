@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { visualTheme, type CompanionCharacter } from '../shared/visual-theme';
 import { companionFor } from '../shared/companions';
+import { useAvailableCompanion } from './companion-access';
 
 export function Mascot({ small = false, character }: { small?: boolean; character?: CompanionCharacter }) {
   const [dailyCharacter] = useState(() => companionFor(`welcome:${new Date().toLocaleDateString('sv-SE')}`));
   const [failedSource, setFailedSource] = useState('');
-  const source = visualTheme.characters[character ?? dailyCharacter].image;
+  const availableCharacter = useAvailableCompanion(character ?? dailyCharacter);
+  const source = visualTheme.characters[availableCharacter].image;
   const className = small ? 'mascot small' : 'mascot';
   if (failedSource !== source) return <img className={className} src={source} alt="" aria-hidden="true" draggable={false} decoding="async" onError={() => setFailedSource(source)} />;
   // A local image failure keeps a simple mechanical silhouette, never an old animal avatar.

@@ -10,7 +10,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     let message = `请求没有完成（${response.status}）`;
     let code:string|undefined;
     try { const body=(await response.json()) as ApiError; message=body.error||message;code=body.code; } catch { /* Keep the HTTP status. */ }
-    if(code==='SESSION_PLAN_CHANGED'&&typeof window!=='undefined')window.dispatchEvent(new Event('learning-plan-changed'));
+    if((code==='SESSION_PLAN_CHANGED'||code==='STUDY_PLAN_CHANGED')&&typeof window!=='undefined')window.dispatchEvent(new Event('learning-plan-changed'));
     throw new ApiRequestError(message,code,response.status);
   }
   return response.json() as Promise<T>;

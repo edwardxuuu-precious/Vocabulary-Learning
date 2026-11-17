@@ -1,3 +1,5 @@
+@import './learning-word-images.css';
+
 /* A bright open sky and soft base platforms frame the child's activities. */
 .screen-play,.screen-reward{position:relative;isolation:isolate;color:#263e63;background-color:#edf6ff;background-image:radial-gradient(circle at 89% 13%,#ffe8a6 0 42px,transparent 43px),radial-gradient(ellipse at 0% 105%,#ceebe8 0 24%,transparent 24.2%),radial-gradient(ellipse at 100% 112%,#d4e3ff 0 32%,transparent 32.2%),linear-gradient(180deg,#dfedff 0%,#f2f8ff 48%,#f0faf7 100%);background-attachment:fixed}
 .screen-play::before,.screen-reward::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse 85px 28px at 7% 24%,#ffffffb3 98%,transparent),radial-gradient(ellipse 45px 37px at 6% 22%,#ffffffb3 98%,transparent),radial-gradient(ellipse 92px 26px at 97% 40%,#ffffff99 98%,transparent),radial-gradient(ellipse 44px 35px at 98% 38%,#ffffff99 98%,transparent)}

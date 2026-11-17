@@ -1,0 +1,7 @@
+body:has(.app.screen-reward),body:has(.screen-rest-dialog[open]){min-width:320px}
+.screen-rest-dialog{position:fixed;inset:0;width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;padding:24px;border:0;background:#edf4fb;color:#304966;overflow:auto;z-index:10000}
+.screen-rest-dialog::backdrop{background:#edf4fb}
+.screen-rest-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;width:min(540px,100%);min-height:calc(100dvh - 48px);margin:auto;text-align:center}
+.screen-rest-card h1{font-size:clamp(26px,5vw,36px);line-height:1.4;margin:0}.screen-rest-card p{margin:0;line-height:1.8;font-size:17px}.screen-rest-card small{color:#61768b;line-height:1.8}
+.screen-rest-symbol{font-size:80px;line-height:1;color:#7f9fc2}.screen-rest-countdown{font-size:64px;line-height:1.2;font-variant-numeric:tabular-nums;color:#46669b}
+.screen-rest-card>button{min-height:48px;padding:12px 24px;border:1px solid #b8cadd;border-radius:15px;background:#fff;color:#395478;font-size:16px;font-weight:700}.screen-rest-parent{margin-top:16px}

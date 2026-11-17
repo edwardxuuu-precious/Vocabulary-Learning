@@ -19,6 +19,8 @@ function fixture() {
   const book=store.createPack('整本40词',Array.from({length:40},(_,i)=>({term:`book${String.fromCharCode(97+i%26)}${i<26?'a':'b'}`,meaning:`本书${i+1}`})));
   const other=store.createPack('另一本',Array.from({length:6},(_,i)=>({term:`other${String.fromCharCode(97+i)}`,meaning:`其他${i+1}`})));
   store.mutate(data=>{data.settings.sessionMinutes=3;data.settings.dailyNewWords=1;for(const p of data.packs)if(!p.isSample)p.enabled=true;data.words.filter(w=>w.packId===book.id||w.packId===other.id).forEach((w,i)=>{w.assetStatus='approved';w.imageUrl=exampleImages[i%exampleImages.length];});});
+  // Book-review fixtures represent words previously introduced, not merely delivered.
+  store.mutate(data=>{const ids=data.words.filter(word=>word.packId===book.id||word.packId===other.id).map(word=>word.id);data.sessions.push({id:'prior-book-introductions',wordIds:ids,completedWordIds:ids,startedAt:'2026-10-17T00:00:00Z',completedAt:'2026-10-17T00:00:00Z',rewardGranted:false,exposures:ids.map(wordId=>({wordId,learningVersion:0,introducedAt:'2026-10-17T00:00:00Z'}))});});
   return {get store(){return store;},book,other, option(){return packPracticeOptions(store.state(status)).find(option=>option.pack.id===book.id)!;},
     restart(){store.close();store=new Store(dir,()=>new Date('2026-10-18T01:00:00Z'));},
     close(){store.close();assert.ok(dir.startsWith(join(tmpdir(),'pack-practice-')));rmSync(dir,{recursive:true,force:true});}};
@@ -63,7 +65,7 @@ test('book requests reject foreign, disabled and sample scopes and malformed bac
     const invalid=f.store.exportBackup();invalid.data.sessions.find(s=>s.id===round.id)!.practicePackId=f.other.id;
     assert.throws(()=>validateBackup(invalid),/词表练习范围/);
     f.store.mutate(data=>{data.packs.find(p=>p.id===f.book.id)!.enabled=false;});
-    assert.throws(()=>f.store.startSession(false,{},option.request),/请选择至少|词表或素材/);
+    assert.throws(()=>f.store.startSession(false,{},option.request),/请选择至少|词表或素材|先去学习/);
     assert.ok(!packPracticeOptions(f.store.state(status)).some(b=>b.pack.isSample));
   }finally{f.close();}
 });
@@ -98,6 +100,7 @@ test('the child HTTP entry starts the entire book without a PIN and keeps its sc
     const images=app.store.read().words.map(w=>w.imageUrl);
     const pack=app.store.createPack('接口整本练习',Array.from({length:16},(_,i)=>({term:`item${String.fromCharCode(97+i)}`,meaning:`第${i+1}个`})));
     app.store.mutate(data=>{data.settings.voiceEnabled=false;data.settings.dailyNewWords=1;data.packs.find(p=>p.id===pack.id)!.enabled=true;data.words.filter(w=>w.packId===pack.id).forEach((w,i)=>{w.assetStatus='approved';w.imageUrl=images[i%images.length];});});
+    app.store.mutate(data=>{const ids=data.words.filter(word=>word.packId===pack.id).map(word=>word.id);data.sessions.push({id:'prior-api-introductions',wordIds:ids,completedWordIds:ids,startedAt:'2026-10-01T00:00:00Z',completedAt:'2026-10-01T00:00:00Z',rewardGranted:false,exposures:ids.map(wordId=>({wordId,learningVersion:0,introducedAt:'2026-10-01T00:00:00Z'}))});});
     await new Promise<void>(done=>app.server.listen(0,'127.0.0.1',done));
     const base=`http://127.0.0.1:${(app.server.address() as {port:number}).port}`;
     const body=packPracticeOptions(app.store.state(status))[0].request;

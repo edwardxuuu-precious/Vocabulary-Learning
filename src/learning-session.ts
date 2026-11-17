@@ -8,6 +8,7 @@ export interface LearningPosition {
   hinted: boolean;
   feedback: 'correct' | 'try' | null;
   practiceOnly: boolean;
+  selectedId?:string;spelling?:number[];
 }
 interface LocalResume { wordId?: unknown; step?: unknown; hinted?: unknown; learningVersion?: unknown }
 export const learningHintKey = (sessionId: string, wordId: string, step: LearningStep, learningVersion = 0) => `word-play-hint-${sessionId}-${wordId}-${step}-v${learningVersion}`;
@@ -45,6 +46,7 @@ export function restoreLearningPosition(state: AppState, stored?: unknown): Lear
     hinted: Boolean(matchingLocal && local.step === step && local.hinted) || Boolean(session.activities && session.activityStates?.[currentActivity(session)?.id ?? '']?.hinted) || records.some(attempt => attempt.hinted || (!attempt.correct && !attempt.practiceOnly)),
     feedback: accepted ? 'correct' : latest ? 'try' : null,
     practiceOnly: Boolean(accepted?.practiceOnly),
+    ...(session.pauseState?.activityId===`${wordId}:${step}`?{selectedId:session.pauseState.draft?.selectedId,spelling:session.pauseState.draft?.spelling}:{}),
   };
 }
 

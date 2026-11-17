@@ -9,6 +9,16 @@ const env = { ELEVENLABS_API_KEY: 'test-server-secret', ELEVENLABS_VOICE_ID: 'ex
 const mp3 = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(100)]);
 const validQuota = { tier: 'free', status: 'free', character_count: 0, character_limit: 10000, max_credit_limit_extension: 0 };
 
+test('quota connection failures do not incorrectly request key permissions; explicit missing user_read is distinguished',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'quota-message-'));try{
+    for(const permission of [false,true]){
+      let charges=0;
+      const provider=createElevenLabsProvider({env,fetch:(async()=>{if(!permission)throw new TypeError('fetch failed');return Response.json({detail:{status:'missing_permissions',message:'Missing user_read'}},{status:403});}) as typeof fetch});
+      await assert.rejects(provider.synthesizeSpeech({text:'I want to be a cook.',locale:'en-US',dataDir:directory,freeOnly:true,beforeRequest:()=>{charges++;}}),error=>{assert.ok(error instanceof Error);assert.match(error.message,permission?/user_read/:/网络|代理/);if(!permission)assert.doesNotMatch(error.message,/user_read/);return true;});assert.equal(charges,0);
+    }
+  }finally{assert.ok(directory.startsWith(join(tmpdir(),'quota-message-')));await rm(directory,{recursive:true,force:true});}
+});
+
 test('unreadable, paid, exhausted, extension-enabled or malformed quota blocks synthesis before budget reservation in file and stream paths', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'free-quota-'));
   try {

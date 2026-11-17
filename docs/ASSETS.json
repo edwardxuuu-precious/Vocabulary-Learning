@@ -123,6 +123,406 @@
       "sha256": "34d10bbcfbe23fede2b43c5a76356146a15d783b7db42ea620523051d664198b"
     },
     {
+      "path": "public/assets/brand/companions-v2/astrotrain.png",
+      "bytes": 2233389,
+      "sha256": "4da7f4da523679fe077e454b5a7d3aaa15c67a74786e66d987d17b43be73cfa6"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/beachcomber.png",
+      "bytes": 2116185,
+      "sha256": "dbf93f3885f1c615a5c9bc034bc6b60ee066d5c8a09c4bcb237531dad4f2d1ae"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/blaster.png",
+      "bytes": 2115239,
+      "sha256": "013e4bd761abf5e964fc2be510792d831bc8e4315721dadd2830f94e948467dd"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/blastoff.png",
+      "bytes": 2159790,
+      "sha256": "ae4832435d2326259f5dd628ce2498501c287d289ee6c9d6be2dc7a495a30223"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/blitzwing.png",
+      "bytes": 2283933,
+      "sha256": "6b40cf26f55e5734ebcf835f30ad106a567be0e95c8af2c1fba0b64b8bd0ec41"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/blot.png",
+      "bytes": 2081215,
+      "sha256": "a2925bcb375183f0035feec27e7ebeb2fe702252d431fb3bad5f0a569d76822f"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/bluestreak.png",
+      "bytes": 2317476,
+      "sha256": "547ace308933d5fc120bb80009e95a7bd6dd2b068b69246b7362592311485c03"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/blurr.png",
+      "bytes": 1988438,
+      "sha256": "528e975985d249a3cea6c5b0a0f0bc12c7c1c9a4214f4da7c7ab627e77e7aa06"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/bombshell.png",
+      "bytes": 2002288,
+      "sha256": "d87339bfe2faa7070f0dac2864d12fb210b94ddabf189693d8e0b0898fe356a6"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/bonecrusher.png",
+      "bytes": 2288651,
+      "sha256": "5da8e66108a5b6afbc9fdb714970abfae951e9d97d37aaf94ab3c96ccbf45952"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/brawl.png",
+      "bytes": 2251744,
+      "sha256": "a50956fe8cc73737765264646a3a7fff1fa52f5462304a3684e344f1ea761b3f"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/brawn.png",
+      "bytes": 2258418,
+      "sha256": "b60fc40ad1e145b7fb7769cb5c6caa6dff4b6c6d4cb05fd84c0320c89c53c133"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/breakdown.png",
+      "bytes": 2094382,
+      "sha256": "6573959b2d1cec5ec99a4a2651b66f9a3bd120d1c683f04533c62bce14e052c4"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/broadside.png",
+      "bytes": 2298061,
+      "sha256": "18734a51f16a720f7f8d25fa4608a0d02dddfc910e5df0e79b76b546940d49d0"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/buzzsaw.png",
+      "bytes": 1992610,
+      "sha256": "5ec907e0e1a7ef4528832027bb0a82019019a4c749a179a25a4fa814f36886d4"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/cliffjumper.png",
+      "bytes": 2188436,
+      "sha256": "e993b0a7cb8db2293c9f57ba45f95238a7960025f479057fb96621da69cd3c4e"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/cosmos.png",
+      "bytes": 1617905,
+      "sha256": "a8c3ffc208b714129f11a30f2c8e84a82241cf2e0ff03e03ed33c8e357f3c839"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/cyclonus.png",
+      "bytes": 2135360,
+      "sha256": "5f3ace37b8c2cc832432933f5138c23c2d2496c07cb41a62e4f43e2179bff093"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/deadend.png",
+      "bytes": 1965166,
+      "sha256": "b2f866cfac08eac71482732c38a798bb580f1fd29ba902a02e07f91af47178a1"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/dirge.png",
+      "bytes": 2163408,
+      "sha256": "8b017fa1d1f006b507925f2b1d1a046d2815e0a367882893d0ca03f395b57016"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/divebomb.png",
+      "bytes": 2197071,
+      "sha256": "f4d6f726780e105a015ba8aeb364e745ebf68faccce30d899c1f50fd89327e24"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/dragstrip.png",
+      "bytes": 2218695,
+      "sha256": "f24eec2dd54d973b2174737594b675a2294fbebc8074c6693bbf45e5d2e59138"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/frenzy.png",
+      "bytes": 2247365,
+      "sha256": "58a870307febddc586185793d244cb5103f0c5ac10585180f6f2189c09bb5b25"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/gears.png",
+      "bytes": 2209733,
+      "sha256": "f688760de16c2ef965ee712f6905f420c097281b327ed24dfa0f3f51d7bdc9e2"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/grapple.png",
+      "bytes": 2155175,
+      "sha256": "da2d53e85b1a45f6c1dcd73116ee55d0c2497dbf29c049f64ec887a6ecca21d8"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/headstrong.png",
+      "bytes": 2135115,
+      "sha256": "ce8c612d267831ff1272123e06ea4872914f62b48299aad2493b8571e81ac64a"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/hoist.png",
+      "bytes": 2268043,
+      "sha256": "fbd02d4ec01364b50b505a2567788c33dbd6cf08fe2cb1bbcd1f5814908fcac1"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/hook.png",
+      "bytes": 2249366,
+      "sha256": "fb06f89b99588929b32e1f4586d73ab59faadf0fb925f32a37ae261b8d3d0211"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/huffer.png",
+      "bytes": 2243195,
+      "sha256": "66c3dd358246671365ace37a664738a8a2142905a1c4a6fe9cce4b3b83f24c59"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/hungurrr.png",
+      "bytes": 2185536,
+      "sha256": "bebfac0096539462bd4f88b4a463490587279656371109f49e2f09111f86bb43"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/inferno.png",
+      "bytes": 2256189,
+      "sha256": "64411772feb217d8709145a0b4a555319c9c6d94fbfce2f0ddee5642e3093686"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/kickback.png",
+      "bytes": 2303520,
+      "sha256": "d0f9cdf01d1be69d8f28ff33661a11963c1acca171aceca0e637e3233707a0b7"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/kup.png",
+      "bytes": 2186809,
+      "sha256": "0dc584b18106377bac1d95933e71fdda4c5ca2b7a35383fd6de99cef57ed9123"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/laserbeak.png",
+      "bytes": 1305707,
+      "sha256": "f4e84dbad037870b8290a65c74f72339290dc2d68c457a074bf5fb27fc984785"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/longhaul.png",
+      "bytes": 2424945,
+      "sha256": "453bda45c3d44f983793d04393e7c56bbde7a258941b6feb472aba34f9be029a"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/metroplex.png",
+      "bytes": 2157893,
+      "sha256": "2cc13feeded4243a54606a2ebc3b1232b008bf4f87afc05b08499991f855fb3d"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/mixmaster.png",
+      "bytes": 2322851,
+      "sha256": "d63c27e4d24b7d0e115467cba28468288d20d4124c15fcba329b7b81db164912"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/motormaster.png",
+      "bytes": 2163350,
+      "sha256": "e9539ed48b4ed30a183c7fe3fa0296f12c6153b88f8c4f777ed481f18116513f"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/octane.png",
+      "bytes": 2283824,
+      "sha256": "48165a8487032d49dcc7abad43e2fd17cec7971f206c347349c83f544c322a5b"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/omegasupreme.png",
+      "bytes": 2406509,
+      "sha256": "a22c588c29e912ab8d9a87820c6b59e6af151dcb6e3b767ded4c7edce11e0169"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/onslaught.png",
+      "bytes": 2163514,
+      "sha256": "ead9b11237967cb7b9bc46aa3f1304c2708c9dbc8ffac324bee486a92db531f2"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/perceptor.png",
+      "bytes": 2257584,
+      "sha256": "e1ded784a589cfee8aaf8586784de31e27060625656ec4f1a6a3bb4d9ab2f23a"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/powerglide.png",
+      "bytes": 2138822,
+      "sha256": "3af773fd98920f10396f750f21acb9e5bd088c162f8969f84a208af068e3e880"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/ramjet.png",
+      "bytes": 1953515,
+      "sha256": "786d49aa667b167ac5df6e6c8d2c03271ff19baf4b47290106639235c92dafb1"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/rampage.png",
+      "bytes": 2223867,
+      "sha256": "7e36f2a693b3b774c7e9db618df99bd851fc0fd49481ac76e9d43b9dc0cf8c39"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/ratbat.png",
+      "bytes": 1572720,
+      "sha256": "639d3056bdd7410f451baf59a51d85a14ee3a382321c3276afd2e49a55ff70f0"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/ravage.png",
+      "bytes": 1841721,
+      "sha256": "ddd330eb7623108d1666d01aca03e550952cc4378f34b144245eb792f32249ce"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/razorclaw.png",
+      "bytes": 2150792,
+      "sha256": "fde2daa1e8aaa5ab949ac533dff034f1b4558a96d81eda5df0cf596bf258b3e3"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/redalert.png",
+      "bytes": 2113834,
+      "sha256": "5ef2193066c8872a97c56e13fee64824b66295b94391d4cb10956a8e80d8bfc1"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/rippersnapper.png",
+      "bytes": 2032083,
+      "sha256": "9e96840983fa06129054f9cd2a6f48c8bad74a8b9a5cc8be7308b381901d97c7"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/rumble.png",
+      "bytes": 2176559,
+      "sha256": "e4aec31b9fb397dc27a7abfcd4d16b868c7a30f47b9d68adaec433f2d8b9c147"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/sandstorm.png",
+      "bytes": 2209522,
+      "sha256": "60c01efe5e9a9fdd70ca63be4287ee53d4c755731075f56384090ff36742df3d"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/scavenger.png",
+      "bytes": 2296453,
+      "sha256": "a8401077d7d356139d0ae852d7ac53a5ff3ec98c05dd4d22aed0c79c73ec9437"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/scorponok.png",
+      "bytes": 2296955,
+      "sha256": "2cca4736842c9734028d55ea48ac1a85617f195aabb05b9abdd9111107f44edf"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/scourge.png",
+      "bytes": 2084293,
+      "sha256": "434ab1319827fa49946e22b91603886c24af407196e5aace60bdefddab2fdaea"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/scrapper.png",
+      "bytes": 2228963,
+      "sha256": "d48881a555567c79061a8d2b245c8e9dc86e691b47178b1238a5add1602327b6"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/seaspray.png",
+      "bytes": 2252765,
+      "sha256": "236484f8174779563667e04aef0306ecadb88ece6dcf0aaffc31b59c439ef7fa"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/shrapnel.png",
+      "bytes": 2185667,
+      "sha256": "0dc2c76fed866b6e9d5e3db27a45f8c5a7e300dabf1deba851c1bb551db30e7d"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/sixshot.png",
+      "bytes": 2189153,
+      "sha256": "c5ae56ad26694fcb7c203fbad186769de3547be80ad42dd8a0e2688583864c21"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/skids.png",
+      "bytes": 2159883,
+      "sha256": "3a46b34ea77ed718af4e1da6ae637f2f45bde1ef84972070bb9dc9c68a3a0882"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/skywarp.png",
+      "bytes": 2149529,
+      "sha256": "ea7793cc2bd816c8dd76f77a4261276d4bc6e26b069de7a951a5f2609dc903d5"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/sludge.png",
+      "bytes": 2262983,
+      "sha256": "1263139880a4d84daba992920c3cc6a896409b237f6e95cf9d3bef0972bcb506"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/slug.png",
+      "bytes": 2377661,
+      "sha256": "e0fd7a82353600543f11e4e09b053cc945940c59c7aacf7ece6fbdce07502b08"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/smokescreen.png",
+      "bytes": 2400462,
+      "sha256": "a9ab1d5753df08f18c114d59261f0688aabb07053d6a42da56a2c0b4728b1c1c"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/snarl.png",
+      "bytes": 2252528,
+      "sha256": "7ed60bf8df55b078b5f30b28bb193de3f2f77b42afa532ae76f07630864367ba"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/springer.png",
+      "bytes": 2247816,
+      "sha256": "d9d1ddd68d31ef80a586d59c07ef90ce8fbf37755761f7f74153ef3432300881"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/sunstreaker.png",
+      "bytes": 2107362,
+      "sha256": "baed1c3ebd733c37209f68c289e95f1667697016447686aa90acf794798941ac"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/swindle.png",
+      "bytes": 2165238,
+      "sha256": "ec1b3c432e1ae302e216333feda850f916498d4aa0f37f9d5e450a95cdd4b208"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/swoop.png",
+      "bytes": 2410086,
+      "sha256": "90ad372ff2a8fcbfd782aefa25f7aef22314f9a19d33ce99051ba94ea7255846"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/tantrum.png",
+      "bytes": 2219701,
+      "sha256": "f3bb7ad90bba41665e4fcecca152c8f9904966706599e462e625b5a12679a6fc"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/thrust.png",
+      "bytes": 2028782,
+      "sha256": "cd01fb67365f0e791c3df3189fd644588b0500d5705ddb0399c609effddd2efb"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/thundercracker.png",
+      "bytes": 2251693,
+      "sha256": "7b7967f8ca4e051532c33c80349cec592f1a8eaa935074062b797dac6ee03d02"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/tracks.png",
+      "bytes": 2221667,
+      "sha256": "2f98b181e66fbc280022cb4493ec5cf2f516a63a9c51be2dd2f87bce1f283382"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/trailbreaker.png",
+      "bytes": 2077209,
+      "sha256": "bd4c5b6b74c4846bc023d63e8d127188357510dd533f7cfd1d7191f81a33c2d8"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/trypticon.png",
+      "bytes": 1649814,
+      "sha256": "bba72435ac13fe49b5198b678b233b22bb9a7694bda26dca933c75c17e431dcb"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/vortex.png",
+      "bytes": 2151867,
+      "sha256": "b700c500b62a78f18f6fcc7f7bc0fc0ec3e204d22e0e6260acd69b70709950a0"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/warpath.png",
+      "bytes": 2228981,
+      "sha256": "f90067f4cf0e2bc25ef8298e79f7947c82ccc72f8ce8f66bf41609af4f6b8868"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/wheelie.png",
+      "bytes": 2246516,
+      "sha256": "0ea614b42bab30bc3a63ab4647956e7eeecfa50784f26f93bd6481413a29a356"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/wildrider.png",
+      "bytes": 2117520,
+      "sha256": "28d7a45b638ea4151bab27df6620eda6c5df9dcb71b29744a2a5b4b07689e2de"
+    },
+    {
+      "path": "public/assets/brand/companions-v2/windcharger.png",
+      "bytes": 2062854,
+      "sha256": "59e7e406c90f4dbdf690d53c8dfe029deab666cd51d65b9162f7503fd464b717"
+    },
+    {
       "path": "public/assets/brand/optimus-mecha-v2.png",
       "bytes": 1871190,
       "sha256": "9bff16db15933644b8c8481cda66872d14c057c5f49cc298c618b9c4ab414a50"

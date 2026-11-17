@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createElevenLabsProvider } from '../server/integrations/elevenlabs.ts';
@@ -9,6 +9,16 @@ const env = { ELEVENLABS_API_KEY: 'server-only-eleven-secret', ELEVENLABS_VOICE_
 const audio = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(100)]);
 const fetcher = (callback: (url: string, init: RequestInit) => Promise<Response>) => callback as typeof fetch;
 function response() { return new Response(new ReadableStream({ start(controller) { controller.enqueue(audio.subarray(0, 20)); controller.enqueue(audio.subarray(20)); controller.close(); } }), { headers: { 'content-type': 'audio/mpeg' } }); }
+
+test('default curriculum caching retains existing learning audio when new sentences pass the former file count threshold',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'voice-retain-'));const cache=join(directory,'speech','elevenlabs');await mkdir(cache,{recursive:true});
+  const originals=Array.from({length:150},(_,n)=>join(cache,n.toString(16).padStart(64,'0')+'.mp3'));
+  try{
+    await Promise.all(originals.map(file=>writeFile(file,audio)));
+    const provider=createElevenLabsProvider({env,fetch:fetcher(async()=>response())});await provider.synthesizeSpeech({text:'I want to be a cook.',locale:'en-US',dataDir:directory});
+    assert.equal((await readdir(cache)).length,151);for(const file of originals)assert.deepEqual(await readFile(file),audio);
+  }finally{assert.ok(directory.startsWith(join(tmpdir(),'voice-retain-')));await rm(directory,{recursive:true,force:true});}
+});
 
 test('ElevenLabs uses Text-to-Dialogue HTTP streaming, tone tags, server key and finite stable cache', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'voice-eleven-')); let requests = 0; const payloads: any[] = [];

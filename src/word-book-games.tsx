@@ -19,16 +19,16 @@ export function WordBookGames({state,busy,onStart,onBack}:{state:AppState;busy:b
   useEffect(()=>{
     setCatalogue(undefined);setError('');if(!packId)return;
     const abort=new AbortController();
-    void api<PackGameCatalogue>(`/api/pack-games?packId=${encodeURIComponent(packId)}`,{signal:abort.signal}).then(setCatalogue).catch(error=>{if(!abort.signal.aborted)setError(errorMessage(error));});
+    void api<PackGameCatalogue>(`/api/pack-games?packId=${encodeURIComponent(packId)}&entry=review`,{signal:abort.signal}).then(setCatalogue).catch(error=>{if(!abort.signal.aborted)setError(errorMessage(error));});
     return()=>abort.abort();
   },[packId,content,state.settings.spellingEnabled,state.settings.familyGamesEnabled,state.settings.contextGamesEnabled,retry]);
-  const pending=(state.resumableSessions??(state.activeSession?[state.activeSession]:[])).filter(session=>session.practicePackId===packId&&session.packGame&&!session.completedAt&&!session.suspendedAt);
+  const pending=(state.resumableSessions??(state.activeSession?[state.activeSession]:[])).filter(session=>session.entrySource?.entry==='review'&&session.practicePackId===packId&&session.packGame&&!session.completedAt&&!session.suspendedAt);
   const latest=pending[0],randomSaved=pending.find(session=>session.packGame?.selection==='random');
-  const start=(game:GameKind|'random')=>{const saved=pending.find(session=>session.packGame?.selection===game);onStart(saved?{mode:'resume',sessionId:saved.id}:{mode:'practice',packId,wordIds:book.words.map(word=>word.id),game,strategy:'classic'});};
+  const start=(game:GameKind|'random')=>{const saved=pending.find(session=>session.packGame?.selection===game);onStart(saved?{entry:'review',mode:'resume',sessionId:saved.id}:{entry:'review',mode:'practice',packId,wordIds:book.words.map(word=>word.id),game,strategy:'classic'});};
   const playable=catalogue?.games.filter(game=>game.wordCount>0)??[],locked=catalogue?.games.filter(game=>!game.wordCount)??[];
   const visible=playable.filter(game=>category==='all'||(category==='listen'?['listen','sound'].includes(game.step):game.step===category));
   return <main className="learning-hub word-picker book-game-lobby page-enter">
-    <nav className="hub-nav" aria-label="游戏导航"><button onClick={onBack}><span aria-hidden="true">←</span>回大厅</button></nav>
+    <nav className="hub-nav" aria-label="游戏导航"><button onClick={onBack}><span aria-hidden="true">←</span>回复习</button></nav>
     <header className="hub-heading"><h1>这次玩什么？</h1><Mascot small/></header>
     <div className="book-game-scope">{books.length>1?<label>词表<select aria-label="游戏词表" disabled={busy} value={packId??''} onChange={event=>{setSelected(event.target.value);setCategory('all');}}>{books.map(book=><option value={book.pack.id} key={book.pack.id}>{book.pack.title} · {book.words.length} 词</option>)}</select></label>:<strong>{book?.pack.title??'还没有可玩的词表'}{book&&<span> · {book.words.length} 个已备好的词</span>}</strong>}<p>选一个玩法，也可以随机玩。离开会保存，下次接着玩。</p></div>
     {!book?<section className="book-practice-empty"><h2>先请家长准备一本词表</h2><p>交给孩子学习后，就能来这里选游戏。</p></section>:<>

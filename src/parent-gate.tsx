@@ -15,7 +15,7 @@ function PinFields({ setup, busy, pin, setPin, confirmation, setConfirmation }: 
   </>;
 }
 
-export function ParentGate({ onClose, onUnlock }: { onClose: () => void; onUnlock: (grant?: AssessmentGrant) => void }) {
+export function ParentGate({ onClose, onUnlock,confirmLabel }: { onClose: () => void; onUnlock: (grant?: AssessmentGrant) => void;confirmLabel?:string }) {
   const [status, setStatus] = useState<ParentGateStatus>();
   const [pin, setPin] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -23,6 +23,7 @@ export function ParentGate({ onClose, onUnlock }: { onClose: () => void; onUnloc
   const [busy, setBusy] = useState(false);
   const form = useRef<HTMLFormElement>(null);
   const active = useRef(true);
+  const closeHandler=useRef(onClose);closeHandler.current=onClose;
   useEffect(() => {
     active.current = true;
     void api<ParentGateStatus>('/api/parent-gate').then(value => { if (active.current) setStatus(value); }).catch(error => { if (active.current) setError(errorMessage(error)); });
@@ -31,7 +32,7 @@ export function ParentGate({ onClose, onUnlock }: { onClose: () => void; onUnloc
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const keyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { active.current = false; onClose(); }
+      if (event.key === 'Escape') { active.current = false; closeHandler.current(); }
       if (event.key !== 'Tab') return;
       const controls = form.current?.closest('section')?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)');
       if (!controls?.length) return;
@@ -41,7 +42,7 @@ export function ParentGate({ onClose, onUnlock }: { onClose: () => void; onUnloc
     };
     document.addEventListener('keydown', keyboard);
     return () => { document.removeEventListener('keydown', keyboard); previous?.focus(); };
-  }, [onClose]);
+  }, []);
   const setup = status?.configured === false;
   useEffect(() => { if (status && !busy) form.current?.querySelector('input')?.focus(); }, [status?.configured, busy]);
   const close = () => { active.current = false; onClose(); };
@@ -68,7 +69,7 @@ export function ParentGate({ onClose, onUnlock }: { onClose: () => void; onUnloc
     <form ref={form} onSubmit={event => { event.preventDefault(); void submit(); }}>
       {status && <PinFields setup={setup} busy={busy} pin={pin} setPin={setPin} confirmation={confirmation} setConfirmation={setConfirmation} />}
       <p className="field-error" role="alert">{error}</p>
-      <button className="button primary" disabled={!status || busy || pin.length !== 6 || (setup && confirmation.length !== 6)} type="submit">{busy ? '正在验证…' : !status ? '正在读取…' : setup ? '设置并进入' : '进入家长空间'}</button>
+      <button className="button primary" disabled={!status || busy || pin.length !== 6 || (setup && confirmation.length !== 6)} type="submit">{busy ? '正在验证…' : !status ? '正在读取…' : setup ? '设置并进入' : confirmLabel??'进入家长空间'}</button>
     </form>
   </section></div>;
 }

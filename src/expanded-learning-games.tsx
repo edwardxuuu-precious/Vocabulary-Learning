@@ -12,26 +12,37 @@ import { BatchTwoLearningGame } from './batch-two-games';
 import { GameActionBar, GameSoundIcon } from './game-action-bar';
 import { OralPractice } from './oral-practice';
 import './expanded-learning-games.css';
+import {RepairTask} from './repair-task';
 
-interface Props { activity: LearningActivity; session: LearningSession; busy: boolean; playing: boolean; onAction: (action: ActivityAction, selectedId?: string) => void; onHome: () => void; onPause: () => void; stopAudio: () => void }
+interface Props { activity: LearningActivity; session: LearningSession; busy: boolean; playing: boolean; onAction: (action: ActivityAction, selectedId?: string) => void | Promise<unknown>; onHome: () => void; onPause: () => void; stopAudio: () => void }
 export function ExpandedLearningGame({ activity: a, session, busy: appBusy, playing, onAction, onHome, onPause, stopAudio }: Props) {
   const [oralBusy,setOralBusy]=useState(false),[oralReady,setOralReady]=useState(false),[oralSkipped,setOralSkipped]=useState(false);
-  const busy=appBusy||oralBusy;
+  const [pendingChoiceId,setPendingChoiceId]=useState<string>();
+  const busy=appBusy||oralBusy||!!pendingChoiceId;
+  if(a.kind==='repair')return <RepairTask activity={a} session={session} busy={busy} playing={playing} onAction={onAction} onHome={onHome} onPause={onPause}/>;
   if(extendedKinds.has(a.kind))return <ExtendedLearningGame activity={a} session={session} busy={busy} playing={playing} onAction={onAction} onHome={onHome} onPause={onPause} stopAudio={stopAudio}/>;
   if(batchTwoKinds.has(a.kind))return <BatchTwoLearningGame activity={a} session={session} busy={busy} playing={playing} onAction={onAction} onHome={onHome} onPause={onPause} stopAudio={stopAudio}/>;
   const state = session.activityStates?.[a.id] ?? {}, accepted = gameAccepted(state);
   const group = session.activities?.filter(item => item.kind === a.kind && item.groupId === a.groupId) ?? [];
   const matched = new Set(group.filter(item => activityDone(session, item) && session.activityStates?.[item.id]?.outcome === 'correct').map(item => item.wordId));
+  const choosePicture = async (id: string) => {
+    if (busy || accepted) return;
+    setPendingChoiceId(id);
+    try { await onAction('choose', id); }
+    finally { setPendingChoiceId(undefined); }
+  };
   const picture = (image: typeof a.word, index: number, covered = false, markCompleted = false) => {
-    const selected = state.selectedId === image.id, done = markCompleted && matched.has(image.id);
-    const revealed = !covered || selected && !!state.outcome;
-    return <button key={image.id} className={`game-picture extra-picture ${covered && !revealed ? 'is-covered' : ''} ${selected ? state.outcome === 'correct' ? 'is-correct' : 'is-retry' : ''} ${done ? 'is-collected' : ''}`} disabled={busy || accepted || done || !state.heard} onClick={() => onAction('choose', image.id)} aria-label={covered ? `选择第${index + 1}格` : `选择${image.meaning}`}>
+    const selected = (pendingChoiceId ?? state.selectedId) === image.id, done = markCompleted && matched.has(image.id);
+    const pending = selected && !!pendingChoiceId && !accepted;
+    const result = pending ? 'pending' : done || selected && state.outcome === 'correct' ? 'correct' : selected && state.outcome === 'try' ? 'retry' : undefined;
+    const revealed = !covered || state.selectedId === image.id && !!state.outcome;
+    return <button key={image.id} className={`game-picture extra-picture ${covered && !revealed ? 'is-covered' : ''} ${result ? `is-${result}` : ''} ${done ? 'is-collected' : ''} ${accepted && state.outcome === 'correct' && !selected && !done ? 'is-other' : ''}`} disabled={busy || accepted || done || !state.heard} onClick={() => void choosePicture(image.id)} aria-busy={pending || undefined} aria-label={covered ? `选择第${index + 1}格` : `选择${image.meaning}`}>
       {revealed ? <img src={image.imageUrl} alt={image.meaning} /> : <span className="extra-question" aria-hidden="true">?</span>}
-      {done && <span className="game-picture-mark" aria-hidden="true">✓</span>}
+      {result && <span className={`extra-choice-result is-${result}`}><span aria-hidden="true">{result === 'correct' ? '✓' : result === 'retry' ? '↻' : '···'}</span>{result === 'correct' ? done ? '已点亮' : '选对了' : result === 'retry' ? '再试试' : '已选中'}</span>}
     </button>;
   };
   const audio = <button className={`game-audio ${playing?'is-playing':''}`} disabled={busy || accepted} onClick={() => onAction('listen')} aria-label={`${activityTitles[a.kind]}：听英文`}><GameSoundIcon/>{playing ? '播放中' : state.heard ? '再听一遍' : '听一听'}</button>;
-  const hint = state.outcome === 'try' ? '再试试，慢慢来' : accepted ? state.outcome === 'practice' ? '练习记好啦' : a.kind === 'bingo' ? matched.size + 1 === a.choices.length ? '宾果！全部点亮啦！' : '这一格点亮啦！' : a.kind === 'repair' ? '连接修好啦！' : a.kind === 'gate' ? '检查完成，开门啦！' : a.kind === 'treasure' ? '找到藏起来的伙伴啦！' : '选对啦！' : '';
+  const hint = state.outcome === 'try' ? '再听一遍，换一个试试' : accepted ? state.outcome === 'practice' ? '练习记好啦' : a.kind === 'bingo' ? matched.size + 1 === a.choices.length ? '宾果！全部点亮啦！' : '这一格点亮啦！' : a.kind === 'gate' ? '检查完成，开门啦！' : a.kind === 'treasure' ? '找到藏起来的伙伴啦！' : '选对啦！' : '';
   return <main className={`lesson-page game-page game-extra-${a.kind}`}>
 <LearningTopbar session={session} onHome={onHome} onPause={onPause} />
     <div className="lesson-guide"><Mascot small character={companionFor(session.id, Math.max(0, session.activities?.findIndex(item => item.id === a.id) ?? 0))} /><h1>{activityTitles[a.kind]}</h1>{session.tasks?.find(task => task.wordId === a.wordId)?.mode === 'review' && <span className="lesson-review">复习</span>}</div>
@@ -42,15 +53,6 @@ export function ExpandedLearningGame({ activity: a, session, busy: appBusy, play
           {a.choices.map((choice, index) => picture(choice, index, false, true))}<div className="extra-free-square" aria-label="起点星星，免费格">★<span>起点</span></div>
         </div>
         <div className="extra-stars" aria-label={`点亮${matched.size + (state.outcome === 'correct' ? 1 : 0)}格，共${a.choices.length}格`}>{a.choices.map((choice, index) => <span key={choice.id} className={index < matched.size + (state.outcome === 'correct' ? 1 : 0) ? 'is-lit' : ''} aria-hidden="true">★</span>)}</div>
-      </>}
-      {a.kind === 'repair' && <>
-        <p className="game-prompt">声音接错图啦，帮它重新连好</p>
-        <div className="extra-repair-board" aria-label="图音连接维修台">{a.choices.map((choice, index) => {
-          const active = choice.id === a.wordId, repaired = matched.has(choice.id) || active && state.outcome === 'correct';
-          const image = repaired ? choice : a.choices[(index + 1) % a.choices.length];
-          return <div key={choice.id} className={`extra-wire-row ${active ? 'is-current' : ''} ${repaired ? 'is-fixed' : ''}`}><button disabled={busy || accepted || !active} onClick={() => onAction('listen')} aria-label={active ? '播放待修声音' : `声音${index + 1}，${repaired ? '已修好' : '稍后维修'}`}><span aria-hidden="true">♫</span>{index + 1}</button><span className="extra-wire" aria-hidden="true">{repaired ? '✓' : '×'}</span><img src={image.imageUrl} alt={image.meaning} /></div>;
-        })}</div>
-        <div className="game-picture-choices" role="group" aria-label="为当前声音选择正确图片">{a.choices.map((choice, index) => picture(choice, index, false, true))}</div>
       </>}
       {a.kind === 'gate' && <>
         <p className="game-prompt">听听来访的声音，是图里的它吗？</p>
@@ -80,7 +82,7 @@ export function ExpandedLearningGame({ activity: a, session, busy: appBusy, play
         <OralPractice target={{sessionId:session.id,planVersion:session.learningPolicy?.version??1,activityId:a.id}} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={!!state.optionsVisible}/>
         {state.optionsVisible ? <div className="extra-sound-options" role="group" aria-label="声音选项">{a.choices.map((choice, index) => <div className={`extra-sound-row ${state.selectedId === choice.id ? state.outcome === 'correct' ? 'is-correct' : 'is-retry' : ''}`} key={choice.id}><button disabled={busy || accepted} onClick={() => onAction('listen-option', choice.id)} aria-label={`听声音${index + 1}`}><span aria-hidden="true">♫</span>{playing && state.heardOptionIds?.at(-1) === choice.id ? '播放中' : `声音 ${index + 1}`}</button><button disabled={busy || accepted || !state.heardOptionIds?.includes(choice.id)} onClick={() => onAction('choose', choice.id)} aria-label={`选择声音${index + 1}`}>选这个</button></div>)}</div> : <button className="game-audio" disabled={busy || accepted || !oralReady&&!oralSkipped} onClick={() => onAction('show-options')}><span aria-hidden="true">♪</span>我想好啦，听选项</button>}
       </>}
-      <div className={`game-feedback ${hint?'has-feedback':''}`} role="status" aria-live="polite">{hint}</div>
+      <div className={`game-feedback ${hint || pendingChoiceId ? 'has-feedback' : ''} ${pendingChoiceId && !accepted ? 'is-pending' : state.outcome === 'correct' ? 'is-correct' : state.outcome === 'try' ? 'is-retry' : ''}`} role="status" aria-live="polite" aria-atomic="true">{(hint || pendingChoiceId) && <span className="extra-feedback-symbol" aria-hidden="true">{pendingChoiceId && !accepted ? '···' : state.outcome === 'correct' ? '✓' : state.outcome === 'try' ? '↻' : '→'}</span>}{pendingChoiceId && !accepted ? '正在确认你的选择…' : hint}</div>
       <GameActionBar busy={busy} accepted={accepted} onSkip={()=>onAction('skip')} primary={accepted?{label:'继续冒险',action:()=>onAction('next')}:a.kind==='missing'&&state.revealed?{label:'我试过啦，继续',action:()=>onAction('skip')}:undefined}/>
     </section>
   </main>;

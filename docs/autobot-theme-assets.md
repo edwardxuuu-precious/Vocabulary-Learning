@@ -2,8 +2,8 @@
 
 当前引用由 `shared/visual-theme.ts`、`shared/companions.ts`、`shared/learning-backgrounds.ts` 固定；文件哈希见 [ASSETS.json](ASSETS.json)。
 
-- 首页使用 [v5 横竖场景](home-courtyard-v5.md)。旧图不再参与构建；历史来源用 Git 追溯，原素材恢复清单留在本机整理任务证据中。
-- [20 位伙伴及提示词](companion-library.md)、[扩展人物完整生成记录](companion-library-prompts.json)。
+- 首页环境背景复用 [v5 批准场景](home-courtyard-v5.md) 的上部建筑与下部地面，学习/复习插画使用原批准的两位领袖；横竖版源图继续保留。旧图不再参与构建；历史来源用 Git 追溯，原素材恢复清单留在本机整理任务证据中。
+- [100位伙伴及来源](companion-library.md)、[原扩展人物提示词](companion-library-prompts.json)、[新增80位提示词](companion-expansion-prompts.json)。
 - [三套稳定学习背景](CHILD_GROWTH.md)、[背景完整提示词](learning-background-prompts.json)。
 - 以下保留三位原始角色完整提示词；新单词图遵守家长审核与词义优先，不因主题变更重画已批准词图。
 

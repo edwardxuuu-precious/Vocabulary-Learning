@@ -24,7 +24,7 @@ test('HTTP learning, persistence state, import, validation, same-origin and secr
   try {
     assert.equal((await app.call('/api/health')).result.ok,true);
     const initial = (await app.call('/api/state')).result;
-    assert.equal(initial.words.length,12); assert.equal(initial.settings.dailyNewWords,3);
+    assert.equal(initial.words.length,12); assert.equal(initial.settings.dailyNewWords,5);
     // This baseline API test uses an existing basic session; random-game grading has separate coverage.
     app.store.startSession();
     const session = (await app.call('/api/session/start','POST')).result;
@@ -187,7 +187,7 @@ test('HTTP planned completion requires ordered evidence and recorded follow-alon
   }finally{await app.cleanup();}
 });
 
-test('HTTP hub modes, retry keys and explicit session ids keep switched rounds independent and support recommended first tests', async () => {
+test('HTTP hub modes replace the previous task, keep retry keys safe and support recommended first tests', async () => {
   const app=await fixture();
   try {
     app.store.updateSettings({dailyNewWords:1});
@@ -201,10 +201,10 @@ test('HTTP hub modes, retry keys and explicit session ids keep switched rounds i
       assert.equal((await app.call('/api/session','PATCH',{sessionId:chosen.id,completedStep:{wordId:'starter-moon',step}})).response.status,200);
     }
     const result=(await app.call('/api/session','PATCH',{sessionId:chosen.id,complete:true})).result;
-    assert.equal(result.activeSession,null);assert.equal(result.lastCompletedSession.id,chosen.id);assert.equal(result.resumableSessions.length,1);
-    assert.equal((await app.call('/api/session/start','POST',{mode:'resume',sessionId:first.id})).result.id,first.id);
+    assert.equal(result.activeSession,null);assert.equal(result.lastCompletedSession.id,chosen.id);assert.equal(result.resumableSessions.length,0);
+    assert.equal((await app.call('/api/session/start','POST',{mode:'resume',sessionId:first.id})).response.status,409);
     await app.call('/api/session','PATCH',{sessionId:chosen.id,complete:true});
-    assert.equal((await app.call('/api/state')).result.activeSession.id,first.id);
+    assert.equal((await app.call('/api/state')).result.activeSession,null);
     assert.equal((await app.call('/api/session/start','POST',{mode:'practice',wordIds:['starter-cat'],requestId:'http-request-custom'})).response.status,409);
     assert.equal((await app.call('/api/session/start','POST',{mode:'practice',wordIds:['unknown']})).response.status,400);
     app.store.clock=()=>new Date(Date.now()+86_400_000);

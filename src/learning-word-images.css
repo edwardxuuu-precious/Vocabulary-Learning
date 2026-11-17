@@ -1,0 +1,224 @@
+/* Round the actual approved image, keeping its natural ratio and the task's layout. */
+.app {
+  --word-picture-radius: 24px;
+  --word-thumbnail-radius: 12px;
+}
+
+.app.screen-play .lesson-page :is(.lesson-picture, .lesson-spell-picture) {
+  display: grid;
+  place-items: center;
+  aspect-ratio: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.app.screen-play .lesson-page :is(.lesson-picture, .lesson-spell-picture) > img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(480px, 65svh);
+  object-fit: contain;
+  border-radius: var(--word-picture-radius);
+}
+.app.screen-play .lesson-page .introduction-picture > img { max-height: 300px; }
+.app.screen-play .lesson-page .introduction-picture:not(.is-revealed) { aspect-ratio: 1; }
+.app.screen-play .lesson-page .lesson-spell-picture > img { max-height: 280px; }
+
+.app.screen-play :is(.lesson-picture-choice, .goal-picture-choices > button),
+.app.screen-play .game-page .game-picture {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  overflow: hidden;
+}
+.app.screen-play :is(.lesson-picture-choice, .goal-picture-choices > button) > img,
+.app.screen-play .game-page .game-picture > img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+.app.screen-play .sound-turn-picture > img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 320px;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: var(--word-picture-radius);
+}
+.app.screen-play .memory-picture-frame {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border-radius: var(--word-picture-radius);
+}
+.app.screen-play .memory-picture-frame > img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 460px;
+  aspect-ratio: auto;
+  object-fit: contain;
+  background: transparent;
+  border-radius: inherit;
+}
+.app.screen-play :is(.goal-main-picture, .goal-revealed img, .review-help-word img, .review-retry-picture) {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 180px;
+  margin-inline: auto;
+  padding: 0;
+  border: 0;
+  object-fit: contain;
+  border-radius: var(--word-picture-radius);
+}
+.app.screen-play .goal-read .goal-revealed img { width: auto; height: auto; max-height: 120px; }
+
+/* Game cards keep their answer borders and marks; concealed fragments stay concealed. */
+.app.screen-play .game-page img:where(:not(.mascot):not(.batch-peek img)) {
+  display: block;
+  object-fit: contain;
+  border-radius: var(--word-thumbnail-radius);
+}
+.app.screen-play .game-page :is(.extra-memory-picture:has(img), .extra-think-picture, .batch-main-picture) {
+  padding: 0;
+  overflow: hidden;
+}
+.app.screen-play .game-page :is(.extra-memory-picture, .extra-think-picture, .batch-main-picture) > img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: inherit;
+}
+.app.screen-play .game-page .batch-main-picture:has(> span) > img { max-height: calc(100% - 30px); }
+.app.screen-play .game-page :is(.ext-tile img, .ext-placed img, .ext-opposites img, .ext-question img,
+  .ext-whole > img, .ext-revealed img, .ext-sentence-picture, .ext-sequence img, .ext-playback > img,
+  .ext-order-basket img, .ext-word-buckets img, .ext-secret, .ext-composite img, .puzzle-reference,
+  .extra-wire-row img, .extra-gate-scene > img, .game-truck > img) {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: var(--game-word-image-size, 100px);
+  margin-inline: auto;
+}
+.app.screen-play .game-page .ext-tile { --game-word-image-size: 104px; }
+.app.screen-play .game-page .ext-placed { --game-word-image-size: 72px; }
+.app.screen-play .game-page .ext-opposites { --game-word-image-size: 120px; }
+.app.screen-play .game-page .ext-question { --game-word-image-size: 136px; }
+.app.screen-play .game-page .ext-whole { --game-word-image-size: 320px; }
+.app.screen-play .game-page .ext-sentence-picture { --game-word-image-size: 170px; }
+.app.screen-play .game-page .ext-sequence { --game-word-image-size: 88px; }
+.app.screen-play .game-page .ext-playback { --game-word-image-size: 160px; }
+.app.screen-play .game-page .ext-order-basket { --game-word-image-size: 80px; }
+.app.screen-play .game-page .ext-word-buckets { --game-word-image-size: 70px; }
+.app.screen-play .game-page .ext-secret { --game-word-image-size: 180px; }
+.app.screen-play .game-page .ext-composite { --game-word-image-size: 110px; }
+.app.screen-play .game-page .puzzle-reference { --game-word-image-size: 54px; }
+.app.screen-play .game-page .extra-wire-row { --game-word-image-size: 52px; }
+.app.screen-play .game-page .extra-gate-scene { --game-word-image-size: 170px; }
+.app.screen-play .game-page .game-truck { --game-word-image-size: 44px; }
+.app.screen-play .game-page .game-portal-window > img {
+  width: auto;
+  height: auto;
+  max-width: 74%;
+  max-height: 74%;
+}
+.app.screen-play .game-page :is(.batch-slots, .batch-route-tile) img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0;
+  margin: auto;
+}
+
+/* Completion and book previews use the same clean thumbnails as the learning entry. */
+.app:is(.screen-reward, .screen-books) :is(.reward-word-pictures, .book-practice-pictures) { align-items: center; }
+.app:is(.screen-reward, .screen-books) :is(.reward-word-pictures, .book-practice-pictures) > span {
+  display: grid;
+  place-items: center;
+  height: auto;
+  aspect-ratio: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 18px;
+  transform: none;
+  box-shadow: none;
+}
+.app:is(.screen-reward, .screen-books) :is(.reward-word-pictures, .book-practice-pictures) img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 112px;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+/* The follow-up challenge uses the same original pictures without changing its answers. */
+.app.screen-assessment :is(.quest-picture-choices, .assessment-picture-choices) > button {
+  overflow: hidden;
+}
+.app.screen-assessment :is(.quest-picture-choices img, .quest-word-picture > img,
+  .quest-selected-preview img, .assessment-picture-choices img, .assessment-practice-picture) {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 280px;
+  aspect-ratio: auto;
+  object-fit: contain;
+  border-radius: var(--word-thumbnail-radius);
+  margin-inline: auto;
+}
+.app.screen-assessment .quest-word-grid .quest-word-picture {
+  aspect-ratio: 1;
+  max-height: none;
+  padding: 0;
+  background: transparent;
+}
+.app.screen-assessment .quest-word-picture > img { max-height: 100%; border-radius: inherit; }
+.app.screen-assessment .quest-plan-pictures > span:has(img) {
+  height: auto;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+}
+.app.screen-assessment .quest-plan-pictures img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+@media (max-width: 760px) {
+  .app { --word-picture-radius: 20px; --word-thumbnail-radius: 10px; }
+  .app.screen-play .sound-turn-picture > img { max-height: 230px; }
+  .app.screen-play .memory-picture-frame > img { max-height: 280px; }
+  .app.screen-play .game-page .ext-tile { --game-word-image-size: 80px; }
+  .app.screen-play .game-page .ext-opposites { --game-word-image-size: 95px; }
+  .app.screen-play .game-page .ext-question { --game-word-image-size: 92px; }
+  .app.screen-play .game-page .ext-whole { --game-word-image-size: 230px; }
+  .app.screen-play .game-page .ext-sequence { --game-word-image-size: 75px; }
+  .app.screen-play .game-page .ext-secret { --game-word-image-size: 130px; }
+  .app.screen-play .game-page .extra-wire-row { --game-word-image-size: 42px; }
+  .app.screen-play .game-page .extra-gate-scene { --game-word-image-size: 135px; }
+  .app:is(.screen-reward, .screen-books) :is(.reward-word-pictures, .book-practice-pictures) img { max-height: 88px; }
+}

@@ -1,30 +1,35 @@
+import {assessmentCue,validAssessmentCue} from '../shared/assessment-cues.ts';
+import {requireSentenceStudy} from './sentence-study.ts';
 import { randomUUID } from 'node:crypto';
 import type { AssessmentAttempt, AssessmentResult, AssessmentSession } from '../shared/contracts.ts';
-import { assessmentChoices, assessmentCurrent, assessmentDay, assessmentDimensions, assessmentWords, dueAssessmentProgress, sameAssessmentWord, recommendedAssessmentItems } from '../shared/assessment.ts';
+import { maxAssessmentWords,maxAssessmentItems, assessmentChoices, assessmentCurrent, assessmentDay, assessmentDimensions, assessmentWords, dueAssessmentProgress, sameAssessmentWord, recommendedAssessmentItems } from '../shared/assessment.ts';
 import { gameWord } from '../shared/game-plan.ts';
 import { AppError, type StoredData } from './store.ts';
 import { validateRecordedSession } from './challenge-state.ts';
 
 const DAY = 86_400_000, intervals = [1, 3, 7, 14, 30];
 const shuffle = <T>(items: T[], random: () => number) => { const result = [...items]; for (let i = result.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [result[i], result[j]] = [result[j], result[i]]; } return result; };
-export function createAssessment(data: StoredData, body: Record<string, unknown>, now: Date, random = Math.random) {
-  if (Object.keys(body).some(key => !['wordIds', 'mode', 'workflow'].includes(key)) || body.workflow !== undefined && body.workflow !== 'recorded' || !['full', 'due', 'recommended'].includes(String(body.mode ?? 'full')) || body.mode === 'recommended' && body.wordIds !== undefined) throw new AppError('测试请求无效。');
+export function createAssessment(data: StoredData, body: Record<string, unknown>, now: Date, random = Math.random, targets?:{wordId:string;dimension:import('../shared/contracts.ts').AssessmentDimension}[]) {
+  if (Object.keys(body).some(key => !['wordIds', 'mode', 'workflow','cueVersion'].includes(key)) || body.workflow !== undefined && body.workflow !== 'recorded' || !['full', 'due', 'recommended'].includes(String(body.mode ?? 'full')) || body.mode === 'recommended' && body.wordIds !== undefined) throw new AppError('测试请求无效。');
+  if(body.cueVersion!==undefined&&body.cueVersion!==1&&body.cueVersion!==2)throw new AppError('测试题面版本无效。');
   const mode = (body.mode ?? 'full') as AssessmentSession['mode'];
   const available = assessmentWords(data), due = dueAssessmentProgress(data, now);
   const recommended = mode === 'recommended' ? recommendedAssessmentItems(data, now) : [];
   const defaultIds = mode === 'recommended' ? [...new Set(recommended.map(item => item.wordId))] : mode === 'due' ? [...new Set(due.map(item => item.wordId))] : [...available].reverse().map(word => word.id);
-  const ids = body.wordIds ?? defaultIds.slice(0, 5);
-  if (!Array.isArray(ids) || !ids.length || ids.length > 5 || new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !available.some(word => word.id === id))) throw new AppError('请选择 1–5 个已学且已准备好的单词。', 'ASSESSMENT_WORDS');
+  const ids = targets?[...new Set(targets.map(row=>row.wordId))]:body.wordIds ?? defaultIds.slice(0, mode==='full'?maxAssessmentWords:5);
+  if (!Array.isArray(ids) || !ids.length || ids.length > maxAssessmentWords || new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !available.some(word => word.id === id))) throw new AppError(`请选择 1–${maxAssessmentWords} 个已学且已准备好的单词。`, 'ASSESSMENT_WORDS');
   const words = ids.map(id => available.find(word => word.id === id)!);
   const session: AssessmentSession = { id: randomUUID(), wordIds: ids, mode, items: [], startedAt: now.toISOString() };
   if (body.workflow === 'recorded') session.workflow = 'recorded';
   for (const dimension of assessmentDimensions) for (const word of shuffle(words, random)) {
     if (mode === 'due' && !due.some(item => item.wordId === word.id && item.dimension === dimension)) continue;
-    if (mode === 'recommended' && !recommended.some(item => item.wordId === word.id && item.dimension === dimension)) continue;
+    if (targets&&!targets.some(row=>row.wordId===word.id&&row.dimension===dimension))continue;
+    if (!targets&&mode === 'recommended' && !recommended.some(item => item.wordId === word.id && item.dimension === dimension)) continue;
     const choices = dimension === 'look' ? shuffle(assessmentChoices(word, shuffle(available, random)), random).map(gameWord) : [];
-    session.items.push({ id: `${word.id}:${dimension}`, dimension, word: gameWord(word), choices });
+    session.items.push({ id: `${word.id}:${dimension}`, dimension, word: gameWord(word), choices,...((body.cueVersion===1||body.cueVersion===2)&&dimension==='zh-en'?{cue:assessmentCue(word,available,body.cueVersion)}:{}) });
   }
   if (!session.items.length) throw new AppError('这些单词目前没有到期的测试项。', 'ASSESSMENT_NOT_DUE');
+  if(body.cueVersion===2)for(const item of session.items)if(item.dimension==='zh-en')requireSentenceStudy(data,item.word);
   (data.assessments ??= []).push(session);
   return session;
 }
@@ -92,7 +97,7 @@ export function validateAssessmentData(data: any, media: (url: unknown) => boole
   if (![sessions, attempts, progress, practices].every(Array.isArray) || sessions.length > 100000 || attempts.length > 1000000 || progress.length > 100000 || practices.length > 1000000) fail();
   for (const rows of [sessions, attempts, practices]) if (rows.some((row: any) => !row || !text(row.id)) || new Set(rows.map((row: any) => row.id)).size !== rows.length) fail();
   for (const session of sessions) {
-    if (!['full', 'due', 'recommended'].includes(session.mode) || !date(session.startedAt) || session.completedAt !== undefined && !date(session.completedAt) || !Array.isArray(session.wordIds) || !session.wordIds.length || session.wordIds.length > 5 || new Set(session.wordIds).size !== session.wordIds.length || session.wordIds.some((id: any) => !wordIds.has(id)) || !Array.isArray(session.items) || !session.items.length || session.items.length > 20) fail();
+    if (!['full', 'due', 'recommended'].includes(session.mode) || !date(session.startedAt) || session.completedAt !== undefined && !date(session.completedAt) || !Array.isArray(session.wordIds) || !session.wordIds.length || session.wordIds.length > maxAssessmentWords || new Set(session.wordIds).size !== session.wordIds.length || session.wordIds.some((id: any) => !wordIds.has(id)) || !Array.isArray(session.items) || !session.items.length || session.items.length > maxAssessmentItems) fail();
     let unfinished = false, order = -1;
     const itemIds = new Set();
     for (const item of session.items) {
@@ -101,6 +106,7 @@ export function validateAssessmentData(data: any, media: (url: unknown) => boole
       const index = assessmentDimensions.indexOf(item.dimension);
       if (index < order) fail(); order = index;
       if (item.dimension !== 'look' && item.choices.length || item.dimension === 'look' && item.choices.length !== 0 && (item.choices.length < 2 || item.choices.length > 3 || !item.choices.some((choice: any) => JSON.stringify(choice) === JSON.stringify(item.word)) || ['id', 'term', 'meaning', 'imageUrl'].some(key => new Set(item.choices.map((choice: any) => key === 'term' ? choice[key].toLowerCase() : choice[key])).size !== item.choices.length))) fail();
+      if(item.cue!==undefined&&(item.dimension!=='zh-en'||!validAssessmentCue(item.cue,item.word)))fail();
       if (session.workflow === 'recorded') continue;
       if (item.result === undefined) unfinished = true;
       else if (unfinished || !['correct', 'incorrect', 'hinted', 'unconfirmed', 'skipped', 'unavailable'].includes(item.result)) fail();

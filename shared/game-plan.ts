@@ -1,3 +1,4 @@
+import {studyActivityCovered} from './study-progress.ts';
 import { prepareExtendedActivity } from './game-extension-plan.ts';
 import { extendedKinds } from './game-materials.ts';
 import type { GameKind, GameWord, LearningActivity, LearningSession, LearningTask, Word } from './contracts.ts';
@@ -6,7 +7,7 @@ import { letterBoard, neighbours, pairedGame } from './game-boards.ts';
 
 export const gameWord = (word: Word): GameWord => ({ id: word.id, term: word.term, meaning: word.meaning, imageUrl: word.imageUrl, learningVersion: word.learningVersion ?? 0 });
 export const activityDone = (session: LearningSession, activity: LearningActivity) => session.completedSteps?.[activity.wordId]?.includes(activity.step) ?? false;
-export const currentActivity = (session: LearningSession) => session.activities?.find(activity => !activityDone(session, activity));
+export const currentActivity = (session: LearningSession) => session.activities?.find(activity => !activityDone(session, activity)&&!studyActivityCovered(session,activity));
 export const activityTitles: Record<LearningActivity['kind'], string> = Object.fromEntries([['standard',''], ...gameRegistry.map(game => [game.kind, game.title])]) as Record<LearningActivity['kind'], string>;
 
 function shuffled<T>(values: T[], random: () => number): T[] {

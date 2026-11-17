@@ -23,7 +23,7 @@ function seed(store:Store) {
   return store.read().words.filter(w=>w.packId===pack.id).map(w=>w.id);
 }
 function fixture() {
-  const dir=mkdtempSync(join(tmpdir(),'lesson-plan-test-'));const store=new Store(dir,()=>new Date('2026-10-18T01:00:00Z'));const ids=seed(store);
+  const dir=mkdtempSync(join(tmpdir(),'lesson-plan-test-'));const store=new Store(dir,()=>new Date('2026-10-18T01:00:00Z'));const ids=seed(store);store.updateSettings({dailyNewWords:3});
   return {store,ids,close(){store.close();assert.ok(dir.startsWith(join(tmpdir(),'lesson-plan-test-')));rmSync(dir,{recursive:true,force:true});}};
 }
 const active=(store:Store)=>store.read().sessions.at(-1)!;
@@ -120,10 +120,10 @@ test('parent grant is required to save a classroom plan; child segment start and
 });
 
 test('hub shows round counts and separate classroom scope; planner exposes focus and order controls',async()=>{const f=fixture(),vite=await createServer({server:{middlewareMode:true},appType:'custom',logLevel:'silent'});try{
-  save(f,f.ids.slice(0,8));f.store.startSession(false,{}, {strategy:'memory-loop'});const state=f.store.state(integrationStatus);
+  save(f,f.ids.slice(0,8));f.store.startSession(false,{}, {entry:'learn',strategy:'memory-loop'});const state=f.store.state(integrationStatus);
   const {LearningHub}=await vite.ssrLoadModule('/src/learning-hub.tsx');const {LessonPlanner}=await vite.ssrLoadModule('/src/lesson-planner.tsx');
   const html=renderToStaticMarkup(createElement(LearningHub,{state,busy:false,onStart(){},onHome(){},onTest(){},onSpeak(){},onSelect(){},onManage(){},onLessonSettings(){}}));
   assert.ok(html.includes('本轮 3 个词'));assert.ok(html.includes('更多：调整本次学习'));assert.ok(html.includes('本课 40 词'));assert.ok(html.includes('本次重点 8 词'));assert.ok(html.includes('下一段 2 词'));
-  const assigned=renderToStaticMarkup(createElement(LearningHub,{state:{...state,activeSession:null,resumableSessions:[]},busy:false,onStart(){},onHome(){},onTest(){},onSpeak(){},onSelect(){}}));assert.ok(assigned.includes('课堂练习入口'));assert.ok(assigned.includes('课堂词练一小段'));
+  const assigned=renderToStaticMarkup(createElement(LearningHub,{state:{...state,activeSession:null,resumableSessions:[]},busy:false,onStart(){},onHome(){},onTest(){},onSpeak(){},onSelect(){}}));assert.ok(assigned.includes('认识 3 个新词'));assert.ok(assigned.includes('课堂词练一小段'));assert.ok(!assigned.includes('课堂练习入口'));
   const editor=renderToStaticMarkup(createElement(LessonPlanner,{state,grant:{token:'fixture',expiresAt:'2099-01-01'},reload:async()=>state,onBack(){}}));assert.ok(editor.includes('保存安排'));assert.ok(editor.includes('上移'));assert.ok(editor.includes('本课全部设为重点'));
 }finally{await vite.close();f.close();}});

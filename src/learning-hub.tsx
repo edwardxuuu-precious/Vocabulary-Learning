@@ -1,8 +1,13 @@
+import {StudyHub} from './study-hub';
+import type {StudyIntent} from './study-controller';
+import {learningChoiceSummary} from '../shared/daily-learning-choice';
+import {currentReviewRetry} from '../shared/review-support';
 import { sessionTaskProgress } from './learning-session';
 import { useEffect, useRef, useState } from 'react';
+import {learningEntryLabel,learnedReviewWords} from '../shared/learning-entry';
 import type { AppState, LearningSession, LearningStartRequest, Word } from '../shared/contracts';
-import { dailyLearningPlan, supplementalLearningPlan } from '../shared/learning';
-import { learningEncounters } from '../shared/learning-history';
+import { dailyLearningPlan } from '../shared/learning';
+import { entryRecommendation } from '../shared/entry-recommendation';
 import { recommendedAssessmentItems } from '../shared/assessment';
 import { Mascot } from './mascot';
 import './learning-hub.css';
@@ -10,9 +15,9 @@ import { lessonSegment } from '../shared/lesson-plan';
 import { gameDefinition } from '../shared/game-registry';
 import { learningSegmentProgress } from '../shared/learning-policy';
 
-const hubProgress = (session:LearningSession) => session.practicePackId ? learningSegmentProgress(session) ?? sessionTaskProgress(session) : sessionTaskProgress(session);
+const hubProgress = (session:LearningSession) => learningSegmentProgress(session) ?? sessionTaskProgress(session);
 
-function resumeDetail(session:import('../shared/contracts').LearningSession) {const p=hubProgress(session);return session.learningPolicy&&p?`本轮 ${session.wordIds.length} 词 · 小任务 ${p.completed}/${p.total} · 进度已保存`:`本轮 ${session.wordIds.length} 词 · 已完成 ${session.completedWordIds.length}/${session.wordIds.length} 词`;}
+function resumeDetail(session:import('../shared/contracts').LearningSession) {const p=hubProgress(session);return session.learningPolicy&&p?`本轮 ${session.wordIds.length} 词 · ${session.learningPolicy?'本小段':'小任务'} ${p.completed}/${p.total} · 进度已保存`:`本轮 ${session.wordIds.length} 词 · 已完成 ${session.completedWordIds.length}/${session.wordIds.length} 词`;}
 function resumePercent(session:import('../shared/contracts').LearningSession) {const p=hubProgress(session);return session.learningPolicy&&p?p.completed/Math.max(1,p.total):session.completedWordIds.length/Math.max(1,session.wordIds.length);}
 
 function HubSymbol({ kind }: {kind: 'play' | 'cards' | 'flag' | 'back' | 'check' | 'sound' | 'down' | 'more' | 'refresh' | 'close'}) {
@@ -23,11 +28,16 @@ function HubSymbol({ kind }: {kind: 'play' | 'cards' | 'flag' | 'back' | 'check'
 
 interface Props { state: AppState; busy: boolean; onStart: (request: LearningStartRequest) => void; onHome: () => void; onTest: () => void; onSpeak: (word: Word) => void }
 
-export function LearningHub({ state, busy, onStart, onHome, onTest, onSelect, onManage, onLessonSettings, onBooks, onGames }: Props & {onSelect: () => void; onBooks?:()=>void; onGames?:()=>void; onManage?: (id:string, action:'reselect'|'restart')=>void; onLessonSettings?:()=>void}) {
-  const [managed,setManaged]=useState<string>(),[confirm,setConfirm]=useState<'reselect'|'restart'>(),[showAll,setShowAll]=useState(false);
+function LegacyLearningHub({ state, busy, onStart, onHome, onTest, onSelect, onManage, onLessonSettings, onBooks, onGames, entry='learn',onSwitch,onChoose,onCompleted }: Props & {entry?:'learn'|'review';onChoose?:(mode:'goal'|'words')=>void;onSwitch?:()=>void;onSelect: () => void; onBooks?:()=>void; onGames?:()=>void; onManage?: (id:string, action:'reselect'|'restart')=>void; onLessonSettings?:()=>void;onCompleted?:()=>void}) {
+  const [managed,setManaged]=useState<string>(),[confirm,setConfirm]=useState<'reselect'|'restart'>(),[showAll,setShowAll]=useState(false),[showNew,setShowNew]=useState(false);
   const dialogRef=useRef<HTMLDialogElement>(null);
-  const pending=state.resumableSessions??(state.activeSession?[state.activeSession]:[]);
-  const managedSession=pending.find(session=>session.id===managed),resume=pending[0];
+  const allPending=state.resumableSessions??(state.activeSession?[state.activeSession]:[]);
+  const review=entry==='review';
+  const now=new Date(state.learningNow??Date.now()),planData={...state,settings:{...state.settings,learningStrategy:state.settings.learningStrategy??'memory-loop' as const}};
+  const plan=entryRecommendation(planData,entry,now),resume=plan.resume;
+  const learned=new Set(learnedReviewWords(state,now).map(word=>word.id));
+  const managedSession=allPending.find(session=>session.id===managed);
+  const otherPending=allPending.filter(session=>session.id!==resume?.id&&(session.entrySource?.entry===entry||!review&&!session.entrySource));
   const closeAdjustment=()=>{setManaged(undefined);setConfirm(undefined);};
   const adjust=(session:LearningSession)=>{setManaged(session.id);setConfirm(undefined);};
   useEffect(()=>{
@@ -37,63 +47,63 @@ export function LearningHub({ state, busy, onStart, onHome, onTest, onSelect, on
     return()=>{if(dialog.open)dialog.close();};
   },[managedSession?.id]);
   const lesson=state.lessonPlan,lessonPreview=lesson?lessonSegment(lesson,state):undefined;
-  const now=new Date(state.learningNow??Date.now()),planData={...state,settings:{...state.settings,learningStrategy:state.settings.learningStrategy??'memory-loop' as const}};
-  const plan=dailyLearningPlan(planData,now),extra=plan.tasks.length?undefined:supplementalLearningPlan(planData,now);
-  const pendingRecommended=pending.find(saved=>(saved.mode??'recommended')==='recommended');
-  const useLesson=!resume&&!!lesson&&!!lessonPreview?.words.length&&!lessonPreview.unavailable.length;
-  const recommendedPlan=plan.tasks.length?plan:extra,canRecommend=Boolean(pendingRecommended||recommendedPlan?.tasks.length);
-  const recommendation=pendingRecommended?resumeDetail(pendingRecommended):plan.tasks.length
-    ?[plan.review.length?`复习 ${plan.review.length} 个词`:'',plan.fresh.length?`认识 ${plan.fresh.length} 个新词`:''].filter(Boolean).join('，')
-    :extra?.tasks.length?`再练 ${extra.tasks.length} 个老朋友`:'准备好单词，就可以出发';
-  const previewIds=resume?.wordIds??(useLesson?lessonPreview!.words.map(word=>word.id):recommendedPlan?.tasks.map(task=>task.wordId))??[];
+  const canRecommend=!!plan.tasks.length;
+  const continuing=!!resume&&(review||!showNew),choice=learningChoiceSummary(state,now);
+  const previewIds=continuing?resume!.wordIds:plan.tasks.map(task=>task.wordId);
   const previewWords=previewIds.slice(0,3).map(id=>state.words.find(word=>word.id===id)).filter((word):word is Word=>!!word);
   const managedWords=managedSession?.wordIds.slice(0,3).map(id=>state.words.find(word=>word.id===id)).filter((word):word is Word=>!!word)??[];
-  const showRecommendation=useLesson||resume&&resume.id!==pendingRecommended?.id;
+  const adjustGoal=!review&&!continuing&&!canRecommend&&plan.reason==='daily-limit'&&!!onChoose;
+  const switchEmpty=!continuing&&!canRecommend&&['no-new','scope-complete','no-due','reviewed-today','not-learned',...(review?['daily-limit']:[])].includes(plan.reason)&&!!onSwitch;
   const testCount=new Set(recommendedAssessmentItems(state,now).map(item=>item.wordId)).size;
-  const progress=resume&&hubProgress(resume);
-  const title=resume?'继续上次':useLesson?'课堂练习':'推荐学习';
-  const resumeName=(resume?.packGame?`${resume.practicePackTitle} · ${resume.packGame.selection==='random'?'随机游戏':gameDefinition(resume.packGame.selection)?.title}`:resume?.practicePackTitle)??resume?.lessonTitle??(resume?.mode==='relearn'?'从头学':resume?.practiceOnly?'一起练习':'推荐学习');
-  const start=()=>onStart(resume?{mode:'resume',sessionId:resume.id}:useLesson?{mode:'lesson',lessonPlanId:lesson!.id,lessonRevision:lesson!.revision}:{mode:'recommended'});
-  return <main className="learning-hub hub-home page-enter">
+  const progress=continuing&&resume&&hubProgress(resume);
+  const title=continuing?currentReviewRetry(resume!)?'隔开后，再想一次':'继续上次':!review&&canRecommend?`认识 ${plan.fresh.length} 个新词`:plan.title;
+  const start=()=>adjustGoal?onChoose?.('goal'):switchEmpty?onSwitch?.():onStart(continuing?{mode:'resume',sessionId:resume!.id,entry}:{mode:'recommended',entry,...(!review?{startNew:true as const}:{})});
+  return <main className={`learning-hub hub-home page-enter${review?'':' hub-new-learning'}`}>
     <nav className="hub-nav" aria-label="页面导航"><button onClick={onHome}><HubSymbol kind="back"/>回首页</button></nav>
-    <header className="hub-heading"><h1>今天想怎么玩？</h1><Mascot small/></header>
-    <section className="hub-current" aria-label={resume?'继续未完成的学习':useLesson?'课堂练习入口':'推荐学习'}>
-      <div className="hub-current-top"><span className={`hub-status ${resume?'is-saved':''}`}><HubSymbol kind={resume?'check':'play'}/>{resume?'进度已保存':useLesson?'按课堂进度来':'为你准备好了'}</span>
-        {resume&&onManage&&<button className="hub-context-button" aria-label="更多：调整本次学习" title="换词或从头再练" disabled={busy} onClick={()=>adjust(resume)}><span>更多</span><HubSymbol kind="more"/></button>}
+    <header className="hub-heading"><div><h1>{review?'复习老朋友':'学习新词'}</h1>{!review&&<p className="hub-day-summary">今天计划认识 {choice.goal} 个新词</p>}</div><Mascot small/></header>
+    <section className="hub-current" data-session-id={continuing?resume!.id:undefined} aria-label={continuing?review?'继续未完成的复习':'继续未完成的学习':review?'推荐复习':'新学习预览'}>
+      <div className="hub-current-top"><span className={`hub-status ${continuing?'is-saved':''}`}><HubSymbol kind={continuing?'check':'play'}/>{continuing?'进度已保存':showNew&&!review?'新学习预览':canRecommend?'为你准备好了':'今天的安排'}</span>
+        {continuing&&onManage&&<button className="hub-context-button" aria-label="更多：调整本次学习" title="换词或从头再练" disabled={busy} onClick={()=>adjust(resume!)}><span>更多</span><HubSymbol kind="more"/></button>}
       </div>
-      <div className="hub-current-main"><div className="hub-current-copy"><h2>{title}</h2><p>{resume?`${resumeName} · 本${resume.lessonPlanId?'段':'轮'} ${resume.wordIds.length} 个词`:useLesson?`${lesson!.title} · 这段 ${lessonPreview!.words.length} 个词，约 ${lessonPreview!.minutes} 分钟`:recommendation}</p>
-        {resume&&<div className="hub-current-progress"><div className="hub-progress-label"><span>{progress?resume.practicePackId?'本小段进度':'小任务进度':'单词进度'}</span><strong>{progress?progress.completed:resume.completedWordIds.length}<span> / {progress?progress.total:resume.wordIds.length}</span></strong></div><div className="hub-progress-track" role="progressbar" aria-label={resume.practicePackId?'本小段已完成进度':'本轮已完成进度'} aria-valuemin={0} aria-valuemax={progress?.total??resume.wordIds.length} aria-valuenow={progress?.completed??resume.completedWordIds.length}><span style={{width:`${resumePercent(resume)*100}%`}}/></div></div>}
-        <button className="hub-start" disabled={busy||(!resume&&!useLesson&&!canRecommend)} onClick={start}><HubSymbol kind="play"/>{busy?'准备中…':resume?'继续玩':useLesson?'课堂词练一小段':canRecommend?'开始玩':'等会儿再来'}<span aria-hidden="true">→</span></button>
-      </div><div className="hub-word-preview" aria-label={resume?'这轮的单词':'准备学习的单词'}>{previewWords.map(word=><span key={word.id}><img src={word.imageUrl} alt={word.meaning}/></span>)}</div></div>
+      <div className="hub-current-main"><div className="hub-current-copy"><h2>{title}</h2><p>{continuing&&plan.stale?'本轮图片或词义、发音需要家长检查，进度仍保留。':continuing?`本轮 ${resume!.wordIds.length} 个词 · 从上次停下的位置继续`:!review&&canRecommend?'先看图、听发音，再接着练一小段。':plan.description}</p>
+        {continuing&&<div className="hub-current-progress"><div className="hub-progress-label"><span>{progress?resume!.learningPolicy?'本小段进度':'小任务进度':'单词进度'}</span><strong>{progress?progress.completed:resume!.completedWordIds.length}<span> / {progress?progress.total:resume!.wordIds.length} {progress?'项':'词'}</span></strong></div><div className="hub-progress-track" role="progressbar" aria-label={resume!.learningPolicy?'本小段已完成进度':'本轮已完成进度'} aria-valuemin={0} aria-valuemax={progress?progress.total:resume!.wordIds.length} aria-valuenow={progress?progress.completed:resume!.completedWordIds.length}><span style={{width:`${resumePercent(resume!)*100}%`}}/></div></div>}
+        <button className="hub-start" disabled={busy||(continuing&&plan.stale)||(!continuing&&!canRecommend&&!switchEmpty&&!adjustGoal)} onClick={start}><HubSymbol kind="play"/>{busy?'准备中…':continuing?review?'继续复习':'继续学习':adjustGoal?'调整今日词量':switchEmpty?review?'去学习新词':'去复习':canRecommend?review?'开始复习':'开始学习':'等准备好再来'}<span aria-hidden="true">→</span></button>
+        {!review&&!continuing&&!canRecommend&&onChoose&&<div className="hub-empty-choices"><button className="hub-text-button" disabled={busy} onClick={()=>onChoose('words')}>选择学习词语</button><button className="hub-text-button" disabled={busy||!plan.available.length} onClick={onSelect}>自己选词</button></div>}
+      </div><div className="hub-word-preview" aria-label={continuing?'这轮的单词':review?'这次复习的词':'准备学习的单词'}>{previewWords.map(word=><span key={word.id}><img src={word.imageUrl} alt={word.meaning}/><small className={learned.has(word.id)?'is-familiar':'is-new'}>{learned.has(word.id)?'已学过':'未学习'}</small></span>)}</div></div>
     </section>
-    {(!resume||!resume.practiceOnly)&&!useLesson&&<details className="hub-recommendation-note"><summary>推荐量说明</summary><p>每天推荐最多 {state.settings.dailyNewWords} 个新词，今天已认识 {plan.usedNewToday} 个；未完成的新词也占额度。想多练可以整本复习、玩游戏或自己选词，复习优先安排到期的词。</p></details>}
-    {pending.length>1&&<section className="hub-other-rounds" aria-label="其他学习进度"><button className="hub-other-toggle" aria-expanded={showAll} aria-controls="hub-other-sessions" onClick={()=>setShowAll(!showAll)}>其他没玩完的学习<span>{pending.length-1}</span><HubSymbol kind="down"/></button>
-      {showAll&&<div id="hub-other-sessions" className="hub-other-list">{pending.slice(1).map((saved,index)=><div className="hub-other-row" key={saved.id}><button className="hub-other-resume" disabled={busy} onClick={()=>onStart({mode:'resume',sessionId:saved.id})}><span className="hub-other-pictures">{saved.wordIds.slice(0,2).map(id=><img key={id} src={state.words.find(word=>word.id===id)?.imageUrl} alt=""/>)}</span><span><strong>{(saved.packGame?`${saved.practicePackTitle} · ${saved.packGame.selection==='random'?'随机游戏':gameDefinition(saved.packGame.selection)?.title}`:saved.practicePackTitle)??saved.lessonTitle??(saved.mode==='relearn'?'从头学':saved.practiceOnly?'一起练习':'推荐学习')}</strong><small>{new Date(saved.startedAt).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})} · {resumeDetail(saved)}</small></span><HubSymbol kind="play"/></button>{onManage&&<button className="hub-context-button" aria-label={`更多：调整第${index+2}轮学习`} disabled={busy} onClick={()=>adjust(saved)}><HubSymbol kind="more"/></button>}</div>)}</div>}
+    {!review&&onCompleted&&state.lastCompletedSession?.entrySource?.entry==='learn'&&<section className="hub-completed-followup" aria-label="上轮学习的后续安排"><div><h2>上轮 {state.lastCompletedSession.completedWordIds.length} 词学完了</h2><p>接着做本轮测试，核验后才计入动画；明天再来复习。</p></div><button className="hub-outline-button" disabled={busy} onClick={onCompleted}>查看测试与复习<HubSymbol kind="play"/></button></section>}
+    {!review&&resume&&<section className="hub-new-start" aria-label={showNew?'保留的上次学习':'开始新的学习'}><div><h2>{showNew?'上次的学习还在':'想认识其他新词？'}</h2><p>{showNew?`原来的 ${resume.wordIds.length} 个词和进度继续保留。`:canRecommend?`下一组 ${plan.fresh.length} 个新词，开始前先看看。`:plan.reservedNew?'未学完的词已有安排，也可以调整词量或自己选词。':'先看看新的安排，原来的进度继续保留。'}</p></div><button className="hub-outline-button" disabled={busy} onClick={()=>setShowNew(!showNew)}>{showNew?'回到上次的学习':'开始新的学习'}<HubSymbol kind={showNew?'back':'play'}/></button></section>}
+    {!review&&<div className="hub-entry-tools"><button className="hub-text-button" disabled={busy||!plan.available.length} onClick={onSelect}><HubSymbol kind="cards"/>自己选词</button>{onChoose&&<details className="hub-arrangement"><summary>调整安排<HubSymbol kind="down"/></summary><div className="hub-arrangement-body"><p>今日目标 {choice.goal} 词 · 已认识 {plan.usedNewToday} 词</p><p>未完成已安排 {plan.reservedNew} 词 · 可新安排 {plan.remainingNew} 词</p><div><button className="hub-outline-button" disabled={busy} onClick={()=>onChoose('goal')}>选择今日词量</button><button className="hub-outline-button" disabled={busy} onClick={()=>onChoose('words')}>选择学习词语</button></div>{state.dailyLearningChoice?.wordIds&&<p>已选范围 {state.dailyLearningChoice.wordIds.length} 词，保留原词图与顺序。</p>}</div></details>}</div>}
+    {review&&!resume&&<details className="hub-recommendation-note"><summary>推荐量说明</summary><p>跨词书安排已经认识的到期目标，每轮最多 {state.settings.dailyReviewWords} 词；另有 {plan.deferredReviewCount} 个到期词留在后续推荐。另有 {plan.unreadyDueCount} 个到期词需家长准备。今天已结束的同一目标不重复推荐；主动加练和挑战分别选择，没有到期词时不自动加练。</p></details>}
+    {otherPending.length>0&&<section className="hub-other-rounds" aria-label={review?'其他复习进度':'其他学习进度'}><button className="hub-other-toggle" aria-expanded={showAll} aria-controls="hub-other-sessions" onClick={()=>setShowAll(!showAll)}>{review?'其他复习进度':'其他进度（含以前的练习）'}<span>{otherPending.length}</span><HubSymbol kind="down"/></button>
+      {showAll&&<div id="hub-other-sessions" className="hub-other-list">{otherPending.map((saved,index)=><div className="hub-other-row" key={saved.id}><button className="hub-other-resume" disabled={busy} onClick={()=>onStart({mode:'resume',sessionId:saved.id,...(saved.entrySource?{entry:saved.entrySource.entry}:{})})}><span className="hub-other-pictures">{saved.wordIds.slice(0,2).map(id=><img key={id} src={state.words.find(word=>word.id===id)?.imageUrl} alt=""/>)}</span><span><strong>{(saved.packGame?`${saved.practicePackTitle} · ${saved.packGame.selection==='random'?'随机游戏':gameDefinition(saved.packGame.selection)?.title}`:saved.practicePackTitle)??saved.lessonTitle??(saved.mode==='relearn'?'从头学':saved.practiceOnly?'一起练习':'推荐学习')}</strong><small>{learningEntryLabel(saved)} · {new Date(saved.startedAt).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})} · {resumeDetail(saved)}</small></span><HubSymbol kind="play"/></button>{onManage&&<button className="hub-context-button" aria-label={`更多：调整第${index+2}轮学习`} disabled={busy} onClick={()=>adjust(saved)}><HubSymbol kind="more"/></button>}</div>)}</div>}
     </section>}
-    <section className="hub-options" aria-labelledby="hub-options-title"><h2 id="hub-options-title">也可以这样玩</h2><div className={`hub-options-grid${2+Number(!!showRecommendation)+Number(!!onBooks)+Number(!!onGames)===3?' has-three':''}`}>
-      {showRecommendation&&<button className="hub-option hub-option-recommended" disabled={busy||!canRecommend} onClick={()=>onStart(pendingRecommended?{mode:'resume',sessionId:pendingRecommended.id}:{mode:'recommended'})}><span className="hub-option-icon"><HubSymbol kind="play"/></span><span><strong>推荐学习</strong><small>{recommendation}</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>}
-      {onBooks&&<button className="hub-option hub-option-books" disabled={busy||!state.packs.some(pack=>pack.enabled&&!pack.isSample&&!pack.deletedAt)} onClick={onBooks}><span className="hub-option-icon"><HubSymbol kind="cards"/></span><span><strong>整本复习</strong><small>选一本词表，连贯复习</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>}
-      {onGames&&<button className="hub-option hub-option-games" disabled={busy||!state.packs.some(pack=>pack.enabled&&!pack.isSample&&!pack.deletedAt)} onClick={onGames}><span className="hub-option-icon"><HubSymbol kind="play"/></span><span><strong>玩游戏</strong><small>选个玩法，或随机玩</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>}
-      <button className="hub-option hub-option-select" disabled={busy||!plan.available.length} onClick={onSelect}><span className="hub-option-icon"><HubSymbol kind="cards"/></span><span><strong>自己选词</strong><small>挑几个想学的词</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>
+    {!review&&<details className="hub-more-activities"><summary>更多练习<HubSymbol kind="down"/></summary><div><button className="hub-text-button" disabled={busy} onClick={onSwitch}>去复习</button><button className="hub-text-button" disabled={busy} onClick={onTest}>挑战测试{testCount?` · ${testCount} 词`:''}</button></div></details>}
+    {review&&<section className="hub-options" aria-labelledby="hub-options-title"><h2 id="hub-options-title">也可以主动加练</h2><div className="hub-options-grid">
+      {review&&onBooks&&<button className="hub-option hub-option-books" disabled={busy||!state.packs.some(pack=>pack.enabled&&!pack.isSample&&!pack.deletedAt)} onClick={onBooks}><span className="hub-option-icon"><HubSymbol kind="cards"/></span><span><strong>按书加练</strong><small>只选已经认识的词</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>}
+      {review&&onGames&&<button className="hub-option hub-option-games" disabled={busy||!state.packs.some(pack=>pack.enabled&&!pack.isSample&&!pack.deletedAt)} onClick={onGames}><span className="hub-option-icon"><HubSymbol kind="play"/></span><span><strong>玩游戏</strong><small>用已经认识的词加练</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>}
+      <button className="hub-option hub-option-select" disabled={busy||!plan.available.length} onClick={onSelect}><span className="hub-option-icon"><HubSymbol kind="cards"/></span><span><strong>{review?'自选已学词':'自己选词'}</strong><small>{review?'挑几个老朋友再练练':'按词书挑选想学的词'}</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>
+      {onSwitch&&<button className="hub-option" disabled={busy} onClick={onSwitch}><span className="hub-option-icon"><HubSymbol kind="cards"/></span><span><strong>{review?'去学习新词':'去复习'}</strong><small>{review?'认识新的朋友':'把认识过的词再想一想'}</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>}
       <button className="hub-option hub-option-test" disabled={busy} onClick={onTest}><span className="hub-option-icon"><HubSymbol kind="flag"/></span><span><strong>挑战测试</strong><small>{testCount?`${testCount} 个老朋友，等你来挑战`:'试试看，还记得吗？'}</small></span><span className="hub-option-arrow" aria-hidden="true">→</span></button>
-    </div></section>
-    {lesson&&lessonPreview&&!useLesson&&<section className="hub-classroom" aria-label="课堂练习"><div className="hub-classroom-heading"><span className="hub-option-icon"><HubSymbol kind="cards"/></span><div><small>课堂练习</small><h2>{lesson.title}</h2></div></div><p className="hub-classroom-counts">本课 {lesson.wordIds.length} 词<span>本次重点 {lesson.focusWordIds.length} 词</span><span>已练完 {lesson.focusWordIds.filter(id=>lesson.completedWordIds.includes(id)).length} 词</span></p><p>{lessonPreview.unavailable.length?'有词义或素材已变化，请家长检查课堂安排。':lessonPreview.words.length?`下一段 ${lessonPreview.words.length} 词，约 ${lessonPreview.minutes} 分钟`:'本次重点练完啦，可以安排下一组。'}</p><div className="hub-classroom-actions"><button className="hub-outline-button" disabled={busy||!lessonPreview.words.length||!!lessonPreview.unavailable.length} onClick={()=>onStart({mode:'lesson',lessonPlanId:lesson.id,lessonRevision:lesson.revision})}>课堂词练一小段<HubSymbol kind="play"/></button>{onLessonSettings&&<button className="hub-text-button" disabled={busy} onClick={onLessonSettings}>家长调整课堂安排</button>}</div></section>}
-    {onLessonSettings&&(!lesson||useLesson)&&<footer className="hub-parent-link"><button className="hub-text-button" disabled={busy} onClick={onLessonSettings}><HubSymbol kind="cards"/>{lesson?'家长调整课堂安排':'家长安排课堂'}</button></footer>}
+    </div></section>}
+    {!review&&lesson&&lessonPreview&&<section className="hub-classroom" aria-label="课堂练习"><div className="hub-classroom-heading"><span className="hub-option-icon"><HubSymbol kind="cards"/></span><div><small>课堂练习</small><h2>{lesson.title}</h2></div></div><p className="hub-classroom-counts">本课 {lesson.wordIds.length} 词<span>本次重点 {lesson.focusWordIds.length} 词</span><span>已练完 {lesson.focusWordIds.filter(id=>lesson.completedWordIds.includes(id)).length} 词</span></p><p>{lessonPreview.unavailable.length?'有词义或素材已变化，请家长检查课堂安排。':lessonPreview.words.length?`下一段 ${lessonPreview.words.length} 词，约 ${lessonPreview.minutes} 分钟`:'本次重点练完啦，可以安排下一组。'}</p><div className="hub-classroom-actions"><button className="hub-outline-button" disabled={busy||!lessonPreview.words.length||!!lessonPreview.unavailable.length} onClick={()=>onStart({mode:'lesson',lessonPlanId:lesson.id,lessonRevision:lesson.revision})}>课堂词练一小段<HubSymbol kind="play"/></button>{onLessonSettings&&<button className="hub-text-button" disabled={busy} onClick={onLessonSettings}>家长调整课堂安排</button>}</div></section>}
+    {!review&&onLessonSettings&&!lesson&&<footer className="hub-parent-link"><button className="hub-text-button" disabled={busy} onClick={onLessonSettings}><HubSymbol kind="cards"/>{lesson?'家长调整课堂安排':'家长安排课堂'}</button></footer>}
     {onManage&&<dialog className="hub-adjust-dialog" ref={dialogRef} aria-labelledby="hub-adjust-title" onCancel={event=>{event.preventDefault();if(!busy)closeAdjustment();}} onClick={event=>{if(event.target===event.currentTarget&&!busy)closeAdjustment();}}>{managedSession&&<>
       <header className="hub-adjust-heading"><div><span>调整这次学习</span><h2 id="hub-adjust-title">{confirm==='reselect'?'换一组单词？':confirm==='restart'?'这些词再练一遍？':'这次想怎么调整？'}</h2></div><button className="hub-dialog-close" aria-label="关闭调整窗口" disabled={busy} onClick={closeAdjustment}><HubSymbol kind="close"/></button></header>
       <div className="hub-adjust-body"><div className="hub-adjust-preview"><div>{managedWords.map(word=><img key={word.id} src={word.imageUrl} alt={word.meaning}/>)}</div><span>这轮 {managedSession.wordIds.length} 个词</span></div>
-        {confirm?<p className="hub-adjust-explanation">{confirm==='reselect'?'会结束这轮还没做完的任务，然后重新选词。已经练过的记录和录音都会保留。':'会从认识单词开始新一轮练习。以前的学习记录和录音都会保留。'}</p>:<div className="hub-adjust-choices"><button disabled={busy} onClick={()=>setConfirm('reselect')}><span className="hub-option-icon"><HubSymbol kind="cards"/></span><span><strong>换一组词</strong><small>结束这轮，再选想学的词</small></span><span aria-hidden="true">→</span></button><button disabled={busy} onClick={()=>setConfirm('restart')}><span className="hub-option-icon"><HubSymbol kind="refresh"/></span><span><strong>这些词再练一遍</strong><small>从认识开始，保留原来的记录</small></span><span aria-hidden="true">→</span></button></div>}
+        {confirm?<p className="hub-adjust-explanation">{confirm==='reselect'?'会结束这轮还没做完的任务，然后重新选词。已经练过的记录和录音都会保留。':review?'会为这些已学词新开一轮加练。以前的学习记录和录音都会保留。':'会从认识单词开始新一轮练习。以前的学习记录和录音都会保留。'}</p>:<div className="hub-adjust-choices"><button disabled={busy} onClick={()=>setConfirm('reselect')}><span className="hub-option-icon"><HubSymbol kind="cards"/></span><span><strong>换一组词</strong><small>结束这轮，再选想学的词</small></span><span aria-hidden="true">→</span></button><button disabled={busy} onClick={()=>setConfirm('restart')}><span className="hub-option-icon"><HubSymbol kind="refresh"/></span><span><strong>这些词再练一遍</strong><small>{review?'重新加练，保留原来的记录':'从认识开始，保留原来的记录'}</small></span><span aria-hidden="true">→</span></button></div>}
       </div><footer className="hub-adjust-footer">{confirm?<><button className="hub-outline-button" disabled={busy} onClick={()=>setConfirm(undefined)}>返回</button><button className="hub-start" disabled={busy} onClick={()=>{const action=confirm;closeAdjustment();onManage(managedSession.id,action);}}>{confirm==='reselect'?'结束这轮，去选词':'从头开始'}<span aria-hidden="true">→</span></button></>:<button className="hub-outline-button" disabled={busy} onClick={closeAdjustment}>先不调整</button>}</footer>
     </>}</dialog>}
   </main>;
 }
 
-export function WordPicker({ state, busy, onStart, onHome, onSpeak }: Props) {
+export function WordPicker({ state, busy, onStart, onHome, onSpeak,entry='learn',initialPackId }: Props & {entry?:'learn'|'review';initialPackId?:string}) {
   const [selected, setSelected] = useState<string[]>([]);
-  const [pack, setPack] = useState('all'), [filter, setFilter] = useState<'all' | 'new' | 'learned'>('all'), [page, setPage] = useState(0);
-  const plan = dailyLearningPlan({...state,settings:{...state.settings,learningStrategy:state.settings.learningStrategy??'memory-loop'}}, new Date(state.learningNow ?? Date.now()));
-  const learned = new Set(learningEncounters(state).map(entry => entry.wordId));
-  for (const row of state.progress) learned.add(row.wordId);
+  const [pack, setPack] = useState(initialPackId??'all'), [filter, setFilter] = useState<'all' | 'new' | 'learned'>(initialPackId?'new':'all'), [page, setPage] = useState(0);
+  const now=new Date(state.learningNow??Date.now());
+  const originalPlan = dailyLearningPlan({...state,settings:{...state.settings,learningStrategy:state.settings.learningStrategy??'memory-loop'}}, now);
+  const knownWords=learnedReviewWords(state,now),plan=entry==='review'?{...originalPlan,available:knownWords.filter(word=>state.learningReadyWordIds===undefined||state.learningReadyWordIds.includes(word.id))}:originalPlan;
+  const learned = new Set(knownWords.map(word => word.id));
   const visible = plan.available.filter(word => (pack === 'all' || word.packId === pack) && (filter === 'all' || learned.has(word.id) === (filter === 'learned')));
   const selectedIds = new Set(selected), allVisibleSelected = visible.every(word => selectedIds.has(word.id));
   const visibleIds = new Set(visible.map(word => word.id));
@@ -107,10 +117,10 @@ export function WordPicker({ state, busy, onStart, onHome, onSpeak }: Props) {
   const resetFilters = () => { setPack('all'); setFilter('all'); setPage(0); };
   return <main className="learning-hub word-picker page-enter">
     <nav className="hub-nav" aria-label="页面导航"><button onClick={onHome}><HubSymbol kind="back" />回大厅</button></nav>
-    <header className="hub-heading"><h1>这次想学哪些？</h1><Mascot small /></header>
+    <header className="hub-heading"><h1>{entry==='review'?'这次想复习哪些？':'这次想学哪些？'}</h1><Mascot small /></header>
     <section className="picker-toolbar" aria-label="筛选和选择单词">
       <div className="picker-filter-row">
-        <div className="picker-filters" role="group" aria-label="筛选学习状态">{([{id:'all', label:'全部'}, {id:'new', label:'新单词'}, {id:'learned', label:'接触过'}] as const).map(item => <button key={item.id} disabled={busy} aria-pressed={filter === item.id} onClick={() => {setFilter(item.id); setPage(0);}}>{item.label}</button>)}</div>
+        <div className="picker-filters" role="group" aria-label="筛选学习状态">{([{id:'all', label:'全部'}, {id:'new', label:'未学习'}, {id:'learned', label:'已学过'}] as const).filter(item=>entry==='learn'||item.id!=='new').map(item => <button key={item.id} disabled={busy} aria-pressed={filter === item.id} onClick={() => {setFilter(item.id); setPage(0);}}>{item.label}</button>)}</div>
         {packs.length > 1 && <div className="picker-pack-select"><select aria-label="筛选词书" disabled={busy} value={pack} onChange={event => {setPack(event.target.value); setPage(0);}}><option value="all">所有词书</option>{packs.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select><HubSymbol kind="down" /></div>}
       </div>
       <div className="picker-bulk-actions" role="group" aria-label="批量选择单词">
@@ -121,7 +131,7 @@ export function WordPicker({ state, busy, onStart, onHome, onSpeak }: Props) {
       {hiddenSelected > 0 && <button className="picker-hidden-selection" disabled={busy} onClick={resetFilters}>另有 {hiddenSelected} 个已选词在其他筛选中 · 查看全部</button>}
     </section>
     <section className="picker-grid" aria-label="选择单词图片">{visible.slice(currentPage * 12, currentPage * 12 + 12).map(word => <article key={word.id} className={selected.includes(word.id) ? 'is-selected' : ''}>
-      <button className="picker-card" aria-label={`选择${word.term}，${word.meaning}`} aria-pressed={selected.includes(word.id)} disabled={busy} onClick={() => toggle(word)}><span className="picker-check">{selected.includes(word.id) ? <HubSymbol kind="check" /> : '+'}</span><span className="picker-picture"><img src={word.imageUrl} alt="" loading="lazy" decoding="async" /></span><strong>{word.term}</strong><span className="picker-meaning">{word.meaning}</span><small className={learned.has(word.id) ? 'is-familiar' : 'is-new'}>{learned.has(word.id) ? '接触过' : '新单词'}</small></button>
+      <button className="picker-card" aria-label={`选择${word.term}，${word.meaning}，${learned.has(word.id)?'已学过':'未学习'}`} aria-pressed={selected.includes(word.id)} disabled={busy} onClick={() => toggle(word)}><span className="picker-check">{selected.includes(word.id) ? <HubSymbol kind="check" /> : '+'}</span><span className="picker-picture"><img src={word.imageUrl} alt="" loading="lazy" decoding="async" /></span><strong>{word.term}</strong><span className="picker-meaning">{word.meaning}</span><small className={learned.has(word.id) ? 'is-familiar' : 'is-new'}>{learned.has(word.id) ? '已学过' : '未学习'}</small></button>
       <button className="picker-listen" aria-label={`听${word.term}的发音`} disabled={busy} onClick={() => onSpeak(word)}><HubSymbol kind="sound" /></button>
     </article>)}</section>
     {!visible.length && <div className="picker-empty"><HubSymbol kind="cards" /><strong>{plan.available.length ? '这里还没有这样的词' : '单词还在准备中'}</strong>{plan.available.length ? <button disabled={busy} onClick={resetFilters}>看看全部单词</button> : <p>请家长先准备好词书。</p>}</div>}
@@ -129,12 +139,14 @@ export function WordPicker({ state, busy, onStart, onHome, onSpeak }: Props) {
     <footer className={`picker-footer ${hasFamiliarSelection?'has-familiar':''}`}>
       <div className="picker-selection">
         <div className="picker-selection-heading"><strong>已选 {selected.length} 词</strong></div>
-        <span className="picker-selection-status" role="status">{hasFamiliarSelection ? '没记牢？从头学一遍，也可以直接练习' : selected.length?'新单词先认识，再玩游戏':'点图片选词，选好了就出发'}</span>
+        <span className="picker-selection-status" role="status">{entry==='review' ? '只复习已经认识的词，选好就可以开始' : hasFamiliarSelection ? '没记牢？从头学一遍，也可以直接练习' : selected.length?'新单词先认识，再玩游戏':'点图片选词，选好了就出发'}</span>
       </div>
-      {hasFamiliarSelection?<div className="picker-learning-actions" role="group" aria-label="开始学习">
+      {hasFamiliarSelection&&entry==='learn'?<div className="picker-learning-actions" role="group" aria-label="开始学习">
         <button className="picker-start" disabled={busy} onClick={()=>onStart({mode:'relearn',wordIds:selected})}><HubSymbol kind="cards"/>{busy?'准备中…':'从头学'}</button>
         <button className="picker-practice" disabled={busy} onClick={()=>onStart({mode:'practice',wordIds:selected})}><HubSymbol kind="play"/>直接练习</button>
-      </div>:<button className="picker-start" disabled={busy || !selected.length} onClick={() => onStart({mode:'practice', wordIds: selected})}><HubSymbol kind="play" />{busy ? '准备中…' : '开始学'}</button>}
+      </div>:<button className="picker-start" disabled={busy || !selected.length} onClick={() => onStart({mode:'practice',entry, wordIds: selected})}><HubSymbol kind="play" />{busy ? '准备中…' : entry==='review'?'开始复习':'开始学'}</button>}
     </footer>
   </main>;
 }
+
+export function LearningHub(props:Parameters<typeof LegacyLearningHub>[0]&{onStudyStart?:(intent:StudyIntent)=>void;onParentReview?:()=>void}){return props.state.study&&props.onStudyStart?<StudyHub {...props} onStudyStart={props.onStudyStart}/>:<LegacyLearningHub {...props}/>;}

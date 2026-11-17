@@ -1,32 +1,41 @@
+import type { CSSProperties } from 'react';
 import { visualTheme } from '../shared/visual-theme';
+import { companionIds } from '../shared/companions';
 import { Medal } from './child-growth';
 
-export function EntryHome({ busy, openParent, openCompanions, openGrowth, begin }: { busy: boolean; openParent: () => void; openCompanions: () => void; openGrowth?: () => void; begin: () => void }) {
-  return <main className="entry-home page-enter">
-    <header className="entry-header">
-      <h1><span className="entry-insignia" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="m9 8 11-4 11 4 3 13-14 15L6 21Z" fill="currentColor" /><path d="m12 15 6 3v4l-6-2Zm16 0-6 3v4l6-2ZM17 27h6" stroke="#fff" strokeWidth="2.5" strokeLinejoin="round" /></svg></span><span>单词游乐园</span></h1>
-    </header>
-    <section className="entry-playground" aria-label="选择入口">
-      <picture className="entry-scene">
-        <source media="(max-aspect-ratio: 1/1)" srcSet={visualTheme.homePortrait} width="941" height="1672" />
-        <img src={visualTheme.homeDesktop} width="1448" height="1086" alt="Q版擎天柱、大黄蜂和阿尔茜在远处的机甲基地等待出发" draggable={false} fetchPriority="high" decoding="async" />
-      </picture>
-      <div className="entry-copy">
-        <h2>单词冒险<span>现在出发</span></h2>
-        <div className="entry-actions">
-          <button className="entry-start" disabled={busy} onClick={begin} aria-label="孩子入口，开始玩">
-            <span className="entry-play-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24"><path d="m8 4 12 8L8 20Z" fill="currentColor" /></svg></span>
-            <span>{busy ? '马上就好…' : '开始玩'}</span>
+export function EntryHome({ busy, openParent, openCompanions, openGrowth, begin, review, unlockedCount = 2 }: { busy: boolean; openParent: () => void; openCompanions: () => void; openGrowth?: () => void; begin: () => void; review: () => void; unlockedCount?: number }) {
+  const { optimus, megatron } = visualTheme.characters;
+  return <main className="entry-home page-enter" style={{ '--entry-base-scene': `url("${visualTheme.homeDesktop}")` } as CSSProperties}>
+    <div className="entry-hall">
+      <header className="entry-hall-header">
+        <h1 className="entry-hall-brand"><img src={visualTheme.brandIcon} width="36" height="36" alt="" draggable={false} /><span>单词游乐园</span></h1>
+        <button type="button" className="entry-hall-parent" onClick={openParent} aria-label="家长入口">家长空间</button>
+      </header>
+      <section className="entry-hall-welcome" aria-labelledby="entry-hall-greeting">
+        <div><h2 id="entry-hall-greeting">今天，一起出发吧</h2><p>认识新词，也记住老朋友。</p></div>
+      </section>
+      <nav className={`entry-hall-modules${openGrowth ? '' : ' entry-hall-without-growth'}`} aria-label="学习与成长入口" aria-busy={busy}>
+        <button type="button" className="entry-hall-module entry-hall-learn" disabled={busy} onClick={begin} aria-label="进入学习，学习新词">
+          <span className="entry-hall-title">学习</span><span className="entry-hall-description">认识新单词</span><span className="entry-hall-detail">先认识，再一起玩</span>
+          <img className="entry-hall-character" src={optimus.image} alt="" draggable={false} decoding="async" />
+          <span className="entry-hall-go">进入学习<span aria-hidden="true">→</span></span>
+        </button>
+        <button type="button" className="entry-hall-module entry-hall-review" disabled={busy} onClick={review} aria-label="进入复习，复习已经学过的词">
+          <span className="entry-hall-title">复习</span><span className="entry-hall-description">把学过的词再想一想</span>
+          <img className="entry-hall-character" src={megatron.image} alt="" draggable={false} decoding="async" />
+          <span className="entry-hall-go">进入复习<span aria-hidden="true">→</span></span>
+        </button>
+        <div className="entry-hall-small-modules">
+          <button type="button" className="entry-hall-module entry-hall-companions" onClick={openCompanions} aria-label={`打开伙伴图鉴，已解锁${unlockedCount}位伙伴`}>
+            <span className="entry-hall-portraits" aria-hidden="true"><span><img src={optimus.image} alt="" draggable={false} /></span><span><img src={megatron.image} alt="" draggable={false} /></span></span>
+            <span className="entry-hall-caption"><strong>伙伴图鉴</strong><small>{unlockedCount} / {companionIds.length} 位伙伴</small></span><span className="entry-hall-small-arrow" aria-hidden="true">→</span>
           </button>
-          <button className="entry-parent" onClick={openParent} aria-label="家长入口">
-            <span className="entry-parent-icon" aria-hidden="true"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="9" cy="7" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 4a3 3 0 0 1 0 6M21 20v-2a6 6 0 0 0-4-5.65" /></svg></span>
-            <span>家长空间</span>
-            <svg className="entry-parent-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
-          </button>
+          {openGrowth && <button type="button" className="entry-hall-module entry-hall-growth" onClick={openGrowth} aria-label="打开我的成长和奖章">
+            <span className="entry-hall-medal" aria-hidden="true"><Medal /></span>
+            <span className="entry-hall-caption"><strong>我的成长</strong><small>奖章与学习记录</small></span><span className="entry-hall-small-arrow" aria-hidden="true">→</span>
+          </button>}
         </div>
-      </div>
-    </section>
-    {openGrowth && <button className="entry-growth" onClick={openGrowth} aria-label="打开我的成长和奖章"><Medal />我的成长</button>}
-    <button className="entry-companions" onClick={openCompanions} aria-label="打开伙伴图鉴"><span aria-hidden="true">✦</span>伙伴图鉴</button>
+      </nav>
+    </div>
   </main>;
 }

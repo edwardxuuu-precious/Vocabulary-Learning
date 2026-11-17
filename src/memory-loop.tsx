@@ -6,6 +6,7 @@ import { OralPractice } from './oral-practice';
 import { Mascot } from './mascot';
 import { companionFor } from '../shared/companions';
 import './memory-recall.css';
+import {LearningTaskFrame,TaskPicture,TaskActionBar,TaskIcon} from './learning-task-frame';
 
 export function MemoryRecall({session,activity,busy,playing,audioProgress,onAction,onHome,onPause,stopAudio}:{session:LearningSession;activity:LearningActivity;busy:boolean;playing:boolean;audioProgress?:number;onAction:(action:ActivityAction,selectedId?:string,advance?:boolean)=>Promise<boolean|undefined>|void;onHome:()=>void;onPause:()=>void;stopAudio:()=>void}) {
   const [recording,setRecording]=useState(false),[demonstrating,setDemonstrating]=useState(false),[demoFinished,setDemoFinished]=useState<boolean>();
@@ -14,25 +15,12 @@ export function MemoryRecall({session,activity,busy,playing,audioProgress,onActi
   const demoPhase=demonstrating?(playing?'playing':'loading'):demoFinished===false||state.audioUnavailable&&demoFinished!==true?'error':state.revealed?'replay':'idle';
   const demoLabel=demoPhase==='playing'?'正在播放':demoPhase==='loading'?'加载中':demoPhase==='error'?'重试发音':demoPhase==='replay'?'再听一次':'听示范';
   const word=state.revealed?activity.word.term:activity.word.meaning;
-  return <main className="memory-page memory-recall page-enter">
-    <LearningTopbar session={session} onHome={onHome} onPause={onPause}/>
-    <section className="memory-recall-grid" aria-label="先回忆，再按需听示范">
-      <p className="memory-instruction">用英语说一说</p>
-      <div className="memory-picture-stage"><div className="memory-picture-frame"><img src={activity.word.imageUrl} alt={activity.word.meaning}/></div></div>
-      <div className={`memory-cue ${state.revealed?'is-revealed':''}`}>
-        <div className="memory-word-cue" style={{'--word-length':Math.max(1,[...word].length)} as React.CSSProperties}>
-          <h1 className={state.revealed?'is-english':''}>{word}</h1>
-          {state.revealed&&<p>{activity.word.meaning}</p>}
-        </div>
-        <button className="memory-demo" data-phase={demoPhase} disabled={blocked||accepted||demonstrating} onClick={()=>void listen()}>
-          <span className="memory-demo-icon"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m11 4-6 5H2v6h3l6 5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></span>
-          <span className="memory-demo-copy"><span>{demoLabel}</span>{demoPhase==='playing'&&audioProgress!==undefined&&<span className="memory-audio-progress" aria-hidden="true"><i style={{width:`${audioProgress*100}%`}}/></span>}</span>
-        </button>
-      </div>
-      <OralPractice target={{sessionId:session.id,activityId:activity.id,planVersion:session.learningPolicy?.version??1}} active={!busy&&!playing&&!demonstrating} busy={busy} stopAudio={stopAudio} onBusy={setRecording} readOnly={accepted} variant="memory" complete={()=>void onAction(accepted?'next':'finish',undefined,!accepted)} onSkip={accepted?undefined:()=>void onAction('skip')}/>
-      {demoPhase==='error'&&<p className="memory-audio-error" role="status">示范暂时播不了，可以重试或先自己说。</p>}
-    </section>
-  </main>;
+  return <LearningTaskFrame session={session} kind="recall" title="看图，说英文" instruction="想一想，用英语说出来。不会时可以听示范。" cue={<TaskPicture word={activity.word}/>} onHome={onHome} onPause={onPause}>
+    <div className="task-recall-prompt"><h2>{state.revealed?activity.word.term:activity.word.meaning}</h2>{state.revealed&&<p>{activity.word.meaning}</p>}</div>
+    <OralPractice unified target={{sessionId:session.id,activityId:activity.id,planVersion:session.learningPolicy?.version??1}} active={!busy&&!playing&&!demonstrating} busy={busy} stopAudio={stopAudio} onBusy={setRecording} readOnly={accepted} variant="memory" complete={()=>void onAction(accepted?'next':'finish',undefined,!accepted)} onSkip={accepted?undefined:()=>void onAction('skip')}
+      secondaryControls={<button data-phase={demoPhase} disabled={blocked||accepted||demonstrating} onClick={()=>void listen()}><TaskIcon kind="sound"/>{demoLabel}</button>}/>
+    {demoPhase==='error'&&<p className="task-inline-error" role="status">示范暂时播不了，可以重试或先自己说。</p>}
+  </LearningTaskFrame>;
 }
 
 export function LearningCheckpoint({session,busy,onRest,onContinue}:{session:LearningSession;busy:boolean;onRest:()=>void;onContinue:()=>void}) {

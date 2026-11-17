@@ -42,6 +42,28 @@
 .extra-sound-row button:first-child span { font-size:27px; }
 .extra-sound-row button:last-child { background:#657ddd; border-color:#546bc3; color:white; }
 .extra-sound-row.is-correct button { background:#e1f2e7; color:#316b51; border-color:#83b59c; }
+/* Answer feedback stays visible when the submitted choices become disabled. */
+.app.screen-play .game-page .extra-picture { transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease, opacity .16s ease; }
+.app.screen-play .game-page .extra-picture:active:not(:disabled) { transform:scale(.96); }
+.app.screen-play .game-page .extra-picture:is(.is-correct,.is-retry,.is-pending):disabled { opacity:1; }
+.app.screen-play .game-page .extra-picture.is-correct { border:4px solid #25805f; box-shadow:0 0 0 5px #46a47d26,0 6px 0 #b1d6c5; animation:extra-answer-pop .38s ease; }
+.app.screen-play .game-page .extra-picture.is-retry { border:4px solid #bb7026; box-shadow:0 0 0 4px #e6a04c26; animation:extra-answer-retry .3s ease; }
+.app.screen-play .game-page .extra-picture.is-pending { border-color:#5868dc; box-shadow:0 0 0 4px #5868dc26; }
+.app.screen-play .game-page .game-picture.extra-picture.is-other:disabled { opacity:.55; }
+.extra-choice-result { position:absolute; top:8px; right:8px; display:flex; align-items:center; justify-content:center; gap:5px; padding:6px 10px; border:2px solid white; border-radius:14px; background:#246f54; color:white; box-shadow:0 3px 10px #234b5b26; font-size:16px; font-weight:750; line-height:1.4; white-space:nowrap; }
+.extra-choice-result>span { font-size:24px; line-height:1; }
+.extra-choice-result.is-retry { background:#9a581e; }
+.extra-choice-result.is-pending { background:#5363c9; }
+.app.screen-play .game-page .extra-stage>.game-feedback.has-feedback { display:flex; align-items:center; justify-content:center; gap:12px; min-height:56px; max-width:100%; padding:10px 22px; border:1px solid #dce5f2; border-radius:18px; box-sizing:border-box; background:#eff3ff; color:#385a90; font-size:22px; line-height:1.5; }
+.app.screen-play .game-page .extra-stage>.game-feedback.is-correct { border-color:#a9d5c1; background:#e9f7ef; color:#206747; }
+.app.screen-play .game-page .extra-stage>.game-feedback.is-retry { border-color:#e3c29c; background:#fff3e4; color:#8a4d20; }
+.extra-feedback-symbol { display:grid; place-items:center; flex-shrink:0; width:34px; height:34px; border:2px solid currentColor; border-radius:50%; font-size:24px; line-height:1; }
+@keyframes extra-answer-pop { 50% { transform:translateY(-5px) scale(1.025); } }
+@keyframes extra-answer-retry { 33% { transform:translateX(-4px); } 66% { transform:translateX(4px); } }
+@media(max-width:600px) { .extra-choice-result { top:5px; right:5px; gap:4px; padding:4px 7px; font-size:14px; border-radius:11px; } .extra-choice-result>span { font-size:20px; } .app.screen-play .game-page .extra-stage>.game-feedback.has-feedback { gap:9px; padding:9px 14px; font-size:18px; } }
+@media(min-width:761px) and (max-height:760px) { .app.screen-play .game-page .extra-stage>.game-picture-choices { max-width:440px; } }
+@media(min-width:761px) and (max-height:680px) { .app.screen-play .game-page .extra-stage { gap:10px; padding:18px; } .app.screen-play .game-page .extra-stage>.game-picture-choices { max-width:360px; } }
+@media(min-width:761px) and (max-height:630px) { .app.screen-play .game-page .extra-stage>.game-picture-choices { max-width:280px; } }
 @media(max-width:600px) { .extra-bingo-board { max-width:270px; } .extra-gate-scene>img { width:145px; height:145px; } .extra-gate-post { height:145px; } .extra-repair-board { gap:4px; } .extra-wire-row img { width:44px; height:44px; } .extra-wire-row { padding:3px 9px; } .extra-treasure { margin:18px 0; } .extra-memory-picture { padding:6px; border-radius:18px; } .extra-memory-picture.is-empty { font-size:50px; } .extra-sound-row { grid-template-columns:minmax(0,1fr) 94px; } .extra-think-picture { width:155px; height:155px; } }
 @media(min-width:601px) and (max-height:760px) { .extra-bingo-board { max-width:240px; } .extra-gate-scene>img { width:135px; height:135px; } .extra-gate-post { height:135px; } .extra-think-picture { width:130px; height:130px; } .extra-wire-row { padding:2px 9px; } .extra-wire-row img { width:42px; height:42px; } .extra-repair-board + .game-picture-choices { max-width:370px; } .extra-missing-board { max-width:500px; margin:15px 0; } .extra-sound-row button { min-height:46px; } }
-@media(prefers-reduced-motion:reduce) { .extra-gate-post { transition:none; } }
+@media(prefers-reduced-motion:reduce) { .extra-gate-post,.app.screen-play .game-page .extra-picture { transition:none; } .app.screen-play .game-page .extra-picture:is(.is-correct,.is-retry) { animation:none; } }

@@ -1,3 +1,9 @@
+import {roundFeedback} from '../shared/round-feedback';
+import {studyPracticedWordIds} from '../shared/study-execution';
+import {pendingSentenceWords} from '../shared/sentence-study';
+import type {AssessmentPractice} from '../shared/contracts';
+import type {LearningAttempt} from '../shared/contracts';
+import {learningReturn} from '../shared/learning-entry';
 import { useEffect, useRef, useState } from 'react';
 import type { GrowthSummary, LearningSession, Word } from '../shared/contracts';
 import { assessmentDay, assessmentLabels, assessmentResultLabels } from '../shared/assessment';
@@ -7,27 +13,32 @@ import { Mascot } from './mascot';
 import { LearningSymbol } from './learning-topbar';
 import { BadgeArt, BadgeCollection } from './badge-collection';
 import './child-growth.css';
+import type {AppState} from '../shared/contracts';
+import {completedTestWordIds,learningVerification} from '../shared/learning-verification';
 
 export function Medal({ locked = false, kind = 'skill' }: { locked?: boolean; kind?: 'practice' | 'skill' }) {
   return <span className={`growth-medal ${locked ? 'is-locked' : ''} medal-${kind}`} aria-hidden="true"><svg viewBox="0 0 88 100" fill="none"><path d="m23 57-7 37 28-13 28 13-7-37" fill="currentColor" opacity=".65" /><circle cx="44" cy="40" r="33" fill="currentColor" /><circle cx="44" cy="40" r="26" stroke="white" strokeWidth="3" opacity=".65" /><path d="m44 20 6 13 15 2-11 11 3 15-13-7-13 7 3-15-11-11 15-2Z" fill="white" /></svg></span>;
 }
 
-export function LearningReward({ growth, session, busy = false, onGrowth, onTest, onHome, onAgain, onSelect }: { growth?: GrowthSummary; session: LearningSession | null; busy?: boolean; onGrowth: () => void; onTest: () => void; onHome: () => void; onAgain?: () => void; onSelect?: () => void }) {
-  const completedWords = (session?.completedWordIds ?? []).map(id => session?.activities?.find(activity => activity.wordId === id)?.word).filter(word => word !== undefined).slice(0, 3);
-  return <main className="growth-reward flow-reward page-enter">
-    <section className="reward-main-card" aria-labelledby="reward-title">
-      <span className="reward-kicker"><LearningSymbol kind="check"/>这次的努力，记好啦</span>
-      <div className="reward-hero"><div><h1 id="reward-title">{session?.lessonPlanId?'这一段完成啦！':'这一轮完成啦！'}</h1>
-        <p className="reward-round-count">练习了 <strong>{session?.completedWordIds.length ?? 0}</strong> 个单词</p>
-        {session?.lessonTitle&&<p className="reward-review-note">{session.lessonTitle} · 本课 {session.lessonScopeCount} 词</p>}
-      </div><div className="reward-companion"><Mascot character={companionFor(session?.id ?? 'reward', 19)} /></div></div>
-      {completedWords.length > 0 && <div className="reward-word-pictures" aria-label="本轮练习过的单词">{completedWords.map(word => <span key={word.id}><img src={word.imageUrl} alt={word.meaning} /></span>)}</div>}
-      {session?.learningPolicy?.kind==='memory-loop'&&<p className="reward-reminder">明天再来，试试还能想起几个</p>}
-      {growth ? <div className="reward-saved-status"><span className="reward-check"><LearningSymbol kind="check" /></span><strong>{growth.todayCheckedIn ? '今天已打卡' : '本轮练习已保存'}</strong><small>累计学习 {growth.totalDays} 天</small></div> : <p className="reward-unavailable" role="status">成长记录暂未载入，可以回大厅再看看。</p>}
-      <div className="reward-main-actions"><button className="growth-primary" disabled={busy} onClick={onHome}>{session?.packGame?'回游戏选择':session?.practicePackId?'回整本复习':session?.lessonPlanId?'先休息，回大厅':'回学习大厅'}<LearningSymbol kind="arrow" /></button><button className="reward-growth-link" disabled={busy} onClick={onGrowth}>看看成长<LearningSymbol kind="arrow"/></button></div>
-    </section>
-    <details className="reward-more"><summary>其他玩法<LearningSymbol kind="down" /></summary><div>{onAgain && <button disabled={busy} onClick={onAgain}><LearningSymbol kind="play" />{session?.packGame?session.packGame.selection==='random'?'再随机一轮':'再玩这个玩法':session?.practicePackId?'再复习一轮':session?.lessonPlanId?'课堂下一段':'再练一轮'}</button>}{onSelect && <button disabled={busy} onClick={onSelect}>自己选词<LearningSymbol kind="arrow" /></button>}<button disabled={busy} onClick={onTest}>挑战本轮<LearningSymbol kind="arrow" /></button></div></details>
-  </main>;
+export function LearningReward({ state, session, busy = false, onTest, onHome, onAgain, onParentReview }: { state?:AppState; growth?: GrowthSummary; session: LearningSession | null; attempts?:LearningAttempt[]; practices?:AssessmentPractice[]; busy?: boolean; onGrowth: () => void; onTest: () => void; onHome: () => void; onAgain?: () => void; onSelect?: () => void; onParentReview?:()=>void; onReview?:()=>void }) {
+  const practicedIds=state?studyPracticedWordIds(state,session):session?.completedWordIds??[];
+  const participation=session?roundFeedback(session,state?.attempts??[],state?.assessmentPractices??[]):undefined;
+  const onlySkipped=!!participation&&participation.skipped>0&&!participation.introduced&&!participation.recorded&&!participation.helped&&(state?.attempts??[]).filter(row=>row.sessionId===session?.id).every(row=>row.oralStatus==='skipped'||row.responseStatus==='skipped'||row.responseStatus==='unavailable');
+  const verification=state&&session&&!session.packGame?learningVerification(state,practicedIds):undefined;
+  const canTest=!!verification&&(state?.study?state.study.profiles.some(profile=>practicedIds.includes(profile.wordId)&&['check','learn-usage'].includes(profile.next.action)):!!verification&&(!!verification.resume||verification.nextWordIds.length>0));
+  const pending=!!verification?.pending,changed=verification?Math.max(0,(session?.completedWordIds.length??0)-verification.total):0;
+  const words=practicedIds.flatMap(id=>{const word=state?.words.find(word=>word.id===id)??session?.activities?.find(activity=>activity.wordId===id)?.word;return word?[word]:[];}).slice(0,3);
+  const needsUsage=!!state&&!!verification&&pendingSentenceWords(state,state.words.filter(word=>practicedIds.includes(word.id))).length>0;
+  const homeLabel=learningReturn(session)==='book-games'?'回游戏选择':session?.entrySource?.entry==='review'?'回复习':'回学习大厅';
+  return <main className="growth-reward flow-reward reward-focused page-enter"><section className="reward-main-card" aria-labelledby="reward-title">
+    <div className="reward-focused-hero"><div><h1 id="reward-title">{onlySkipped?'这次已跳过':needsUsage?'单词练完啦！':session?.lessonPlanId?'这一段完成啦！':'这次练习完成啦！'}</h1><p className="reward-word-total"><strong>{practicedIds.length}</strong><span>{onlySkipped?'个词，留着下次练':'个词，本次练习结束'}</span></p></div><div className="reward-companion"><Mascot character={companionFor(session?.id??'reward',19)}/></div></div>
+    {words.length>0&&<div className="reward-word-pictures" aria-label="本次安排的词语">{words.map(word=><span key={word.id}><img src={word.imageUrl} alt={word.meaning}/></span>)}</div>}
+    {!!participation?.skipped&&!onlySkipped&&<p className="reward-outcome">有 {participation.skipped} 项先跳过了，已有学习记录保留。</p>}
+    {pending&&!canTest&&<p className="reward-outcome">测试回答已保存，等家长核验。</p>}
+    {changed>0&&<p className="reward-outcome reward-needs-parent" role="status">有词语更新了，请家长检查后再测。</p>}
+    <div className="reward-focused-actions"><button className="growth-primary" disabled={busy} onClick={canTest?onTest:pending&&onParentReview?onParentReview:onHome}>{canTest?needsUsage?'学会怎么用':verification!.resume?'继续上次检查':`开始${verification!.nextWordIds.length}词测试`:pending&&onParentReview?'请家长核验':homeLabel}<LearningSymbol kind="arrow"/></button>
+    {canTest||pending?<button className="reward-rest-button" disabled={busy} onClick={onHome}>先休息，回大厅</button>:session?.packGame&&onAgain?<button className="reward-rest-button" disabled={busy} onClick={onAgain}>再玩一次</button>:null}</div>
+  </section></main>;
 }
 
 type GrowthModule = 'overview' | 'calendar' | 'skills' | 'words';

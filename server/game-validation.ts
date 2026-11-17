@@ -1,3 +1,4 @@
+import {studyActivityCovered} from '../shared/study-progress.ts';
 import { extendedKinds,automaticSpelling,validGameMaterial } from '../shared/game-materials.ts';
 import type { LearningSession } from '../shared/contracts.ts';
 import { activityDone } from '../shared/game-plan.ts';
@@ -56,7 +57,7 @@ export function validGameSession(session: LearningSession, wordIds: Set<string>,
     }else if(item.material!==undefined||item.spellingBoard!==undefined)return false;
     const done = activityDone(session, item);
     if (done && unfinished) return false;
-    unfinished ||= !done;
+    unfinished ||= !done&&!studyActivityCovered(session,item);
     const state = session.activityStates[item.id];
     if (state === undefined) { if (done && item.kind !== 'standard') return false; continue; }
     if (!validActivityState(item, state)) return false;

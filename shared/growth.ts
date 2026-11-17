@@ -1,6 +1,8 @@
+import {formalDimensionEvidence,conclusiveAssessment} from './formal-mastery.ts';
 import type { AssessmentData, AssessmentDimension, AssessmentAttempt, BadgeAward, GrowthSummary, LearningAttempt, LearningSession, Word } from './contracts.ts';
 import { assessmentDay, assessmentDimensions } from './assessment.ts';
 import { buildBadges } from './badge-catalog.ts';
+import { currentAssessmentAttempts, currentWordAttempt } from './learning-evidence.ts';
 
 type GrowthData = AssessmentData & { words: Word[]; attempts: LearningAttempt[]; sessions: LearningSession[]; badgeAwards?: BadgeAward[] };
 const DAY = 86_400_000;
@@ -18,7 +20,6 @@ export function childGrowth(data: GrowthData, now = new Date()): GrowthSummary {
   const sessions = new Map(data.sessions.map(session => [session.id, session]));
   const learning = data.attempts.filter(attempt => wordMap.has(attempt.wordId) && validTime(attempt.createdAt) && sessions.get(attempt.sessionId)?.wordIds.includes(attempt.wordId));
   const assessmentItems = new Map((data.assessments ?? []).flatMap(session => session.items.map(item => [`${session.id}:${item.id}`, item] as const)));
-  const completedAssessments = new Set((data.assessments ?? []).filter(session => session.completedAt && validTime(session.completedAt) && session.items.length && (session.workflow === 'recorded' ? session.submittedAt && session.items.every(item => item.response) : session.items.every(item => item.result !== undefined))).map(session => session.id));
   const assessmentAttempts = (data.assessmentAttempts ?? []).filter(attempt => {
     const item = assessmentItems.get(`${attempt.sessionId}:${attempt.itemId}`);
     return wordMap.has(attempt.wordId) && validTime(attempt.createdAt) && item?.word.id === attempt.wordId && item.word.learningVersion === attempt.learningVersion && item.dimension === attempt.dimension && item.result === attempt.result && (attempt.dimension === 'look' ? attempt.source === 'server' : attempt.source === 'parent');
@@ -35,23 +36,21 @@ export function childGrowth(data: GrowthData, now = new Date()): GrowthSummary {
   const latest = new Map<string, AssessmentAttempt>();
   const successDays = new Map<string, Set<string>>();
   const progressByDimension = new Map((data.assessmentProgress ?? []).map(item => [`${item.wordId}:${item.learningVersion}:${item.dimension}`, item]));
-  for (const attempt of assessmentAttempts) {
-    const word = wordMap.get(attempt.wordId)!, item = assessmentItems.get(`${attempt.sessionId}:${attempt.itemId}`)!;
-    if (attempt.learningVersion !== (word.learningVersion ?? 0) || item.word.term !== word.term || item.word.meaning !== word.meaning || !completedAssessments.has(attempt.sessionId)) continue;
-    if (word.learningResetAt && Date.parse(attempt.createdAt) < Date.parse(word.learningResetAt)) continue;
-    const key = `${word.id}:${attempt.dimension}`, prior = latest.get(key);
-    if (!prior || Date.parse(attempt.createdAt) >= Date.parse(prior.createdAt)) latest.set(key, attempt);
+  for (const word of data.words) for (const attempt of currentAssessmentAttempts(data,word,now)) {
+    const key = `${word.id}:${attempt.dimension}`;
+    if(!conclusiveAssessment(attempt))continue;
+    latest.set(key, attempt);
     if (attempt.result === 'correct') { const days = successDays.get(key) ?? new Set<string>(); days.add(dayOf(attempt.createdAt)); successDays.set(key, days); }
   }
-  const practiced = new Set(learning.filter(attempt => (attempt.learningVersion ?? 0) === (wordMap.get(attempt.wordId)?.learningVersion ?? 0) && (!wordMap.get(attempt.wordId)?.learningResetAt || Date.parse(attempt.createdAt) >= Date.parse(wordMap.get(attempt.wordId)!.learningResetAt!))).map(attempt => attempt.wordId));
+  const practiced = new Set(learning.filter(attempt => currentWordAttempt(wordMap.get(attempt.wordId)!,attempt)).map(attempt => attempt.wordId));
   const words = data.words.map(word => {
     const dimensions = assessmentDimensions.map(dimension => {
-      const attempt = latest.get(`${word.id}:${dimension}`);
+      const attempt = formalDimensionEvidence(data,word,dimension,now).last;
       const progress = progressByDimension.get(`${word.id}:${word.learningVersion ?? 0}:${dimension}`);
       return { dimension, result: attempt?.result, passed: attempt?.result === 'correct', dueAt: progress?.dueAt };
     });
     const verified = dimensions.every(item => item.passed);
-    const stable = verified && dimensions.every(item => (successDays.get(`${word.id}:${item.dimension}`)?.size ?? 0) >= 2);
+    const stable = verified && dimensions.every(item => formalDimensionEvidence(data,word,item.dimension,now).stable);
     return { wordId: word.id, term: word.term, meaning: word.meaning, practiced: practiced.has(word.id) || dimensions.some(item => item.result !== undefined), verified, stable, dimensions };
   }).filter(word => word.practiced);
   // A repeated English entry across books counts once; the word list still shows its tested meaning.

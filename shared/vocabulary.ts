@@ -12,7 +12,7 @@ export const partOfSpeechLabels: Record<PartOfSpeech, string> = {
 };
 export const partsOfSpeech = Object.keys(partOfSpeechLabels) as PartOfSpeech[];
 export function isEnrichedRow(row: ImportRow) {
-  return Boolean(typeof row?.meaning === 'string' && row.meaning.trim() && row.partOfSpeech && partsOfSpeech.includes(row.partOfSpeech) && typeof row.pictureHint === 'string' && row.pictureHint.trim());
+  return Boolean(!row?.spellingSuggestion && typeof row?.meaning === 'string' && row.meaning.trim() && row.partOfSpeech && partsOfSpeech.includes(row.partOfSpeech) && typeof row.pictureHint === 'string' && row.pictureHint.trim());
 }
 
 /** Host-owned game templates bind to the reviewed word, picture and cached audio. No generated code is run. */

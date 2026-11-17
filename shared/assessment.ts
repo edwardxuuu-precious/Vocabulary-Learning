@@ -2,6 +2,9 @@ import type { AppState, AssessmentData, AssessmentDimension, AssessmentPracticeS
 import { interleavePacks, learningEncounters, type LearningHistoryData } from './learning-history.ts';
 
 export const assessmentDimensions: AssessmentDimension[] = ['zh-en', 'read', 'en-zh', 'look'];
+export const maxAssessmentWords=10;
+export const maxAssessmentItems=maxAssessmentWords*assessmentDimensions.length;
+export const maxAssessmentOralItems=maxAssessmentWords*(assessmentDimensions.length-1);
 export const assessmentLabels: Record<AssessmentDimension, string> = { look: '看英文认意思', read: '独立朗读', 'en-zh': '英译中', 'zh-en': '中译英' };
 export const assessmentResultLabels = { correct: '独立答对', incorrect: '需要练习', hinted: '有提示', unconfirmed: '未确认', skipped: '已跳过', unavailable: '暂无法测试' };
 export const assessmentDay = (date = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);

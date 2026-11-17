@@ -1,8 +1,9 @@
+import {TaskActionBar,TaskIcon} from './learning-task-frame';
 import { OralPractice } from './oral-practice';
 import type { PracticeRecordingTarget } from '../shared/contracts';
 import { useEffect, useRef, useState } from 'react';
 import type { AppState, AssessmentDimension, AssessmentGrant, AssessmentResult, AssessmentSession, Word } from '../shared/contracts';
-import { assessmentCurrent, assessmentDimensions, assessmentLabels, assessmentResultLabels, assessmentWords, dueAssessmentProgress } from '../shared/assessment';
+import { maxAssessmentWords, assessmentCurrent, assessmentDimensions, assessmentLabels, assessmentResultLabels, assessmentWords, dueAssessmentProgress } from '../shared/assessment';
 import { api, errorMessage } from './api';
 import { ParentGate } from './parent-gate';
 import { useVoice } from './voice';
@@ -28,7 +29,7 @@ export function AssessmentReport({ state }: { state: AppState }) {
   })}</tr>)}</tbody></table></div></section>;
 }
 
-type CenterProps = { state: AppState; grant?: AssessmentGrant; onGrant: (grant?: AssessmentGrant) => void; onExit: () => void; reload: () => Promise<AppState>; initialWordIds?: string[]; parentMode?: boolean };
+type CenterProps = { state: AppState; grant?: AssessmentGrant; onGrant: (grant?: AssessmentGrant) => void; onExit: () => void; reload: () => Promise<AppState>; initialWordIds?: string[]; onParentReview?:()=>void; parentMode?: boolean };
 export function AssessmentCenter(props: CenterProps) {
   const [tab, setTab] = useState<'review' | 'onsite'>('review');
   if (!props.parentMode) return <ChildChallenge {...props} />;
@@ -39,7 +40,7 @@ function LegacyAssessmentCenter({ state, grant, onGrant, onExit, reload, initial
   reload: () => Promise<AppState>; initialWordIds?: string[];
 }) {
   const available = assessmentWords(state), due = dueAssessmentProgress(state);
-  const [selected, setSelected] = useState<string[]>(() => (initialWordIds ?? [...available].reverse().map(word => word.id)).filter(id => available.some(word => word.id === id)).slice(0, 5));
+  const [selected, setSelected] = useState<string[]>(() => (initialWordIds ?? [...available].reverse().map(word => word.id)).filter(id => available.some(word => word.id === id)).slice(0, maxAssessmentWords));
   const [mode, setMode] = useState<'full' | 'due'>('full');
   const [session, setSession] = useState<AssessmentSession>();
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [paused, setPaused] = useState(false);
@@ -64,10 +65,10 @@ function LegacyAssessmentCenter({ state, grant, onGrant, onExit, reload, initial
   return <main className="assessment-page">
     <nav className="assessment-nav"><button onClick={exit}>← 返回</button><strong>和家长测一测</strong>{current && <button onClick={() => { voice.stop(); setPaused(true); }}>休息一下</button>}</nav>
     <p className="assessment-notice" role="alert">{error || voice.message}</p>
-    {!session && <section className="assessment-card assessment-picker"><h1>这次测哪几个词？</h1><p>家长选好后，再让孩子看题。每次最多5个词，口头题请家长听后确认。</p>
+    {!session && <section className="assessment-card assessment-picker"><h1>这次测哪几个词？</h1><p>家长选好后，再让孩子看题。每次最多{maxAssessmentWords}个词，口头题请家长听后确认。</p>
       {resumes.length > 0 && <div className="assessment-resume"><h2>继续未完成的测试</h2>{resumes.slice(0, 3).map(item => <button key={item.id} disabled={busy} onClick={() => void request(`/api/assessments/${item.id}`)}>继续 {dateLabel(item.startedAt)} 的测试 · {item.items.filter(item => item.result !== undefined).length}/{item.items.length} 项</button>)}</div>}
-      <div className="assessment-modes" role="group" aria-label="测试范围"><button aria-pressed={mode === 'full'} onClick={() => { setMode('full'); setSelected((initialWordIds ?? [...available].reverse().map(word => word.id)).filter(id => available.some(word => word.id === id)).slice(0, 5)); }}>完整测试</button><button aria-pressed={mode === 'due'} onClick={() => { setMode('due'); setSelected([...new Set(due.map(row => row.wordId))].slice(0, 5)); }}>到期复测</button></div>
-      <div className="assessment-word-picker">{choices.map(word => <label key={word.id}><input type="checkbox" checked={selected.includes(word.id)} disabled={!selected.includes(word.id) && selected.length >= 5} onChange={event => setSelected(previous => event.target.checked ? [...previous, word.id] : previous.filter(id => id !== word.id))} /><span><strong>{word.term}</strong><small>{word.meaning}</small></span></label>)}</div>
+      <div className="assessment-modes" role="group" aria-label="测试范围"><button aria-pressed={mode === 'full'} onClick={() => { setMode('full'); setSelected((initialWordIds ?? [...available].reverse().map(word => word.id)).filter(id => available.some(word => word.id === id)).slice(0, maxAssessmentWords)); }}>完整测试</button><button aria-pressed={mode === 'due'} onClick={() => { setMode('due'); setSelected([...new Set(due.map(row => row.wordId))].slice(0, maxAssessmentWords)); }}>到期复测</button></div>
+      <div className="assessment-word-picker">{choices.map(word => <label key={word.id}><input type="checkbox" checked={selected.includes(word.id)} disabled={!selected.includes(word.id) && selected.length >= maxAssessmentWords} onChange={event => setSelected(previous => event.target.checked ? [...previous, word.id] : previous.filter(id => id !== word.id))} /><span><strong>{word.term}</strong><small>{word.meaning}</small></span></label>)}</div>
       {!choices.length && <p>{mode === 'due' ? '目前没有到期的测试项。' : '还没有可测试的已学单词。先完成学习，再和家长来试试。'}</p>}
       <p>本轮 {selected.length} 个词 · {itemCount} 项。可以随时暂停。</p><button className="assessment-primary" disabled={busy || !selected.length || !itemCount} onClick={() => void request('/api/assessments', { wordIds: selected, mode, workflow: 'parent' })}>开始测试</button>
       <AssessmentReport state={state} />
@@ -88,22 +89,28 @@ function LegacyAssessmentCenter({ state, grant, onGrant, onExit, reload, initial
   </main>;
 }
 
-export function AssessmentPracticeView({ word, dimension, choices, busy:appBusy, play, complete, target, stopAudio }: {
-  word: Word; dimension: AssessmentDimension; choices: Word[]; busy: boolean; target:PracticeRecordingTarget;stopAudio:()=>void; play: (term: string) => Promise<boolean>; complete: (oralStatus?:'recorded'|'skipped') => void;
+export function AssessmentPracticeView({ word, dimension, choices, busy:appBusy, play, complete, target, stopAudio, onHelp, revealedExternal,unified=false }: {
+  unified?:boolean;word: Word; dimension: AssessmentDimension; choices: Word[]; busy: boolean; target:PracticeRecordingTarget;stopAudio:()=>void;onHelp?:(selectedId?:string)=>Promise<boolean>;revealedExternal?:boolean; play: (term: string) => Promise<boolean>; complete: (oralStatus?:'recorded'|'skipped') => void;
 }) {
   const [oralBusy,setOralBusy]=useState(false),[oralReady,setOralReady]=useState(false),[oralSkipped,setOralSkipped]=useState(false);
   const busy=appBusy||oralBusy;
-  const [revealed, setRevealed] = useState(false), [message, setMessage] = useState(''), [playing, setPlaying] = useState(false);
+  const [revealed, setRevealed] = useState(!!revealedExternal), [message, setMessage] = useState(''), [playing, setPlaying] = useState(false);
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const hear = async () => { setPlaying(true); try { const ok = await play(word.term); if (active.current) setMessage(ok ? '' : '示范暂时播不了，可以继续练习或稍后再听。'); } finally { if (active.current) setPlaying(false); } };
-  const reveal = () => { setRevealed(true); void hear(); };
+  useEffect(()=>{if(revealedExternal)setRevealed(true);},[revealedExternal]);
+  const reveal = async () => {if(onHelp){if(await onHelp())setRevealed(true);}else{setRevealed(true);void hear();}};
   const pictureChoice = dimension === 'look' || dimension === 'en-zh';
+  if(unified)return <div className="study-focused-practice">
+    {!pictureChoice?<OralPractice unified variant="task" target={target} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>complete('skipped')} complete={()=>complete(oralReady?'recorded':'skipped')} secondaryControls={<button disabled={busy||playing||!oralReady&&!onHelp} onClick={()=>void (revealed?hear():reveal())}><TaskIcon kind="sound"/>{revealed?'再听示范':'需要帮助'}</button>}/>:<><div className="task-picture-choices">{(revealed?[word]:choices.length>=2?choices:[word]).map((choice,index)=><button key={choice.id} disabled={busy||revealed} aria-label={`练习选择图片${index+1}`} onClick={()=>{setMessage(choice.id===word.id?'找到了，练习记好啦':'一起看看这个词的意思');if(onHelp)void onHelp(choice.id).then(ok=>{if(ok)setRevealed(true);});else setRevealed(true);}}><img src={choice.imageUrl} alt={revealed?choice.meaning:`图片选项${index+1}`}/></button>)}</div><TaskActionBar skip={!revealed?{action:()=>complete()}:undefined} status={message||(revealed?word.meaning:'点一张图片，再一起核对')} primary={revealed?<button disabled={busy} onClick={()=>complete()}>继续<TaskIcon kind="arrow"/></button>:undefined} secondary={<button disabled={busy||playing} onClick={()=>void reveal()}><TaskIcon kind="sound"/>帮帮我</button>} waiting="点一张图片"/></>}
+    {revealed&&!pictureChoice&&<p className="task-explanation">{word.term} · {word.meaning}</p>}
+  </div>;
   return <div className="assessment-practice">
     <p>{dimension === 'zh-en' ? '看图想一想，英语怎么说？' : dimension === 'read' ? '看看英文，先自己读一遍' : '看看英文，找到它的图片'}</p>
     {dimension !== 'zh-en' && <div className="assessment-cue">{word.term}</div>}
-    {pictureChoice && !revealed && choices.length >= 2 ? <div className="assessment-picture-choices">{choices.map((choice, index) => <button disabled={busy} aria-label={`练习选择图片${index + 1}`} key={choice.id} onClick={() => { setMessage(choice.id === word.id ? '找到了，一起核对一下。' : '一起看看这个词的意思。'); setRevealed(true); }}><img src={choice.imageUrl} alt={`图片选项${index + 1}`} /></button>)}</div> : (dimension === 'zh-en' || revealed || pictureChoice) && <img className="assessment-practice-picture" src={word.imageUrl} alt={revealed ? word.meaning : '回想英文的图片'} />}
-    {!pictureChoice&&<OralPractice target={target} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={revealed} readOnly={revealed}/>}
+    {pictureChoice && !revealed && choices.length >= 2 ? <div className="assessment-picture-choices">{choices.map((choice, index) => <button disabled={busy} aria-label={`练习选择图片${index + 1}`} key={choice.id} onClick={() => { setMessage(choice.id === word.id ? '找到了，一起核对一下。' : '一起看看这个词的意思。'); if(onHelp)void onHelp(choice.id).then(ok=>{if(ok)setRevealed(true);});else setRevealed(true); }}><img src={choice.imageUrl} alt={`图片选项${index + 1}`} /></button>)}</div> : (dimension === 'zh-en' || revealed || pictureChoice) && <img className="assessment-practice-picture" src={word.imageUrl} alt={revealed ? word.meaning : '回想英文的图片'} />}
+    {!pictureChoice&&<OralPractice target={target} active={!appBusy} busy={appBusy} stopAudio={stopAudio} onReady={setOralReady} onBusy={setOralBusy} onSkip={()=>setOralSkipped(true)} compact={revealed} readOnly={revealed&&!onHelp}/>}
+    {!revealed&&onHelp&&<button disabled={busy||playing} onClick={()=>void reveal()}>还不会，帮帮我</button>}
     {!revealed && <button className="assessment-primary" disabled={busy || playing || !pictureChoice&&!oralReady&&!oralSkipped} onClick={reveal}>{dimension === 'read' ? '我试过了，听示范' : '想好了，核对一下'}</button>}
     {revealed && <><p className="assessment-meaning">{word.term} · {word.meaning}</p><button disabled={busy || playing} onClick={() => void hear()}>{playing ? '播放中…' : '♫ 听示范'}</button><button className="assessment-primary" disabled={busy || playing} onClick={()=>complete(pictureChoice?undefined:oralReady?'recorded':'skipped')}>练习完成，继续</button></>}
     <p role="status">{message}</p><button disabled={busy || playing} onClick={()=>complete(pictureChoice?undefined:'skipped')}>这次先跳过</button>

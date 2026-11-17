@@ -1,10 +1,10 @@
-import { prepareBrowserRecording } from './browser-recording';
+import { prepareBrowserRecording, type RecordingTurnOptions } from './browser-recording';
 import { toWav } from './voice';
 import type { PreparedRecording } from './follow-along';
 
 /** Capture locally, then normalize the saved take. Upload is an explicit separate operation. */
-export async function prepareChallengeRecording(signal: AbortSignal): Promise<PreparedRecording> {
-  const capture = await prepareBrowserRecording(signal);
+export async function prepareChallengeRecording(signal: AbortSignal, options?: RecordingTurnOptions): Promise<PreparedRecording> {
+  const capture = await prepareBrowserRecording(signal, options);
   return { stop: capture.stop, cancel: capture.cancel, async record() {
     const blob = await capture.record();
     if (!blob || signal.aborted) return null;

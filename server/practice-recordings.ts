@@ -1,4 +1,5 @@
 import { pendingLearningCheckpoint } from '../shared/learning-policy.ts';
+import {entryScopeCurrent} from '../shared/learning-entry.ts';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,6 +17,7 @@ export function createPracticeRecordings(store: Store) {
   function current(target:PracticeRecordingTarget) {
     const data=store.read(),session=data.activeLearningSessionId===undefined?[...data.sessions].reverse().find(s=>!s.completedAt&&!s.suspendedAt):data.sessions.find(s=>s.id===data.activeLearningSessionId&&!s.completedAt&&!s.suspendedAt);
     if(!session||session.id!==target.sessionId)throw new AppError('这轮学习已结束，请在当前环节录音。','RECORDING_STALE',409);
+    if(!entryScopeCurrent(data,session))throw new AppError('本轮词义或素材已变化，原进度保留。','RECORDING_STALE',409);
     requireLearningPlanVersion(session, target.planVersion);
     if(pendingLearningCheckpoint(session))throw new AppError('这一小段完成啦，准备好了再继续。','LEARNING_CHECKPOINT',409);
     let a=currentActivity(session);
@@ -39,7 +41,8 @@ export function createPracticeRecordings(store: Store) {
       if((store.read().practiceRecordings??[]).length>=100000)throw new AppError('本机练习录音记录已满。');
       const saved=rows(target).filter(r=>r.status==='ready');if(saved.length>=3)throw new AppError('这个环节已录好三遍，可以回放或继续。');
       const state=session.activityStates?.[a.id]??{};
-      const mode=['read','practice-read'].includes(a.step)&&!state.revealed?'read':a.kind==='standard'&&a.step==='recall'||state.revealed||state.optionsVisible||a.kind==='information'&&state.heardOptionIds?.length?'follow':'recall';
+      const prompted=session.reviewSupport&&session.activities?.some(row=>row.wordId===a.wordId&&session.reviewSupport!.entries[row.id]);
+      const mode=prompted?'follow':['read','practice-read'].includes(a.step)&&!state.revealed?'read':a.kind==='standard'&&a.step==='recall'||state.revealed||state.optionsVisible||a.kind==='information'&&state.heardOptionIds?.length?'follow':'recall';
       const recording:PracticeRecording={sessionId:target.sessionId,activityId:target.activityId,id,word:{id:a.word.id,term:a.word.term,meaning:a.word.meaning,imageUrl:a.word.imageUrl,learningVersion:a.word.learningVersion??0},kind:a.kind,step:a.step,mode,round:saved.length+1,createdAt:store.clock().toISOString(),seconds,bytes:audio.length,sha256,status:'ready'};
       writeFileSync(file(id),audio,{flag:'wx'});
       try{store.mutate(data=>{data.practiceRecordings??=[];data.practiceRecordings.push(recording);});}catch(error){unlinkSync(file(id));throw error;}

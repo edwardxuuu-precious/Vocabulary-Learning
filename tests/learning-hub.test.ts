@@ -18,6 +18,7 @@ function fixture() {
   const dir = mkdtempSync(join(tmpdir(), 'word-hub-')); let time = new Date('2026-10-17T02:00:00Z');
   let store = new Store(dir, () => time);
   store.mutate(data => {
+    data.settings.dailyNewWords=3; // Explicit legacy allowance used by these compatibility cases.
     data.packs = [{id:'a', title:'第一批', enabled:true, createdAt:'2026-10-15T00:00:00Z'}, {id:'b', title:'第二批', enabled:true, createdAt:'2026-10-16T00:00:00Z'}];
     data.words.forEach((word, index) => { word.packId = index < 6 ? 'a' : 'b'; });
   });

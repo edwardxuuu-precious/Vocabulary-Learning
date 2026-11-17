@@ -1,5 +1,7 @@
-/** Local art catalogue. Character choice never changes vocabulary, evidence or review gates. */
-export const companionCharacters = {
+import { expandedBiographies, expandedCharacters } from './companion-expansion.ts';
+
+/** Original approved portraits and IDs stay in their original order. */
+const originalCompanionCharacters = {
   optimus: { name: "擎天柱", englishName: "Optimus Prime", faction: 'autobot', image: "/assets/brand/optimus-mecha-v2.png", appearance: "blue antenna helmet, silver full lower-face plate, red twin truck-windshield chest and blue boots" },
   bumblebee: { name: "大黄蜂", englishName: "Bumblebee", faction: 'autobot', image: "/assets/brand/bumblebee-mecha-v2.png", appearance: "yellow-and-black car armor, silver segmented respirator mask and angular cyan optics" },
   arcee: { name: "阿尔茜", englishName: "Arcee", faction: 'autobot', image: "/assets/brand/arcee-mecha-v2.png", appearance: "pink-white vehicle armor, angular opaque silver face guard and narrow cyan visor, no doll face or eyelashes" },
@@ -21,11 +23,15 @@ export const companionCharacters = {
   soundwave: { name: "声波", englishName: "Soundwave", faction: 'decepticon', image: "/assets/brand/companions-v1/soundwave.png", appearance: "navy blue box-shaped cassette-deck chest with dark transparent gold-outlined window, navy helmet, single red optical visor, silver full lower faceplate, white forearms and blue shins, no shoulder cannon" },
   shockwave: { name: "震荡波", englishName: "Shockwave", faction: 'decepticon', image: "/assets/brand/companions-v1/shockwave.png", appearance: "purple hard-surface robot armor, unmistakable single small glowing amber cyclops lens inside angular hexagonal head, no human face, light lavender geometric chest inset, TWO normal purple open hands; no gun-hand or cannon" },
 } as const;
+/** Local art catalogue. Character choice never changes vocabulary, evidence or review gates. */
+export const companionCharacters = { ...originalCompanionCharacters, ...expandedCharacters } as const;
 export type CompanionCharacter = keyof typeof companionCharacters;
 export const companionIds = Object.keys(companionCharacters) as CompanionCharacter[];
+export const originalCompanionIds = Object.keys(originalCompanionCharacters) as CompanionCharacter[];
 
 /** Child-friendly introductions based on the classic G1 identities used by this catalogue. */
 export const companionBiographies: Record<CompanionCharacter, string> = {
+  ...expandedBiographies,
   optimus: '擎天柱是汽车人的领袖，来自遥远的机械星球塞伯坦。他最醒目的模样是红色胸甲、蓝色头盔和银色面罩，能够变成一辆大卡车。他沉稳、勇敢，做决定时总会先想到伙伴和需要保护的人。在他看来，每一种生命都值得尊重，强大的力量应该用来守护自由，而不是欺负弱小。他既能带领大家行动，也愿意听取不同的意见。遇到困难时，他常常站在最前面，承担最重的责任。伙伴们信任他，不只是因为他有本领，更因为他言出必行，始终努力让大家安全回家。',
   bumblebee: '大黄蜂是汽车人中一位勇敢又亲切的侦察伙伴，黄色装甲让他格外好认。在经典故事里，他可以变成一辆小巧的黄色汽车，灵活地穿过狭窄道路，观察周围的动静。他的个头不算大，力量也不是队伍中最强的，却很愿意尝试别人觉得困难的任务。他喜欢和人类交朋友，对地球上的新鲜事物充满好奇，也常常充当人类与汽车人之间的桥梁。面对危险，他同样会紧张，但不会轻易丢下朋友。大黄蜂让人记住的，是那份热心、忠诚，以及小个子也能勇敢担当的精神。',
   arcee: '阿尔茜是一位动作敏捷、判断果断的汽车人成员。在经典动画中，她身穿粉色和白色装甲，可以变成一辆造型流畅的未来汽车。她善于观察局势，能在复杂的环境里迅速找到行动方向，也很重视同伴之间的配合。她对朋友温暖体贴，需要保护伙伴时又会表现得十分坚定。阿尔茜并不只靠速度解决问题，她也会动脑筋、辨别危险，选择适合的方法。在团队里，她既能独立完成任务，也能照顾身边的人。勇敢、机灵和关心他人，共同组成了这位可靠伙伴的鲜明性格。',
@@ -49,9 +55,10 @@ export const companionBiographies: Record<CompanionCharacter, string> = {
 };
 
 /** Stable per task, advancing through every character before repeating within one rotation. */
-export function companionFor(seed: string, offset = 0): CompanionCharacter {
+export function companionFor(seed: string, offset = 0, available: readonly CompanionCharacter[] = companionIds): CompanionCharacter {
+  const pool = available.length ? available : ['optimus'] as const;
   let hash = 2166136261;
   for (const letter of seed) hash = Math.imul(hash ^ letter.charCodeAt(0), 16777619);
-  const index = ((hash >>> 0) % companionIds.length + Math.trunc(offset)) % companionIds.length;
-  return companionIds[(index + companionIds.length) % companionIds.length];
+  const index = ((hash >>> 0) % pool.length + Math.trunc(offset)) % pool.length;
+  return pool[(index + pool.length) % pool.length];
 }

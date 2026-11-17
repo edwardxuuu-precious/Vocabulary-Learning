@@ -25,6 +25,7 @@ class TestStore extends Store {
         data.lessonPlan = { ...structuredClone(source.lessonPlan), completedWordIds };
       }
     });
+    if(source.learningTaskPolicy===1)this.enableSingleLearningTask(false);
   }
 }
 
@@ -59,8 +60,14 @@ export function createTestMode(source: Store, imageAvailable: (url: string) => b
 
 // Deny shared authoring/restore routes even if a client accidentally requests them in test mode.
 export function allowedTestRoute(route: string, method: string) {
+  if(route==='/api/study')return method==='GET';
+  if(['/api/study/start','/api/study/save','/api/sentence-study'].includes(route))return method==='POST';
+  if(route==='/api/screen-time')return method==='GET'||method==='POST';
+  if(route==='/api/screen-time/unlock')return method==='POST';
+  if(route==='/api/business'||route==='/api/business/export')return method==='GET';
+  if(['/api/business/events','/api/business/opportunities','/api/business/efforts','/api/business/probes'].includes(route))return method==='POST';
   if (route === '/api/state' || route === '/api/pack-games' || route === '/api/parent-gate') return method === 'GET';
-  if (['/api/parent-gate/unlock', '/api/parent-gate/assessment/revoke', '/api/speech/tts', '/api/speech/tts/stream', '/api/speech/stt', '/api/attempts', '/api/session/start', '/api/session/upgrade-experience', '/api/session/end', '/api/session/activity', '/api/session/assessment-practice'].includes(route)) return method === 'POST';
+  if (['/api/parent-gate/unlock', '/api/parent-gate/assessment/revoke', '/api/speech/tts', '/api/speech/tts/stream', '/api/speech/stt', '/api/attempts', '/api/session/start', '/api/session/upgrade-experience', '/api/session/end', '/api/session/activity','/api/session/daily-choice','/api/session/save-position','/api/session/review-support', '/api/session/assessment-practice'].includes(route)) return method === 'POST';
   if (route === '/api/session') return method === 'PATCH';
   if (route === '/api/assessments' || /^\/api\/assessments\/[^/]+(?:\/(actions|responses|recordings|submit|review|retry|audio))?$/.test(route)) return ['GET', 'POST'].includes(method);
   return (route === '/api/practice-recordings' || /^\/api\/practice-recordings\/[^/]+\/audio$/.test(route)) && ['GET', 'POST'].includes(method);
