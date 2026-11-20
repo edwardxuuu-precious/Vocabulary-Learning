@@ -28,7 +28,7 @@ test('read task makes the word and recording control visible while keeping demon
     const activity={id:word.id+':read',wordId:word.id,word,step:'read',kind:'portal',choices:[]};
     const session={id:'read-ui-test',wordIds:[word.id],completedWordIds:[],startedAt:new Date().toISOString(),rewardGranted:false,tasks:[{wordId:word.id,mode:'new',steps:['read']}],activities:[activity],activityStates:{}};
     const html=renderToStaticMarkup(createElement(GoalGame,{activity,session,busy:false,playing:false,onAction(){},onHome(){},onPause(){},stopAudio(){}}));
-    assert.ok(html.includes('看英文，读一读'));assert.ok(html.includes('准备好，就读出来'));assert.ok(html.includes('task-action-row'));assert.ok(!html.includes('speaking-control-disc'));assert.ok(html.includes('learning-help-slot'));
+    assert.ok(html.includes('看英文，读一读'));assert.match(html,/<button type="button" class="task-mic-action" disabled="">/);assert.ok(html.includes('准备一下…'));assert.ok(html.includes('task-action-row'));assert.ok(!html.includes('speaking-control-disc'));assert.ok(html.includes('learning-help-slot'));
     assert.ok(!html.includes('神秘传送门'));assert.ok(!html.includes('自己读的录音会保存在本机'));assert.ok(!html.includes(word.imageUrl));assert.ok(!html.includes('听示范，对比一下'));
   }finally{await vite.close();store.close();rmSync(dir,{recursive:true,force:true});}
 });

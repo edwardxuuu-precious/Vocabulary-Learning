@@ -22,13 +22,19 @@ export function suggestedAssessmentPractice(data: Pick<AppState, 'words' | 'pack
 }
 export const sameAssessmentWord = (word: Word | undefined, snapshot: GameWord) => Boolean(word && word.id === snapshot.id && word.term === snapshot.term && word.meaning === snapshot.meaning && word.imageUrl === snapshot.imageUrl && (word.learningVersion ?? 0) === snapshot.learningVersion);
 
-type Data = Pick<AppState, 'words' | 'packs' | 'attempts'> & LearningHistoryData & AssessmentData;
+type Data = LearningHistoryData & AssessmentData;
 export function assessmentWords(data: Data) {
   const enabled = new Set(data.packs.filter(pack => pack.enabled).map(pack => pack.id));
   const encountered = new Set(learningEncounters(data).map(entry => entry.wordId));
   return data.words.filter(word => enabled.has(word.packId) && word.assetStatus === 'approved' && word.imageUrl !== '/assets/placeholder.svg'
     && (encountered.has(word.id)
       || data.assessmentAttempts?.some(attempt => attempt.wordId === word.id && attempt.learningVersion === (word.learningVersion ?? 0))));
+}
+
+/** A delivered picture can be a distractor before the corresponding word becomes a test target. */
+export function assessmentPicturePool(data: Pick<Data,'packs'|'words'>) {
+  const enabled=new Set(data.packs.filter(pack=>pack.enabled&&!pack.deletedAt&&!pack.isSample).map(pack=>pack.id));
+  return data.words.filter(word=>enabled.has(word.packId)&&!word.deletedAt&&word.assetStatus==='approved'&&word.imageUrl!=='/assets/placeholder.svg');
 }
 
 /** Suggestions only; no challenge or cloud work starts until the child chooses it. */

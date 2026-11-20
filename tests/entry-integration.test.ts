@@ -98,7 +98,7 @@ test('R01: disabled, sample, deleted, reset or unapproved words cannot enter new
 test('L01/R01 HTTP: entry guard, learned-only book/game scope and legacy compatibility use real local routes',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'entry-http-'));
   const offline={configured:false,available:false,status:'fixture',detail:'隔离测试替身，不调用外部服务'};
-  const app=createApp({dataDir:dir,integrations:{probeIntegrations:async()=>({speech:offline,codex:offline}),ttsStatus:()=>offline,getCachedSpeech:async()=>undefined,synthesizeSpeech:async()=>{throw Error('No cloud');}}});
+  const app=createApp({dataDir:dir,studyExecution:false,integrations:{probeIntegrations:async()=>({speech:offline,codex:offline}),ttsStatus:()=>offline,getCachedSpeech:async()=>undefined,synthesizeSpeech:async()=>{throw Error('No cloud');}}});
   try{
     app.store.mutate(data=>{
       data.settings.voiceEnabled=false;data.packs=[{id:'family',title:'隔离词书',enabled:true,createdAt:now.toISOString()}];

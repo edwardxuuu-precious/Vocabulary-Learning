@@ -80,6 +80,30 @@ test('review passes never advance or fill the new-word cycle', () => {
   assert.equal(summary(data).animationUnlockedIds.length, 3);
 });
 
+test('a parent grant persists and opens only the Optimus animation without adding word credit', () => {
+  const data = fixture(20);
+  data.companionRewards = { version: 2, learned: [], reviewed: [], legacyReviewUnlocks: 0, parentGrantedOptimusAnimation: true };
+  recordCompanionRewards(data, now);
+  const restored = mergeCompanionRewards(undefined, data.companionRewards);
+  assert.ok(validCompanionRewards(restored));
+  assert.equal(validCompanionRewards({ ...restored, parentGrantedOptimusAnimation: 'true' }), false);
+  data.companionRewards = restored;
+
+  const initial = summary(data);
+  assert.equal(initial.newWords, 0);
+  assert.deepEqual(initial.animationUnlockedIds, ['optimus']);
+  assert.deepEqual(initial.unlockedIds, starterCompanions);
+  assert.equal(companionAnimationRemaining(initial, 'optimus'), 0);
+  assert.equal(companionAnimationRemaining(initial, 'megatron'), 20);
+  assert.deepEqual(initial.nextReward, { kind: 'character', companionId: 'bumblebee', progress: 0, remaining: 10 });
+
+  for (const word of data.words.slice(0, 10)) assess(data, word.id);
+  assert.deepEqual(summary(data).animationUnlockedIds, ['optimus']);
+  assert.equal(summary(data).nextReward?.companionId, 'megatron');
+  for (const word of data.words.slice(10)) assess(data, word.id);
+  assert.deepEqual(summary(data).animationUnlockedIds, ['optimus', 'megatron', 'bumblebee']);
+});
+
 test('same-day repeats, later reviews and copied English entries cannot farm new-word credits', () => {
   const data = fixture();
   assess(data); assess(data, undefined, '2026-11-12T04:00:00Z');

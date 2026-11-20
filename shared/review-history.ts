@@ -13,7 +13,8 @@ export const reviewGoal = (step: LearningStep): ReviewGoal | undefined =>
 export const reviewDay = (date: Date) => new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
 export const nextReviewDay = (at: string) => Date.parse(reviewDay(new Date(at)) + 'T00:00:00+08:00') + 86_400_000;
 export const isRoutineReview = (session: LearningSession) => !session.practiceOnly && (session.mode ?? 'recommended') === 'recommended'
-  && (!session.entrySource || session.entrySource.entry === 'review' && session.entrySource.kind === 'recommended');
+  && (!session.entrySource || session.entrySource.kind === 'recommended'&&(session.entrySource.entry === 'review'
+    || session.studyPlan?.purpose==='learn'&&!!session.tasks?.some(task=>task.mode==='review')));
 
 type ReviewData = AssessmentData & {words: Word[]; attempts?: LearningAttempt[]; sessions?: LearningSession[]; resumableSessions?: LearningSession[]; lastCompletedSession?: LearningSession | null; reviewHistory?: ReviewCompletion[]};
 /** Only a completed recommended review target affects a routine reminder. No new scores or formal dates. */

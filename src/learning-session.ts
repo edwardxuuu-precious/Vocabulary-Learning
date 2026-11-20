@@ -15,7 +15,9 @@ export const learningHintKey = (sessionId: string, wordId: string, step: Learnin
 export function sessionTaskProgress(session: LearningSession) {
   if (!session.tasks) return null;
   const total = session.tasks.reduce((sum, task) => sum + task.steps.length, 0);
-  const completed = session.tasks.reduce((sum, task) => sum + task.steps.filter(step => session.completedSteps?.[task.wordId]?.includes(step)).length, 0);
+  const coveredIds = new Set(session.studyPlan?.covered.map(row => row.activityId));
+  const coveredSteps = new Set(session.activities?.filter(activity => coveredIds.has(activity.id)).map(activity => `${activity.wordId}:${activity.step}`));
+  const completed = session.tasks.reduce((sum, task) => sum + task.steps.filter(step => session.completedSteps?.[task.wordId]?.includes(step) || coveredSteps.has(`${task.wordId}:${step}`)).length, 0);
   return { total, completed };
 }
 

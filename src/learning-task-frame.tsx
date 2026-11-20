@@ -4,6 +4,7 @@ import type {LearningSession,Word} from '../shared/contracts';
 import {companionFor} from '../shared/companions';
 import {LearningTopbar} from './learning-topbar';
 import {Mascot} from './mascot';
+import {TaskHeading} from './ui-layout';
 import './learning-task-frame.css';
 
 const ActionTarget=createContext<HTMLElement|null>(null);
@@ -18,8 +19,8 @@ export function LearningTaskFrame({session,title,instruction,cue,children,wide=f
   const [actionTarget,setActionTarget]=useState<HTMLDivElement|null>(null);
   return <ActionTarget.Provider value={actionTarget}><main className={`unified-task unified-task-${kind} page-enter`}>
     <LearningTopbar session={session} onHome={onHome} onPause={onPause}/>
-    <header className="task-heading"><div><h1>{title}</h1><p>{instruction}</p></div><Mascot small character={companionFor(session.id,0)}/></header>
     <section className={`task-card${wide?' task-card-wide':''}`} aria-label={title}>
+      <TaskHeading title={title} instruction={instruction}><Mascot small character={companionFor(session.id,0)}/></TaskHeading>
       {!wide&&<div className="task-cue">{cue}</div>}
       <div className="task-answer">{children}</div>
       <div className="task-action-row" ref={setActionTarget}/>

@@ -8,6 +8,7 @@
 - 入口规则/场景见 `docs/ENTRY_RULES.md`；原型只用独立示例，源码生成 `docs/ENTRY_PROTOTYPE.html`（`npm.cmd run prototype:build`）。工程准备、正式接入、孩子验证分别登记，不能将原型样例作为学习基线或将检查点相加到本版业务叶子任务。
 - 项目专用Skill入口在 `docs/skills/`，调用与工程/真人边界见 `docs/TRIAL_HANDOFF.md`；任务事实仍只回原真源，不写全局记忆。
 - 静态资源真源是 `shared/visual-theme.ts`、`shared/companions.ts`、`shared/learning-backgrounds.ts` 和 `docs/ASSETS.json`。历史日志、旧截图和账号额度不能当作当前事实。
+- 跨页视觉约束以 `docs/UI_SYSTEM.md` 为准；颜色、字阶、间距和容器使用 `src/ui-tokens.css`，任务导航与进度复用 `src/ui-layout.tsx`。按桌面、390px 和含滚动条的 320px 验收。
 - 已选定的变形金刚主题、批准角色/背景和现有视觉设计必须延续到原型与正式页面；业务流程改动不构成换主题授权。除非用户明确要求，不另起视觉风格，不重画或替换批准素材。
 - 面向用户的体验默认使用其已交付词书与原批准词图/发音；工程示例须显式开启、清楚标注并与真实档案隔离，不能用硬编码通用词或emoji替代上传内容后作为孩子入口。
 

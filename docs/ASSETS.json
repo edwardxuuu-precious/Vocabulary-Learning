@@ -543,6 +543,46 @@
       "sha256": "ec87617a4c58fa9b20dbb8ebb0b9545963cbcb4aabc89373af891865ed37c9cd"
     },
     {
+      "path": "public/assets/sentence-scenes/apple-core.png",
+      "bytes": 2223027,
+      "sha256": "3da4b6481495df80d27190d8b1e8660a11a3280fdb78f3827832e66367a4033d"
+    },
+    {
+      "path": "public/assets/sentence-scenes/at-school.png",
+      "bytes": 2245800,
+      "sha256": "1c62044d4ecde168dbe551ffd930b0e0e3cb54a101c38f7fd2e1c29cd4c5105c"
+    },
+    {
+      "path": "public/assets/sentence-scenes/black-backpack.png",
+      "bytes": 2452118,
+      "sha256": "dab05a662af55c81a1fe9083a15e578680a46f5aa4838fc619adfdc0cbb662d1"
+    },
+    {
+      "path": "public/assets/sentence-scenes/child-introduction.png",
+      "bytes": 2277364,
+      "sha256": "d8015bf480cb3f0af1d0b3a306c8db4057399944b2989cba34ff508f132466c0"
+    },
+    {
+      "path": "public/assets/sentence-scenes/high-five.png",
+      "bytes": 2273949,
+      "sha256": "b32a408ce47abaee28afa27b95d7a44359f8ea9c79faa1e07eff70cd2abb0af2"
+    },
+    {
+      "path": "public/assets/sentence-scenes/introducing-friend.png",
+      "bytes": 2495940,
+      "sha256": "8f414101a9ecc7d9de31d35330540fe248d3b9157e24949fa5629aa53f980b47"
+    },
+    {
+      "path": "public/assets/sentence-scenes/rainy-playground.png",
+      "bytes": 2452281,
+      "sha256": "4caf00bc2f167f09a06f218db37add43df94a8fefd788ab5e13e2806201c5847"
+    },
+    {
+      "path": "public/assets/sentence-scenes/want-to-cook.png",
+      "bytes": 1976973,
+      "sha256": "2a46879d4df14102c3d595d04aa070b6d636702ce2e991a7b128c51fc7f2d97f"
+    },
+    {
       "path": "public/assets/themes/animals.svg",
       "bytes": 1025,
       "sha256": "90b8f57d40745e0015f0cc7cbb33d8b1830aa08fbdaf5a018d8f564eb79ee76c"

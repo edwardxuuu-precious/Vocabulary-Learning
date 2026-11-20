@@ -2,9 +2,10 @@ import {createEntryPrototype,prototypeScenarios,prototypeContent,prototypePools,
 import {visualTheme} from '../shared/visual-theme';
 import {learningBackgrounds} from '../shared/learning-backgrounds';
 import entryHomeCSS from './entry-home.css?inline';
+import uiTokens from './ui-tokens.css?inline';
 
 const themeStyle=document.createElement('style');
-themeStyle.textContent=entryHomeCSS+`
+themeStyle.textContent=uiTokens+entryHomeCSS+`
 :root{color:#2e466c;background:#f5f8ff;--green:#5868dc;--purple:#5868dc;--line:#dbe4f2;--muted:#7b8ba5}
 body{background:linear-gradient(155deg,#edf4ffed,#fffaf2ed),url('${learningBackgrounds[0].image}') center/cover fixed;color:#2e466c}
 body:has(.entry-home)>header,body:has(.entry-home)>.prototype-footer{display:none}

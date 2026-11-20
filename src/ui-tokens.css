@@ -1,0 +1,61 @@
+:root {
+  --ui-font: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --ui-canvas: #f5f7fc;
+  --ui-surface: #fff;
+  --ui-surface-soft: #eff2fa;
+  --ui-ink: #283a55;
+  --ui-muted: #58677e;
+  --ui-line: #dbe3ef;
+  --ui-divider: #e9edf5;
+  --ui-accent: #5653cf;
+  --ui-accent-hover: #4845bb;
+  --ui-accent-edge: #4340a9;
+  --ui-accent-soft: #efefff;
+  --ui-focus: #6263d1;
+  --ui-success: #306c55;
+  --ui-warning: #765324;
+  --ui-error: #9c4538;
+  --ui-shadow: 0 12px 32px #283a5509;
+  --ui-elevation: 0 20px 64px #26395026;
+
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-6: 24px;
+  --ui-space-8: 32px;
+  --ui-gutter: var(--ui-space-6);
+  --ui-shell: min(1060px, calc(100% - 2 * var(--ui-gutter)));
+  --ui-page-top: 28px;
+  --ui-panel-padding: clamp(20px, 3.5vw, 36px);
+  --ui-panel-radius: 28px;
+  --ui-control-radius: 14px;
+  --ui-field-radius: 12px;
+  --ui-touch: 44px;
+  --ui-control-height: 48px;
+  --ui-primary-height: 56px;
+
+  --ui-page-title: 36px;
+  --ui-task-title: 28px;
+  --ui-section-title: 22px;
+  --ui-body: 16px;
+  --ui-caption: 14px;
+}
+
+@media (max-width: 700px) {
+  :root {
+    --ui-gutter: var(--ui-space-4);
+    --ui-page-top: 20px;
+    --ui-panel-padding: 20px;
+    --ui-panel-radius: 22px;
+    --ui-page-title: 28px;
+    --ui-task-title: 24px;
+    --ui-section-title: 20px;
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --ui-gutter: var(--ui-space-3);
+    --ui-panel-padding: 16px;
+  }
+}

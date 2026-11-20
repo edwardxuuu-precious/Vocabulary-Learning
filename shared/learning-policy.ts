@@ -19,23 +19,34 @@ export function arrangeMemoryLoop(tasks: LearningTask[], activities: LearningAct
   const byId = new Map(activities.map(a=>[a.id,a]));
   const target = (wordId:string,step:LearningStep) => {const a=byId.get(`${wordId}:${step}`);return a?[a]:[];};
   const review = tasks.filter(task => task.mode === 'review');
-  // Recall across review words before their audio/word-form answers are presented.
-  for (const task of review) rows.push(...target(task.wordId,'recall'));
-  for (const task of review) for (const step of task.steps.filter(s => s !== 'recall')) rows.push(...target(task.wordId,step));
   const fresh = tasks.filter(task => task.mode === 'new');
+  const reviewRows:LearningActivity[]=[];
+  // Recall across review words before their audio/word-form answers are presented.
+  for (const task of review) reviewRows.push(...target(task.wordId,'recall'));
+  for (const task of review) for (const step of task.steps.filter(s => s !== 'recall')) reviewRows.push(...target(task.wordId,step));
+  const interleaved=!!teachingSequence&&fresh.length>0&&reviewRows.length>0;
+  if(!interleaved)rows.push(...reviewRows.splice(0));
+  const revisit=()=>rows.push(...reviewRows.splice(0,1));
   const emit=(group:LearningTask[],steps:LearningStep[])=>{for(const step of steps){const members=group.flatMap(task=>target(task.wordId,step));if(step==='recall'&&members.length>1&&rows.at(-1)?.wordId===members[0]?.wordId)members.push(members.shift()!);rows.push(...members);}};
   for (let start = 0; start < fresh.length; start += 2) {
     const group=fresh.slice(start,start+2),tail=fresh.slice(start+2,start+4);
     if(teachingSequence==='meaning-recall-v1'&&group.length===2&&tail.length===1){
       emit(group,newOrder.slice(0,4));
+      revisit();
       emit(tail,newOrder.slice(0,3));
       // The previous pair's existing sound/read tasks separate the singleton's meaning cue from recall.
       // Keep pairs adjacent, add no words/goals, and preserve every frozen target.
       emit(group,newOrder.slice(4));
       emit(tail,newOrder.slice(3));
+      revisit();
       start+=2;
+    }else if(interleaved){
+      emit(group,newOrder.slice(0,4));
+      revisit();
+      emit(group,newOrder.slice(4));
     }else emit(group,newOrder);
   }
+  rows.push(...reviewRows);
   if(reviewSequence===1){const ordered=orderReviewActivities(rows);rows.splice(0,rows.length,...ordered);}
   // Assessment-directed practice retains its original ordering if a future step is added.
   const scheduled = new Set(rows.map(a=>a.id));
@@ -99,7 +110,8 @@ export function validMemoryLoopPolicy(session: LearningSession): boolean {
   if (!p || ![1,2,3].includes(p.version) || p.kind!=='memory-loop' || p.segmentSize!==8 || !session.activities || Object.keys(p).some(k=>!['version','kind','segmentSize','checkpoints','teachingSequence','guidanceVersion','reviewSequence'].includes(k))) return false;
   if(p.reviewSequence!==undefined&&(p.reviewSequence!==1||!session.reviewSupport||session.tasks?.some(task=>task.mode!=='review')))return false;
   if(p.guidanceVersion!==undefined&&p.guidanceVersion!==1)return false;
-  if(p.teachingSequence!==undefined&&(p.teachingSequence!=='meaning-recall-v1'||session.tasks?.some(task=>task.mode!=='new')))return false;
+  if(p.teachingSequence!==undefined&&(p.teachingSequence!=='meaning-recall-v1'||!session.tasks?.some(task=>task.mode==='new')
+    ||session.tasks.some(task=>task.mode==='review')&&session.studyPlan?.purpose!=='learn'))return false;
   if (!Array.isArray(p.checkpoints) || !session.tasks || session.activities.some(a=>a.step==='recall'&&(a.kind!=='portal'||a.choices.length!==0))) return false;
   if (JSON.stringify(session.tasks)!==JSON.stringify(memoryLoopTasks(session.tasks))) return false;
   if (session.activities.map(a=>a.id).join('|')!==arrangeMemoryLoop(session.tasks,session.activities,p.teachingSequence,p.reviewSequence).map(a=>a.id).join('|')) return false;

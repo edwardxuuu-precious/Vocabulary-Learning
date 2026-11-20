@@ -14,6 +14,12 @@ export const adaptiveMainlineKinds:GameKind[] = [
   'letter-path','letter-gap','chunks','letter-sort','letter-extra','letter-swap',
   'dictation','cover-spell','letter-push','word-morph',
 ];
+/** Automatic lessons use language tasks. Extra mechanics remain available by explicit choice. */
+export const automaticMainlineKinds:ReadonlySet<GameKind>=new Set([
+  'listen-first','gate','treasure','supply','flip','repair','switch','queue','collect','mimic',
+  'variants','opposites','sort','parts','paint','position','quantity',
+  'letter-gap','chunks','dictation','cover-spell',
+]);
 const distinct=(a:Word,b:Word)=>a.id!==b.id&&a.term.toLowerCase()!==b.term.toLowerCase()&&a.meaning.trim()!==b.meaning.trim()&&a.imageUrl!==b.imageUrl;
 const gestureWords=new Set(['run','jump','wave','turn','sit','stand','walk','hop','clap','point','kick','throw','catch','help','find','open','close','look','smile','laugh']);
 const suitable=(kind:GameKind,word:Word)=>kind==='mimic'?word.partOfSpeech==='verb'&&gestureWords.has(word.term.toLowerCase())
@@ -45,6 +51,7 @@ export function adaptiveMainlineActivities(activities:LearningActivity[],words:W
     const hasSound=rows.some(other=>other.wordId===a.wordId&&other.step==='sound');
     const objectiveListen=a.step==='listen'&&(listenPhase%2===1||!hasSound);
     for(const kind of adaptiveMainlineKinds){
+      if(!options.allowedKinds&&!automaticMainlineKinds.has(kind))continue;
       const definition=gameDefinition(kind)!;
       if(definition.step!==a.step&&!(kind==='mimic'&&a.step==='listen')||!suitable(kind,target)||options.allowedKinds&&!options.allowedKinds.includes(kind)||pairedGame(kind)&&!canPair)continue;
       const semanticReady=!!target.gameMaterials?.[kind]&&options.readyMaterialKeys?.includes(`${target.id}:${kind}`);
@@ -67,9 +74,9 @@ export function adaptiveMainlineActivities(activities:LearningActivity[],words:W
       const members=pairedGame(kind)?plans.filter(item=>item.groupId===plan.groupId):[plan];
       if(pairedGame(kind)&&(members.length!==2||members[1].wordId!==next.wordId))continue;
       if(members.some(item=>item.material?.wordIds.some(id=>!introduced.has(id))))continue;
-      // Prefer fresh mechanisms, avoid consecutive repeats and cap each segment at three games.
+      // Prefer reviewed meaning tasks, then vary equivalent practice without extra goals.
       if(segmentKinds.size>=3&&!segmentKinds.has(kind))continue;
-      const score=(counts.get(kind)??0)*10+(lastByStep.get(a.step)===kind?6:0)+(segmentKinds.has(kind)?2:0)-(semanticReady?4:0)-(kind==='mimic'?3:0)+random();
+      const score=(semanticReady?-1000:0)+(counts.get(kind)??0)*10+(lastByStep.get(a.step)===kind?6:0)+(segmentKinds.has(kind)?2:0)-(kind==='mimic'?3:0)+random();
       candidates.push({activities:members,score});
     }
     candidates.sort((a,b)=>a.score-b.score);

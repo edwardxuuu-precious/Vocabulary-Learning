@@ -1,0 +1,938 @@
+@import './ui-tokens.css';
+
+/* Cross-page roles. Screen styles keep their own data layouts and game boards. */
+:root {
+  font-family: var(--ui-font);
+  color: var(--ui-ink);
+  background: var(--ui-canvas);
+  --blue: var(--ui-accent);
+  --blue-dark: var(--ui-accent-edge);
+  --muted: var(--ui-muted);
+  --line: var(--ui-line);
+}
+
+.app:not(.screen-home) {
+  --page-ink: var(--ui-ink);
+  --page-muted: var(--ui-muted);
+  --page-border: var(--ui-line);
+  --page-purple: var(--ui-accent);
+  --page-shadow: var(--ui-shadow);
+  --page-card: var(--ui-surface);
+  background: var(--ui-canvas);
+  color: var(--ui-ink);
+}
+
+.app:is(.screen-play, .screen-reward)[data-learning-background] {
+  background: linear-gradient(#f5f7fcf0, #f5f7fce8), var(--learning-scene, none) center / cover fixed;
+  color: var(--ui-ink);
+}
+
+.app :is(.learning-hub, .growth-page, .companion-library, .parent-page.parent-studio, .assessment-page),
+.app.screen-play :is(.unified-task, .lesson-page, .goal-page, .memory-page),
+.app :is(.sentence-shell, .quest-shell, .quest-lobby .quest-shell) {
+  width: var(--ui-shell);
+  max-width: none;
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--ui-page-top) 0 40px;
+  color: var(--ui-ink);
+}
+
+.app :is(.sentence-course, .child-challenge, .assessment-page) {
+  background: transparent;
+  color: var(--ui-ink);
+}
+
+.app :is(.sentence-course, .child-challenge) {
+  padding: 0;
+}
+
+.app.screen-play :is(.lesson-page, .goal-page):has(.lesson-footer, .introduction-controls) {
+  padding-bottom: 132px;
+}
+
+.app :is(.hub-heading, .growth-heading, .companion-library-header, .parent-space-heading, .quest-lobby-heading) {
+  margin: var(--ui-space-6) 0;
+  min-height: 64px;
+  gap: var(--ui-space-4);
+}
+
+.app :is(.hub-heading, .growth-heading, .companion-library-header, .parent-space-heading, .quest-lobby-heading, .quest-scope-summary, .assessment-card, .reward-main-card, .quest-review-card, .quest-finish) h1 {
+  font-size: var(--ui-page-title);
+  line-height: 1.3;
+  color: var(--ui-ink);
+  font-weight: 750;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+
+.app :is(.hub-heading, .growth-heading, .companion-library-header, .parent-space-heading, .quest-lobby-heading) > .mascot {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.app :is(.hub-heading, .companion-library-header, .quest-scope-summary) p {
+  font-size: var(--ui-body);
+  line-height: 1.6;
+  color: var(--ui-muted);
+}
+
+.app :is(.book-practice-card, .book-game-random, .book-game-resume, .hub-current, .hub-round-test,
+  .growth-panel, .companion-unlock-panel, .parent-panel, .parent-disclosure,
+  .preparation-book, .prep-import, .image-review-panel, .lesson-scope, .lesson-add-words,
+  .task-card, .game-stage, .lesson-content, .checkpoint-card, .sentence-lesson, .sentence-intro,
+  .reward-main-card, .quest-question, .quest-scope-summary, .quest-learning-needed,
+  .quest-review-card, .quest-finish, .assessment-card) {
+  min-width: 0;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  box-shadow: var(--ui-shadow);
+}
+
+.app :is(.parent-panel, .prep-import, .preparation-book, .image-review-panel, .lesson-scope, .lesson-add-words,
+  .growth-panel, .book-practice-card, .assessment-card, .quest-scope-summary) {
+  padding: var(--ui-panel-padding);
+}
+
+.app :is(.hub-current, .parent-panel, .prep-import, .preparation-book, .growth-panel, .book-practice-card, .image-review-panel, .companion-unlock-panel) h2 {
+  font-size: var(--ui-section-title);
+  line-height: 1.4;
+}
+
+/* The same control roles apply to direct components and the original page classes. */
+.ui-back,
+.ui-secondary,
+.app :is(.hub-nav, .growth-nav, .companion-library-nav, .parent-home-nav, .assessment-nav) > .ui-back,
+.app .ui-activity-actions .learning-help-trigger {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--ui-space-2);
+  width: auto;
+  min-height: var(--ui-control-height);
+  padding: 8px 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font: 600 var(--ui-caption) / 1.4 var(--ui-font);
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.ui-back svg,
+.ui-secondary svg,
+.app .ui-activity-actions .learning-help-trigger svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.app :is(.hub-nav, .growth-nav, .companion-library-nav, .parent-home-nav) {
+  display: flex;
+  align-items: center;
+  min-height: var(--ui-control-height);
+  margin: 0;
+}
+
+.app :is(.hub-start, .picker-start, .growth-primary, .sentence-primary, .quest-primary,
+  .assessment-primary, .prep-primary, .button.primary, .lesson-next, .goal-primary,
+  .task-primary-slot > button:not(.is-recording)) {
+  min-height: var(--ui-primary-height);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--ui-accent);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-accent);
+  color: white;
+  box-shadow: 0 3px 0 var(--ui-accent-edge);
+}
+
+.app :is(.hub-start, .picker-start, .growth-primary, .sentence-primary, .quest-primary,
+  .assessment-primary, .prep-primary, .button.primary, .lesson-next, .goal-primary,
+  .task-primary-slot > button:not(.is-recording)):hover:enabled {
+  background: var(--ui-accent-hover);
+}
+
+.app :is(.hub-outline-button, .hub-secondary-start, .picker-practice, .growth-secondary,
+  .quest-secondary, .quest-hint-button, .prep-secondary, .button.secondary,
+  .task-secondary-slot > button, .sentence-listen) {
+  min-height: var(--ui-control-height);
+  border-color: var(--ui-line);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  box-shadow: none;
+}
+
+.app :is(.hub-nav, .growth-nav, .companion-library-nav, .parent-home-nav, .assessment-nav, .ui-activity-nav) button:hover:enabled,
+.app :is(.quest-secondary, .hub-outline-button, .button.secondary, .prep-secondary):hover:enabled {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent-edge);
+}
+
+.app :is(button, summary, input, select, textarea, a):focus-visible,
+dialog :is(button, summary, input, select, textarea, a):focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 3px;
+}
+
+.app :is(.studio-tabs, .parent-record-tabs, .growth-module-nav, .growth-word-filters, .badge-view-tabs,
+  .companion-filters, .picker-filters, .book-game-filter, .prep-review-filters, .image-review-filters, .ui-tabs) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-surface-soft);
+}
+
+.app :is(.studio-tabs, .parent-record-tabs, .growth-module-nav, .growth-word-filters, .growth-page .badge-view-tabs,
+  .companion-filters, .picker-filters, .book-game-filter, .parent-studio .prep-review-filters, .parent-studio .image-review-filters, .ui-tabs) > button {
+  flex: 1 1 auto;
+  min-height: var(--ui-touch);
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--ui-muted);
+  border: 1px solid transparent;
+  border-radius: var(--ui-field-radius);
+  font-size: var(--ui-caption);
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.app :is(.studio-tabs, .parent-record-tabs, .growth-module-nav, .growth-word-filters, .growth-page .badge-view-tabs,
+  .companion-filters, .picker-filters, .book-game-filter, .parent-studio .prep-review-filters, .parent-studio .image-review-filters, .ui-tabs)
+  > button:is([aria-pressed="true"], [aria-current="page"], .active) {
+  border-color: var(--ui-line);
+  background: var(--ui-surface);
+  color: var(--ui-accent-edge);
+  box-shadow: none;
+}
+
+.app :is(.parent-studio, .lesson-planner, .assessment-page, .word-picker) :is(select, textarea, input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"])) {
+  min-width: 0;
+  max-width: 100%;
+  border-color: var(--ui-line);
+  border-radius: var(--ui-field-radius);
+  color: var(--ui-ink);
+}
+
+.app :is(.parent-studio, .lesson-planner, .word-picker) :is(select, textarea, input:not([type="checkbox"], [type="radio"], [type="file"], [type="hidden"])) {
+  font-size: var(--ui-body);
+}
+
+.app :is(.picker-footer, .quest-selection-footer, .choice-actions, .prep-import-footer, .image-review-footer) {
+  max-width: 100%;
+  gap: var(--ui-space-3);
+}
+
+.app :is(.picker-footer, .quest-selection-footer) {
+  border-color: var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
+}
+
+/* Single navigation row for word practice, sentences, and independent tests. */
+.ui-activity-nav {
+  display: grid;
+  grid-template: "back progress actions" auto / auto minmax(0, 1fr) auto;
+  gap: var(--ui-space-4);
+  align-items: center;
+  margin-bottom: var(--ui-space-6);
+}
+
+.ui-activity-nav > .ui-back { grid-area: back; justify-self: start; }
+.ui-activity-actions { grid-area: actions; display: flex; gap: var(--ui-space-2); justify-content: flex-end; }
+.ui-activity-actions:empty, .ui-activity-actions > div:empty { display: none; }
+
+.app .ui-activity-actions .learning-help-trigger {
+  position: static;
+  transform: none;
+}
+
+.ui-progress { grid-area: progress; display: grid; gap: var(--ui-space-2); min-width: 0; }
+.ui-progress-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px var(--ui-space-3);
+  color: var(--ui-muted);
+  font-size: var(--ui-caption);
+  line-height: 1.4;
+}
+
+.ui-progress-summary > span:last-child {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-progress-summary strong { font-size: 18px; color: var(--ui-accent-edge); }
+.ui-progress-track { height: 8px; overflow: hidden; border-radius: 999px; background: var(--ui-line); }
+.ui-progress-track > span { display: block; height: 100%; border-radius: inherit; background: var(--ui-accent); transition: width .25s ease; }
+
+.ui-task-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ui-space-4);
+  min-width: 0;
+}
+
+.ui-task-heading > div { min-width: 0; }
+.ui-task-heading h1 {
+  margin: 0;
+  color: var(--ui-ink);
+  font-size: var(--ui-task-title);
+  font-weight: 750;
+  line-height: 1.4;
+  letter-spacing: -.02em;
+  text-align: left;
+}
+
+.ui-task-heading p {
+  margin: var(--ui-space-2) 0 0;
+  color: var(--ui-muted);
+  font-size: var(--ui-body);
+  line-height: 1.6;
+  text-align: left;
+}
+
+.ui-task-heading .mascot { width: 52px; height: 52px; flex-shrink: 0; }
+.ui-task-state { font-size: var(--ui-caption); color: var(--ui-muted); }
+
+.app .unified-task .task-card {
+  padding: var(--ui-panel-padding) var(--ui-panel-padding) 0;
+  grid-template-areas: "heading heading" "cue answer" "actions actions";
+  grid-template-rows: auto minmax(240px, auto) auto;
+  column-gap: var(--ui-space-8);
+  row-gap: var(--ui-space-6);
+}
+
+.app .unified-task .task-card-wide { grid-template-areas: "heading" "answer" "actions"; }
+.task-card > .ui-task-heading { grid-area: heading; }
+.sentence-lesson > .ui-task-heading { margin-bottom: var(--ui-space-6); }
+.app .sentence-lesson { padding: var(--ui-panel-padding); }
+
+.app .unified-task .task-action-row {
+  margin: 0 calc(-1 * var(--ui-panel-padding));
+  min-height: 0;
+  padding: var(--ui-space-4) var(--ui-panel-padding);
+  border-radius: 0 0 var(--ui-panel-radius) var(--ui-panel-radius);
+  background: var(--ui-surface);
+  border-color: var(--ui-divider);
+}
+
+.app .task-feedback:empty { display: none; }
+.app .task-action-row:not(:has(.task-action-bar)) { display: none; }
+.app .task-action-bar { min-height: 0; }
+.app .unified-task .task-skip { color: var(--ui-muted); }
+.app .sentence-replay { color: var(--ui-accent-edge); background: var(--ui-accent-soft); border-color: var(--ui-line); }
+.app .sentence-study-footer { border-color: var(--ui-divider); }
+.app .sentence-demo-progress { color: var(--ui-muted); }
+.app :is(.task-word-cue, .quest-word, .task-audio-cue) { background: var(--ui-surface-soft); color: var(--ui-ink); }
+
+.app.screen-play .lesson-guide {
+  justify-content: flex-start;
+  min-height: 52px;
+  margin: 0 0 var(--ui-space-4);
+  gap: var(--ui-space-3);
+}
+
+.app.screen-play .lesson-guide h1 {
+  color: var(--ui-ink);
+  font-size: var(--ui-task-title);
+  font-weight: 750;
+  letter-spacing: -.02em;
+}
+
+.app.screen-play .lesson-guide .mascot.small { width: 52px; height: 52px; }
+.app.screen-play .game-page .game-stage { padding: var(--ui-panel-padding); }
+.game-stage > .ui-task-heading { align-self: stretch; }
+.app.screen-play .game-page .game-prompt { font-size: 18px; font-weight: 650; color: var(--ui-muted); }
+.app.screen-play :is(.lesson-footer, .goal-actions, .introduction-controls) {
+  width: min(1060px, calc(100% - 2 * var(--ui-gutter)));
+  max-width: 100%;
+  border-radius: var(--ui-panel-radius);
+}
+
+.app.screen-play .game-page .game-action-bar {
+  position: static;
+  transform: none;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: var(--ui-space-4) 0 0;
+  border: 0;
+  border-top: 1px solid var(--ui-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.app.screen-play .game-page .game-action-inner { flex-wrap: wrap; }
+.app.screen-play .game-page .game-skip { font-size: var(--ui-caption); color: var(--ui-muted); }
+
+/* Independent test has the same heading and action edge as a practice card. */
+.app .quest-question > .ui-task-heading { padding: var(--ui-panel-padding) var(--ui-panel-padding) 0; }
+.app .quest-question-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-space-6);
+  padding: var(--ui-space-6) var(--ui-panel-padding);
+}
+
+.app .quest-question-body:has(.quest-cue-unavailable) { grid-template-columns: minmax(0, 1fr); }
+.app .ui-challenge-cue:empty { display: none; }
+.ui-challenge-cue, .ui-challenge-response { min-width: 0; }
+.app .quest-word { width: 100%; min-height: 148px; margin: 0; border: 0; border-radius: calc(var(--ui-panel-radius) - 6px); }
+.app .quest-word > strong { color: var(--ui-ink); overflow-wrap: anywhere; }
+.app .quest-picture-hint { margin: var(--ui-space-3) 0 0; }
+.app .quest-picture-hint img { max-height: 148px; border-radius: var(--ui-control-radius); }
+.app .quest-recorder { min-height: 0; padding-block: var(--ui-space-4); }
+.app .quest-mic-button:not(.is-recording) { background: var(--ui-accent); box-shadow: 0 3px 0 var(--ui-accent-edge); }
+.app .quest-mic-button { border-radius: var(--ui-panel-radius); }
+.app .quest-mic-button > span { font-size: var(--ui-body); }
+.app .quest-recording-limit { color: var(--ui-muted); font-size: var(--ui-caption); }
+.app .quest-question-actions {
+  padding: var(--ui-space-4) var(--ui-panel-padding);
+  min-height: 0;
+  border-top: 1px solid var(--ui-divider);
+  background: var(--ui-surface);
+}
+
+.app .quest-skip { min-height: var(--ui-touch); color: var(--ui-muted); font-size: var(--ui-caption); }
+.app .quest-resume-card,
+.app .quest-plan-card.is-primary {
+  min-height: 192px;
+  background: var(--ui-accent-soft);
+  color: var(--ui-ink);
+  border-color: var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  box-shadow: var(--ui-shadow);
+}
+
+.app .quest-resume-card:hover:enabled { box-shadow: var(--ui-shadow); border-color: var(--ui-focus); }
+.app .quest-resume-copy > small, .app .quest-plan-card.is-primary .quest-plan-copy > p { color: var(--ui-muted); }
+.app .quest-resume-progress { background: var(--ui-line); }
+.app .quest-resume-progress > span { background: var(--ui-accent); }
+.app .quest-resume-action, .app .quest-plan-card.is-primary .quest-primary { background: var(--ui-accent); color: white; box-shadow: 0 3px 0 var(--ui-accent-edge); }
+.app .quest-plan-card.is-primary .quest-primary:hover:enabled { background: var(--ui-accent-hover); }
+.app .quest-finish { padding: var(--ui-panel-padding); margin: 0; }
+.app .quest-finish-art { margin-bottom: var(--ui-space-4); }
+.app .quest-finish-art > span { display: none; }
+
+.app .assessment-nav { margin: 0 0 var(--ui-space-6); max-width: none; flex-wrap: wrap; }
+.app .assessment-nav .ui-tabs { flex: 0 1 auto; }
+.app .assessment-card { max-width: none; margin: 0 0 var(--ui-space-6); }
+.app .assessment-card > h1 { margin: 0 0 var(--ui-space-4); }
+.app .assessment-session-actions { display: flex; justify-content: flex-end; margin-bottom: var(--ui-space-4); }
+.app .assessment-word-picker { grid-template-columns: repeat(auto-fit, minmax(min(142px, 100%), 1fr)); }
+.app .assessment-word-picker label { background: var(--ui-surface-soft); }
+.app .assessment-word-picker input { flex: none; accent-color: var(--ui-accent); }
+.app .assessment-nav .ui-tabs > button[aria-pressed="true"] { border-color: var(--ui-line); }
+
+/* Application captions and actionable status. Board artwork and counters keep their scale. */
+.app :is(.hub-day-summary, .hub-goal-controls, .hub-round-test, .word-picker, .growth-page, .companion-library,
+  .book-practice, .book-game-lobby, .quest-shell, .parent-studio, .assessment-page, .lesson-planner)
+  :is(small, label, summary, .picker-selection-status, .quest-recording-caption, .quest-setup-bar > span) {
+  font-size: var(--ui-caption);
+  line-height: 1.5;
+}
+
+.app :is(.picker-card small, .growth-evidence-note, .growth-panel-caption, .growth-word-status,
+  .companion-lock-note, .companion-progress-text, .companion-portrait small,
+  .book-practice-intro, .book-practice-status p, .book-practice-heading p,
+  .book-game-scope p, .book-game-featured p, .book-game-kind > small,
+  .quest-selection-footer span, .quest-stage-details > p, .quest-take-ready,
+  .quest-history-list small, .quest-processing small, .task-waiting, .task-feedback,
+  .intro-status, .introduction-phase, .introduction-message, .oral-practice-heading,
+  .oral-message, .prep-material-status, .prep-confirm-hint, .review-card-actions button,
+  .parent-save-row > span, .parent-footer, .pack-editor-row label) {
+  font-size: var(--ui-caption);
+  color: var(--ui-muted);
+}
+
+.app .picker-card .is-familiar { color: var(--ui-success); }
+.app .picker-card .is-new { color: var(--ui-muted); }
+.app .task-action-bar.tone-success .task-feedback { color: var(--ui-success); }
+.app .task-action-bar.tone-error .task-feedback { color: var(--ui-warning); }
+
+.app .hub-single-task:has(.hub-round-test > .hub-start) .hub-current .hub-start {
+  min-height: var(--ui-control-height);
+  border-color: var(--ui-line);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  box-shadow: none;
+}
+
+.app .hub-single-task:has(.hub-round-test > .hub-start) .hub-current .hub-start:hover:enabled {
+  background: var(--ui-accent-soft);
+}
+
+.app :is(.picker-toolbar button, .hub-text-button, .parent-studio .prep-text-button, .parent-studio .image-review-panel .text-button) {
+  min-height: var(--ui-touch);
+  font-size: var(--ui-caption);
+}
+
+.app :is(.book-game-locked p, .growth-hero p, .growth-summary-note, .growth-calendar > p, .growth-explanation > p,
+  .growth-page .badge-collection > .growth-panel-caption, .growth-page .badge-next-copy > :is(small, span),
+  .growth-page .badge-series-label, .badge-card-series, .badge-card-remaining,
+  .companion-portrait summary, .companion-portrait .companion-animation-locked p,
+  .business-technical p, .business-probe-result li) {
+  font-size: var(--ui-caption);
+  line-height: 1.5;
+  color: var(--ui-muted);
+}
+
+.app .badge-earned-label { font-size: var(--ui-caption); color: var(--ui-success); }
+
+.app .quest-review-card > p { font-size: var(--ui-body); color: var(--ui-muted); }
+.app .quest-answer-group button { min-height: var(--ui-touch); font-size: var(--ui-caption); }
+.app .task-sound-option > small,
+.app .game-page .oral-practice-heading > small,
+.app .game-page .oral-skip { font-size: var(--ui-caption); }
+.app .game-page .oral-skip { min-height: var(--ui-touch); }
+
+.app .parent-studio :is(.preparation-book-title p, .prep-next-step p, .prep-import-heading p, .image-review-guide p,
+  .prep-import form label > span, .prep-edit-row label > span, .prep-import .prep-secondary, .preparation-book-title .prep-secondary, .prep-material > p,
+  .prep-review-heading > p, .prep-term-note, .pack-error, .panel-heading > span,
+  .parent-preferences .number-setting, .parent-preferences .switch-setting, .parent-option-fields .number-setting,
+  .parent-disclosure-copy > span, .parent-challenge-records > p, .parent-footer) {
+  font-size: var(--ui-caption);
+  line-height: 1.5;
+  color: var(--ui-muted);
+}
+
+.app .parent-studio .pack-error { color: var(--ui-warning); }
+
+/* Shared dialog surfaces. Full-window views retain their own scroll containers. */
+:is(.parent-pin-modal, .flow-pause-dialog, .quest-pause-modal, .task-help-dialog, .badge-detail, .audio-check-dialog, .image-review-modal, .edit-word-modal) {
+  max-width: calc(100% - 2 * var(--ui-gutter));
+  max-height: calc(100dvh - 2 * var(--ui-gutter));
+  border-color: var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  box-shadow: var(--ui-elevation);
+}
+
+:is(.parent-pin-modal, .flow-pause-dialog, .quest-pause-modal, .task-help-dialog, .badge-detail, .audio-check-dialog, .image-review-modal, .edit-word-modal) :is(p, small, label) {
+  font-size: var(--ui-caption);
+  line-height: 1.6;
+  color: var(--ui-muted);
+}
+
+.screen-rest-dialog { inline-size: 100%; background: var(--ui-canvas); color: var(--ui-ink); }
+.test-mode-banner :is(span, button) { font-size: var(--ui-caption); }
+.test-mode-banner button { min-height: var(--ui-touch); }
+.test-mode-entry .test-mode-eyebrow { font-size: var(--ui-caption); }
+.screen-rest-card { max-width: 100%; }
+.screen-rest-card p { font-size: var(--ui-body); }
+.screen-rest-card small { font-size: var(--ui-caption); }
+
+@media (min-width: 901px) {
+  .app .parent-studio:has(.prep-import, .pack-editor, .image-review-panel) > .test-mode-entry {
+    display: none;
+  }
+  .app .parent-studio .prep-import { max-width: none; }
+  .app .quest-review-card {
+    display: flex;
+    flex-direction: column;
+    max-height: max(410px, calc(100dvh - 128px));
+  }
+  .app .quest-answer-groups {
+    min-height: 0;
+    grid-auto-rows: max-content;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding: var(--ui-space-2);
+  }
+  .app .quest-submit-row { flex: none; margin-top: var(--ui-space-6); }
+}
+
+@media (min-width: 901px) and (max-height: 719px) {
+  .app .parent-studio:has(.prep-import, .pack-editor, .image-review-panel) {
+    --ui-page-top: 20px;
+    --ui-panel-padding: 24px;
+  }
+  .app .parent-studio:has(.prep-import, .pack-editor, .image-review-panel) .parent-space-heading {
+    min-height: 48px;
+    margin: var(--ui-space-3) 0;
+  }
+  .app .parent-studio:has(.prep-import, .pack-editor, .image-review-panel) .parent-space-heading > .mascot {
+    width: 48px;
+    height: 48px;
+  }
+  .app .parent-studio:has(.prep-import) .preparation-steps { margin-bottom: var(--ui-space-3); }
+  .app .parent-studio .prep-import-heading { margin-bottom: var(--ui-space-3); }
+  .app .parent-studio .prep-import .prep-enrichment-status {
+    margin-block: var(--ui-space-3);
+    padding: var(--ui-space-2) var(--ui-space-4);
+  }
+  .app .parent-studio .prep-enrichment-status > div {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px var(--ui-space-3);
+  }
+  .app .sentence-shell {
+    --ui-page-top: 20px;
+    --ui-panel-padding: 24px;
+  }
+  .sentence-shell .ui-activity-nav,
+  .sentence-lesson > .ui-task-heading { margin-bottom: var(--ui-space-4); }
+  .sentence-scene img { max-width: min(100%, 39dvh); }
+  .sentence-translation { margin-block: var(--ui-space-3) var(--ui-space-4); }
+  .sentence-usage { padding-top: var(--ui-space-4); }
+  .sentence-study-footer { margin-top: var(--ui-space-4); padding-top: var(--ui-space-4); }
+  .sentence-audio-fallback { margin-top: var(--ui-space-4); padding: var(--ui-space-3) var(--ui-space-4); }
+}
+
+@media (max-width: 700px) {
+  .app :is(.hub-heading, .growth-heading, .companion-library-header, .parent-space-heading, .quest-lobby-heading) { min-height: 52px; margin: var(--ui-space-4) 0; }
+  .app :is(.hub-heading, .growth-heading, .companion-library-header, .parent-space-heading, .quest-lobby-heading) > .mascot { width: 52px; height: 52px; }
+  .ui-activity-nav { grid-template: "back actions" auto "progress progress" auto / minmax(0, 1fr) auto; gap: var(--ui-space-3); }
+  .ui-activity-nav:not(:has(.ui-progress)) { grid-template-rows: auto; }
+  .app .ui-activity-nav :is(button.ui-back, button.ui-secondary, .learning-help-trigger) { min-height: var(--ui-touch); padding-inline: 10px; }
+  .app .unified-task .task-card { grid-template-areas: "heading" "cue" "answer" "actions"; grid-template-rows: auto; row-gap: var(--ui-space-4); }
+  .app .unified-task .task-card-wide { grid-template-areas: "heading" "answer" "actions"; }
+  .app .quest-question-body { grid-template-columns: minmax(0, 1fr); gap: var(--ui-space-4); padding-block: var(--ui-space-4); }
+  .app .quest-word { min-height: 116px; }
+  .app .quest-recorder { padding-block: var(--ui-space-2); }
+  .app .quest-picture-hint figure { max-width: 144px; }
+  .app .quest-picture-hint img { max-height: 108px; }
+  .app .quest-picture-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app .quest-selection-footer { align-items: stretch; }
+  .app .quest-selection-footer > div { min-width: 0; }
+  .app .assessment-nav .ui-tabs { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .app .quest-selection-footer { flex-direction: column; }
+  .app .quest-selection-footer > button { width: 100%; }
+  .app :is(.lesson-plan-settings, .lesson-picker-tools, .prep-book-switch, .prep-review-toolbar, .prep-import-footer, .parent-save-row) { flex-wrap: wrap; }
+  .app .quest-resume-copy { max-width: none; }
+  .app .quest-resume-card, .app .quest-plan-card.is-primary { min-height: 0; padding: var(--ui-panel-padding); }
+  .app .quest-resume-copy > strong { font-size: var(--ui-section-title); }
+  .app .quest-resume-card .quest-plan-pictures, .app .quest-plan-card .quest-plan-pictures { display: none; }
+  .app .reward-focused-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .app .reward-focused-hero > div:first-child { display: contents; }
+  .app .reward-focused-hero h1 { grid-area: 1 / 1; }
+  .app .reward-focused-hero .reward-companion { grid-area: 1 / 2; width: 80px; height: 92px; }
+  .app .reward-word-total { grid-column: 1 / -1; margin: 0; }
+  .app .reward-word-total span { font-size: var(--ui-body); }
+  .app .ext-push-grid {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: repeat(6, minmax(36px, 1fr));
+    gap: 4px;
+    padding: 8px;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 360px) {
+  .ui-activity-nav { column-gap: var(--ui-space-2); }
+  .ui-activity-actions { gap: 6px; }
+  .app .ui-activity-nav :is(button.ui-back, button.ui-secondary, .learning-help-trigger) { padding-inline: 8px; gap: 5px; }
+  .app .ui-activity-nav svg { width: 18px; height: 18px; }
+  .app .ui-task-heading .mascot { width: 40px; height: 40px; }
+  .app .task-action-bar { column-gap: 8px; }
+  .app .sentence-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .app .sentence-choices > button { min-width: 0; padding-inline: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-progress-track > span { transition: none; }
+}
+
+/* Page titles, page-level actions and the action edge of a task or form. */
+.app .ui-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--ui-space-4);
+  margin: var(--ui-space-4) 0 var(--ui-space-6);
+  min-width: 0;
+}
+.app .ui-page-heading.parent-workspace-heading { margin-top: 0; }
+.ui-page-title { min-width: 0; }
+.app .ui-page-title h1 {
+  margin: 0;
+  font-size: var(--ui-page-title);
+  line-height: 1.25;
+  font-weight: 750;
+  letter-spacing: -.028em;
+  color: var(--ui-ink);
+  overflow-wrap: anywhere;
+}
+.app .ui-page-title p {
+  margin: var(--ui-space-2) 0 0;
+  font-size: var(--ui-body);
+  line-height: 1.55;
+  color: var(--ui-muted);
+}
+.ui-page-actions,
+.ui-action-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2);
+  min-width: 0;
+}
+.app .ui-action-bar {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-3) var(--ui-space-6);
+  min-width: 0;
+}
+.ui-action-context { flex: 1 1 180px; min-width: 0; color: var(--ui-muted); }
+.ui-action-controls { margin-inline-start: auto; }
+.app .ui-action-controls > button { max-width: 100%; }
+.app .ui-action-controls > :is(.growth-primary, .sentence-primary, .quest-primary, .picker-start, .hub-start, .prep-primary) {
+  width: auto;
+  min-width: 144px;
+  margin: 0;
+  padding: 10px var(--ui-space-6);
+  font-size: 17px;
+  letter-spacing: 0;
+}
+.app .ui-secondary,
+.app .hub-current-action > .hub-outline-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--ui-space-2);
+  min-height: var(--ui-control-height);
+  padding: 8px 16px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font-size: var(--ui-caption);
+  font-weight: 650;
+  box-shadow: none;
+}
+.app .ui-secondary:hover:enabled { border-color: var(--ui-focus); background: var(--ui-accent-soft); }
+
+/* The next step has its own surface. Other routes stay visible as quieter rows. */
+.app .hub-single-task :is(.hub-feature, .hub-quiet-row) {
+  margin: 0 0 var(--ui-space-3);
+  padding: var(--ui-space-6);
+  border: 1px solid var(--ui-line);
+  box-shadow: none;
+}
+.app .hub-single-task .hub-feature {
+  border-color: #d9d7f5;
+  background: linear-gradient(120deg, #f0efff, #fafaff 56%, var(--ui-surface));
+}
+.app .hub-single-task .hub-current-top:empty { display: none; }
+.app .hub-single-task .hub-current-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ui-space-4);
+}
+.app .hub-single-task .hub-current-main:not(:has(.hub-word-preview)) { grid-template-columns: minmax(0, 1fr); }
+.app .hub-single-task .hub-current-copy h2,
+.app .hub-single-task .hub-round-test h2 {
+  margin: 0;
+  font-size: var(--ui-task-title);
+  line-height: 1.35;
+}
+.app .hub-single-task .hub-round-test p { margin-top: 5px; }
+.app .hub-single-task .hub-round-test-label { display: block; margin-bottom: 6px; font-size: var(--ui-caption); }
+.app .hub-single-task .hub-quiet-row h2 { font-size: var(--ui-section-title); }
+.app .hub-single-task .hub-current-action { display: flex; justify-content: flex-end; margin-top: var(--ui-space-3); }
+.app .hub-single-task :is(.hub-round-test, .hub-current-action) > :is(.hub-start, .hub-outline-button) {
+  width: auto;
+  min-width: 152px;
+  margin: 0;
+  padding-inline: var(--ui-space-6);
+  font-size: 17px;
+}
+.app .hub-single-task .hub-options { margin-top: var(--ui-space-6); }
+.app .hub-single-task .hub-options h2 { margin: 0 0 var(--ui-space-3); font-size: var(--ui-section-title); }
+.app .hub-single-task .hub-option-grid { grid-template-columns: repeat(auto-fit, minmax(min(164px, 100%), 1fr)); gap: var(--ui-space-2); }
+.app .hub-single-task .hub-option-grid .hub-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ui-space-2);
+  min-height: var(--ui-control-height);
+  padding: 8px var(--ui-space-4);
+  border-radius: var(--ui-control-radius);
+  font-size: var(--ui-caption);
+  color: var(--ui-ink);
+}
+.app .hub-single-task .hub-option > span { color: var(--ui-accent-edge); }
+.app .hub-single-task .hub-option:hover:enabled,
+.app .book-game-kind:hover:enabled { border-color: var(--ui-focus); background: var(--ui-accent-soft); }
+.app .hub-single-task .hub-new-choice { margin-block: var(--ui-space-3); padding: var(--ui-space-3) var(--ui-space-6); }
+.app .hub-single-task .hub-adjustment-actions button { min-height: var(--ui-touch); }
+.app .book-practice-card > .hub-outline-button,
+.app .book-game-random .hub-outline-button { width: fit-content; }
+.app .book-game-scope { border-radius: var(--ui-control-radius); }
+.app .book-game-grid { gap: var(--ui-space-3); }
+
+/* Consistent task edge across exercises, short sentences, games and test. */
+.app :is(.sentence-study-footer, .quest-selection-actions, .quest-submit-row,
+  .reward-focused-actions, .quest-finish-actions, .pack-editor-actions.ui-action-bar) {
+  padding-top: var(--ui-space-4);
+  border-top: 1px solid var(--ui-divider);
+}
+.app .reward-focused .reward-focused-actions { width: 100%; margin-top: var(--ui-space-6); }
+.app .quest-finish { width: min(100%, 720px); margin-inline: auto; text-align: left; }
+.app .quest-finish-art { float: inline-end; margin: 0; background: none; }
+.app .quest-finish-art .mascot { width: 124px; height: 124px; }
+.app .quest-finish-art > span { display: none; }
+.app .quest-finish .quest-processing { margin: var(--ui-space-4) 0; }
+.app .quest-finish-actions { clear: both; }
+.app .quest-selection-actions { margin-top: var(--ui-space-4); }
+.app .quest-lobby .quest-word-selection {
+  padding: var(--ui-panel-padding);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--ui-surface);
+}
+.app .quest-scope-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--ui-space-3);
+  margin-bottom: var(--ui-space-3);
+}
+.app :is(.quest-scope-heading, .quest-resume-copy) h2 { margin: 0; font-size: var(--ui-section-title); color: var(--ui-ink); }
+.app .quest-scope-heading .quest-change-words { margin: 0; }
+.app .quest-scope-heading p { margin: 4px 0 0; }
+.app .quest-word-selection .quest-selected-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--ui-space-2);
+}
+.app .quest-selected-preview > span {
+  width: 76px;
+  min-width: 0;
+  padding: 6px;
+  gap: 4px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-field-radius);
+  background: var(--ui-surface-soft);
+}
+.app .quest-selected-preview > span > img { width: 46px; height: 46px; border-radius: 8px; }
+.app .quest-selected-preview strong { font-size: var(--ui-caption); overflow-wrap: anywhere; }
+.app .quest-resume-card:hover { transform: none; }
+.app .quest-resume-copy > p { margin: var(--ui-space-2) 0 0; color: var(--ui-muted); }
+.app .quest-resume-copy progress { margin: var(--ui-space-2) 0 var(--ui-space-4); max-width: 100%; accent-color: var(--ui-accent); }
+.app .quest-question-actions .ui-action-controls { justify-content: space-between; width: 100%; }
+.app .quest-question-actions .ui-action-controls > .quest-primary { margin-inline-start: auto; }
+.app .quest-review-card .quest-submit-row { margin-top: var(--ui-space-3); }
+.app .quest-review-card .quest-answer-groups { margin-bottom: 0; }
+
+.app .waiting-card {
+  width: min(720px, calc(100% - 2 * var(--ui-gutter)));
+  margin-inline: auto;
+  padding: var(--ui-panel-padding);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
+}
+.waiting-card .ui-action-bar { margin-top: var(--ui-space-6); }
+.waiting-card .ui-action-controls { margin-inline: auto; }
+.app .waiting-card p { color: var(--ui-muted); }
+.app .pack-editor-actions.ui-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: var(--ui-space-4);
+  padding-bottom: var(--ui-space-3);
+  background: var(--ui-surface);
+}
+.app .pack-editor-actions.ui-action-bar .pack-delete-button { color: var(--ui-error); }
+.app .pack-editor-row {
+  border-color: var(--ui-line);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-surface-soft);
+}
+.app .pack-editor :is(input, select) { border-color: var(--ui-line); background: var(--ui-surface); color: var(--ui-ink); }
+.app .pack-editor-note { color: var(--ui-muted); }
+.app .parent-studio :is(.prep-import-footer, .prep-review-footer, .parent-save-row) {
+  border-color: var(--ui-divider);
+  gap: var(--ui-space-3);
+}
+.app .parent-studio .prep-review-footer { border-radius: var(--ui-control-radius); }
+.app .parent-studio .prep-import-footer .prep-import-commit { margin-inline-start: auto; }
+.app .learning-choice .choice-actions { justify-content: flex-end; }
+.app .assessment-review-toolbar.ui-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-bottom: 0;
+  padding: var(--ui-space-3) 0;
+  border-top: 1px solid var(--ui-divider);
+  background: var(--ui-surface);
+}
+
+.app .ui-task-heading :is(h1, p) { overflow-wrap: anywhere; }
+.app .unified-task .task-card > .ui-task-heading {
+  padding-bottom: var(--ui-space-3);
+  border-bottom: 1px solid var(--ui-divider);
+}
+.app :is(.task-action-row, .quest-question-actions, .game-action-bar) :is(.task-skip, .quest-skip, .game-skip) {
+  color: var(--ui-muted);
+  font-size: var(--ui-caption);
+  font-weight: 650;
+}
+.app .game-page .game-action-inner > .game-next { min-width: 148px; font-size: 17px; border-radius: var(--ui-control-radius); }
+.app .game-page .game-action-inner > .game-skip { min-height: var(--ui-touch); }
+
+@media (min-width: 701px) {
+  .app .pack-editor-rows {
+    max-height: min(51dvh, 520px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding: 4px;
+  }
+  .app .hub-single-task .hub-current.hub-quiet-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--ui-space-3) var(--ui-space-4);
+  }
+  .app .hub-single-task .hub-quiet-row .hub-current-top { grid-column: 1 / -1; margin: 0; }
+  .app .hub-single-task .hub-quiet-row .hub-current-action { margin: 0; }
+}
+@media (max-width: 700px) {
+  .app .ui-page-heading { margin-block: var(--ui-space-3) var(--ui-space-4); }
+  .app .hub-single-task .hub-current-main { grid-template-columns: minmax(0, 1fr); }
+  .app .hub-single-task .hub-current-action { justify-content: stretch; }
+  .app .hub-single-task :is(.hub-round-test, .hub-current-action) > :is(.hub-start, .hub-outline-button) { width: 100%; }
+  .app .hub-single-task .hub-feature { padding: var(--ui-panel-padding); }
+  .ui-action-context { flex-basis: 100%; }
+  .app .quest-finish-art .mascot { width: 80px; height: 80px; }
+}
+@media (max-width: 480px) {
+  .app .ui-action-controls { width: 100%; }
+  .app .ui-action-controls > :is(.growth-primary, .sentence-primary, .quest-primary, .picker-start, .hub-start, .prep-primary) { flex-grow: 1; min-width: min(144px, 100%); }
+  .app .quest-selected-preview > span { width: 61px; }
+  .app .quest-selected-preview > span > img { width: 38px; height: 38px; }
+}
+@media (min-width: 901px) and (max-height: 719px) {
+  .app .pack-editor-rows { max-height: 37dvh; }
+}

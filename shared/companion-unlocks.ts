@@ -18,12 +18,13 @@ export interface CompanionWordCredit { term: string; day: string }
 /** Reward history is permanent; it does not claim that current mastery is permanent. */
 interface RewardCredits { learned: CompanionWordCredit[]; reviewed: CompanionWordCredit[] }
 export interface LegacyCompanionRewardLedger extends RewardCredits { version: 1 }
-export interface CurrentCompanionRewardLedger extends RewardCredits { version: 2; legacyReviewUnlocks: number }
+export interface CurrentCompanionRewardLedger extends RewardCredits { version: 2; legacyReviewUnlocks: number; parentGrantedOptimusAnimation?: true }
 export type CompanionRewardLedger = LegacyCompanionRewardLedger | CurrentCompanionRewardLedger;
 export interface CompanionNextReward { kind: 'character' | 'animation'; companionId: CompanionCharacter; progress: number; remaining: number }
 export interface CompanionUnlockSummary {
   ruleVersion: 3; newWords: number; newWordProgress: number; nextReward: CompanionNextReward | null;
   unlockedIds: CompanionCharacter[]; animationUnlockedIds: CompanionCharacter[]; allUnlocked: boolean;
+  parentGrantedOptimusAnimation?: true;
 }
 type RewardData = AssessmentData & { words: Word[]; packs: WordPack[]; companionRewards?: CompanionRewardLedger };
 const termKey = (term: string) => term.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -64,25 +65,32 @@ export function earnedCompanionCredits(data: RewardData, now = new Date()): Curr
     const previous = learned.get(credit.term);
     if (!previous || credit.day < previous.day) learned.set(credit.term, { term: credit.term, day: credit.day });
   }
-  return { version: 2, learned: [...learned.values()], reviewed: [...reviewed.values()], legacyReviewUnlocks: legacyReviewUnlocks(data.companionRewards) };
+  const previous = data.companionRewards;
+  return { version: 2, learned: [...learned.values()], reviewed: [...reviewed.values()], legacyReviewUnlocks: legacyReviewUnlocks(previous),
+    ...(previous?.version === 2 && previous.parentGrantedOptimusAnimation === true ? { parentGrantedOptimusAnimation: true } : {}) };
 }
 
 export function companionUnlockSummary(ledger?: CompanionRewardLedger): CompanionUnlockSummary {
   const newWords = ledger?.learned.length ?? 0, legacy = legacyReviewUnlocks(ledger), cycleSize = companionUnlockSize * 2;
   const completed = Math.floor(newWords / cycleSize), characterCount = legacy + Math.floor((newWords + companionUnlockSize) / cycleSize);
   const unlockedIds = [...starterCompanions, ...unlockableCompanions.slice(0, characterCount)];
-  // Starter portraits are free; their animations still need the first and second ten-word milestones.
-  const starterAnimations = starterCompanions.slice(0, Math.floor(newWords / companionUnlockSize));
+  const parentGrantedOptimusAnimation = ledger?.version === 2 && ledger.parentGrantedOptimusAnimation === true;
+  const earnedStarterCount = Math.floor(newWords / companionUnlockSize);
+  // The parent may grant the Optimus animation independently of any word credit.
+  const starterAnimations = starterCompanions.filter((id, index) => index < earnedStarterCount || id === 'optimus' && parentGrantedOptimusAnimation);
   const animationUnlockedIds = [...starterAnimations, ...unlockableCompanions.slice(0, legacy + completed)];
   const allUnlocked = animationUnlockedIds.length === companionIds.length, progress = newWords % companionUnlockSize;
   const companionId = unlockableCompanions[legacy + completed];
-  const starterAnimation = starterCompanions[starterAnimations.length];
+  const starterAnimation = starterCompanions.find((id, index) => !starterAnimations.includes(id) && (index === earnedStarterCount || !companionId));
+  const remaining = starterAnimation ? (starterCompanions.indexOf(starterAnimation) + 1) * companionUnlockSize - newWords : companionUnlockSize - progress;
   return { ruleVersion: 3, newWords, newWordProgress: progress, unlockedIds, animationUnlockedIds, allUnlocked,
-    nextReward: allUnlocked ? null : { kind: starterAnimation ? 'animation' : newWords % cycleSize < companionUnlockSize ? 'character' : 'animation', companionId: starterAnimation ?? companionId, progress, remaining: companionUnlockSize - progress } };
+    ...(parentGrantedOptimusAnimation ? { parentGrantedOptimusAnimation: true } : {}),
+    nextReward: allUnlocked ? null : { kind: starterAnimation ? 'animation' : newWords % cycleSize < companionUnlockSize ? 'character' : 'animation', companionId: starterAnimation ?? companionId, progress, remaining } };
 }
 
 /** Each starter detail needs its own remaining count, including the later milestone. */
 export function companionAnimationRemaining(progress: CompanionUnlockSummary, id: CompanionCharacter): number | undefined {
+  if (id === 'optimus' && progress.parentGrantedOptimusAnimation === true) return 0;
   const starterAt = starterCompanions.indexOf(id);
   if (starterAt >= 0) return Math.max(0, (starterAt + 1) * companionUnlockSize - progress.newWords);
   if (progress.animationUnlockedIds?.includes(id)) return 0;
@@ -100,7 +108,8 @@ export function validCompanionRewards(value: unknown): value is CompanionRewardL
     && typeof item.term === 'string' && item.term.length > 0 && item.term.length <= 80 && item.term === termKey(item.term)
     && /^[a-z][a-z '\-]*$/.test(item.term) && typeof item.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.day)
     && Number.isFinite(Date.parse(item.day)) && new Date(item.day).toISOString().slice(0, 10) === item.day);
-  if (![1, 2].includes(ledger.version) || Object.keys(ledger).some(key => !['version', 'learned', 'reviewed', ...(ledger.version === 2 ? ['legacyReviewUnlocks'] : [])].includes(key)) || !valid(ledger.learned) || !valid(ledger.reviewed)) return false;
+  if (![1, 2].includes(ledger.version) || Object.keys(ledger).some(key => !['version', 'learned', 'reviewed', ...(ledger.version === 2 ? ['legacyReviewUnlocks', 'parentGrantedOptimusAnimation'] : [])].includes(key)) || !valid(ledger.learned) || !valid(ledger.reviewed)) return false;
+  if (ledger.version === 2 && ledger.parentGrantedOptimusAnimation !== undefined && ledger.parentGrantedOptimusAnimation !== true) return false;
   if (ledger.version === 2 && (!Number.isInteger(ledger.legacyReviewUnlocks) || ledger.legacyReviewUnlocks < 0 || ledger.legacyReviewUnlocks > Math.min(unlockableCompanions.length, Math.floor(ledger.reviewed.length / 20)))) return false;
   const learned = new Map(ledger.learned.map(item => [item.term, item.day]));
   return learned.size === ledger.learned.length && new Set(ledger.reviewed.map(reviewKey)).size === ledger.reviewed.length
@@ -111,5 +120,7 @@ export function mergeCompanionRewards(a?: CompanionRewardLedger, b?: CompanionRe
   const learned = new Map<string, CompanionWordCredit>(), reviewed = new Map<string, CompanionWordCredit>();
   for (const item of [...(a?.learned ?? []), ...(b?.learned ?? [])]) if (!learned.has(item.term) || item.day < learned.get(item.term)!.day) learned.set(item.term, item);
   for (const item of [...(a?.reviewed ?? []), ...(b?.reviewed ?? [])]) reviewed.set(reviewKey(item), item);
-  return { version: 2, learned: [...learned.values()], reviewed: [...reviewed.values()], legacyReviewUnlocks: Math.max(legacyReviewUnlocks(a), legacyReviewUnlocks(b)) };
+  const parentGrantedOptimusAnimation = [a, b].some(ledger => ledger?.version === 2 && ledger.parentGrantedOptimusAnimation === true);
+  return { version: 2, learned: [...learned.values()], reviewed: [...reviewed.values()], legacyReviewUnlocks: Math.max(legacyReviewUnlocks(a), legacyReviewUnlocks(b)),
+    ...(parentGrantedOptimusAnimation ? { parentGrantedOptimusAnimation: true } : {}) };
 }

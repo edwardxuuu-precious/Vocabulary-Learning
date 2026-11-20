@@ -2,7 +2,7 @@ import {assessmentCue,validAssessmentCue} from '../shared/assessment-cues.ts';
 import {requireSentenceStudy} from './sentence-study.ts';
 import { randomUUID } from 'node:crypto';
 import type { AssessmentAttempt, AssessmentResult, AssessmentSession } from '../shared/contracts.ts';
-import { maxAssessmentWords,maxAssessmentItems, assessmentChoices, assessmentCurrent, assessmentDay, assessmentDimensions, assessmentWords, dueAssessmentProgress, sameAssessmentWord, recommendedAssessmentItems } from '../shared/assessment.ts';
+import { maxAssessmentWords,maxAssessmentItems, assessmentChoices, assessmentPicturePool, assessmentCurrent, assessmentDay, assessmentDimensions, assessmentWords, dueAssessmentProgress, sameAssessmentWord, recommendedAssessmentItems } from '../shared/assessment.ts';
 import { gameWord } from '../shared/game-plan.ts';
 import { AppError, type StoredData } from './store.ts';
 import { validateRecordedSession } from './challenge-state.ts';
@@ -19,13 +19,15 @@ export function createAssessment(data: StoredData, body: Record<string, unknown>
   const ids = targets?[...new Set(targets.map(row=>row.wordId))]:body.wordIds ?? defaultIds.slice(0, mode==='full'?maxAssessmentWords:5);
   if (!Array.isArray(ids) || !ids.length || ids.length > maxAssessmentWords || new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !available.some(word => word.id === id))) throw new AppError(`请选择 1–${maxAssessmentWords} 个已学且已准备好的单词。`, 'ASSESSMENT_WORDS');
   const words = ids.map(id => available.find(word => word.id === id)!);
+  const pictures = data.learningTaskPolicy===1 ? assessmentPicturePool(data) : [];
   const session: AssessmentSession = { id: randomUUID(), wordIds: ids, mode, items: [], startedAt: now.toISOString() };
   if (body.workflow === 'recorded') session.workflow = 'recorded';
   for (const dimension of assessmentDimensions) for (const word of shuffle(words, random)) {
     if (mode === 'due' && !due.some(item => item.wordId === word.id && item.dimension === dimension)) continue;
     if (targets&&!targets.some(row=>row.wordId===word.id&&row.dimension===dimension))continue;
     if (!targets&&mode === 'recommended' && !recommended.some(item => item.wordId === word.id && item.dimension === dimension)) continue;
-    const choices = dimension === 'look' ? shuffle(assessmentChoices(word, shuffle(available, random)), random).map(gameWord) : [];
+    const knownChoices = dimension === 'look' ? assessmentChoices(word, shuffle(available, random)) : [];
+    const choices = dimension === 'look' ? shuffle(knownChoices.length || !pictures.length ? knownChoices : assessmentChoices(word, shuffle(pictures, random)), random).map(gameWord) : [];
     session.items.push({ id: `${word.id}:${dimension}`, dimension, word: gameWord(word), choices,...((body.cueVersion===1||body.cueVersion===2)&&dimension==='zh-en'?{cue:assessmentCue(word,available,body.cueVersion)}:{}) });
   }
   if (!session.items.length) throw new AppError('这些单词目前没有到期的测试项。', 'ASSESSMENT_NOT_DUE');

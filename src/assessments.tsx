@@ -1,3 +1,4 @@
+import { BackButton } from './ui-layout';
 import {TaskActionBar,TaskIcon} from './learning-task-frame';
 import { OralPractice } from './oral-practice';
 import type { PracticeRecordingTarget } from '../shared/contracts';
@@ -29,11 +30,20 @@ export function AssessmentReport({ state }: { state: AppState }) {
   })}</tr>)}</tbody></table></div></section>;
 }
 
-type CenterProps = { state: AppState; grant?: AssessmentGrant; onGrant: (grant?: AssessmentGrant) => void; onExit: () => void; reload: () => Promise<AppState>; initialWordIds?: string[]; onParentReview?:()=>void; parentMode?: boolean };
+type CenterProps = { state: AppState; grant?: AssessmentGrant; onGrant: (grant?: AssessmentGrant) => void; onExit: () => void; reload: () => Promise<AppState>; initialWordIds?: string[]; onParentReview?:()=>void; onLearnUsage?:(wordIds:string[])=>void; parentMode?: boolean };
 export function AssessmentCenter(props: CenterProps) {
   const [tab, setTab] = useState<'review' | 'onsite'>('review');
   if (!props.parentMode) return <ChildChallenge {...props} />;
-  return <main className="assessment-page"><nav className="assessment-nav"><button onClick={props.onExit}>← 返回家长空间</button><button aria-pressed={tab === 'review'} onClick={() => setTab('review')}>集中核验</button><button aria-pressed={tab === 'onsite'} onClick={() => setTab('onsite')}>现场测试与旧记录</button></nav>{tab === 'review' ? <AssessmentReviewCenter {...props} /> : <LegacyAssessmentCenter {...props} />}</main>;
+  return <main className="assessment-page">
+    <nav className="assessment-nav" aria-label="家长测试导航">
+      <BackButton onClick={props.onExit}>返回家长空间</BackButton>
+      <div className="ui-tabs" role="group" aria-label="测试工具">
+        <button aria-pressed={tab === 'review'} onClick={() => setTab('review')}>集中核验</button>
+        <button aria-pressed={tab === 'onsite'} onClick={() => setTab('onsite')}>现场测试与旧记录</button>
+      </div>
+    </nav>
+    {tab === 'review' ? <AssessmentReviewCenter {...props} /> : <LegacyAssessmentCenter {...props} />}
+  </main>;
 }
 function LegacyAssessmentCenter({ state, grant, onGrant, onExit, reload, initialWordIds }: {
   state: AppState; grant?: AssessmentGrant; onGrant: (grant?: AssessmentGrant) => void; onExit: () => void;
@@ -62,9 +72,9 @@ function LegacyAssessmentCenter({ state, grant, onGrant, onExit, reload, initial
   const itemCount = mode === 'full' ? selected.length * 4 : due.filter(row => selected.includes(row.wordId)).length;
   const action = (action: string, extra = {}) => current && void request(`/api/assessments/${session!.id}/actions`, { itemId: current.id, action, ...extra });
   const exit = () => { voice.stop(); onExit(); };
-  return <main className="assessment-page">
-    <nav className="assessment-nav"><button onClick={exit}>← 返回</button><strong>和家长测一测</strong>{current && <button onClick={() => { voice.stop(); setPaused(true); }}>休息一下</button>}</nav>
-    <p className="assessment-notice" role="alert">{error || voice.message}</p>
+  return <div className="legacy-assessment">
+    {current && <div className="assessment-session-actions"><button className="ui-secondary" onClick={() => { voice.stop(); setPaused(true); }}>休息一下</button></div>}
+    {(error || voice.message)&&<p className="assessment-notice" role="alert">{error || voice.message}</p>}
     {!session && <section className="assessment-card assessment-picker"><h1>这次测哪几个词？</h1><p>家长选好后，再让孩子看题。每次最多{maxAssessmentWords}个词，口头题请家长听后确认。</p>
       {resumes.length > 0 && <div className="assessment-resume"><h2>继续未完成的测试</h2>{resumes.slice(0, 3).map(item => <button key={item.id} disabled={busy} onClick={() => void request(`/api/assessments/${item.id}`)}>继续 {dateLabel(item.startedAt)} 的测试 · {item.items.filter(item => item.result !== undefined).length}/{item.items.length} 项</button>)}</div>}
       <div className="assessment-modes" role="group" aria-label="测试范围"><button aria-pressed={mode === 'full'} onClick={() => { setMode('full'); setSelected((initialWordIds ?? [...available].reverse().map(word => word.id)).filter(id => available.some(word => word.id === id)).slice(0, maxAssessmentWords)); }}>完整测试</button><button aria-pressed={mode === 'due'} onClick={() => { setMode('due'); setSelected([...new Set(due.map(row => row.wordId))].slice(0, maxAssessmentWords)); }}>到期复测</button></div>
@@ -86,7 +96,7 @@ function LegacyAssessmentCenter({ state, grant, onGrant, onExit, reload, initial
     {session?.completedAt && <section className="assessment-card"><h1>测试记好啦</h1><p>{session.wordIds.length} 个单词 · {session.items.length} 项。下面一起核对，练习需要加强的地方。</p><div className="assessment-results">{session.items.map(item => <article key={item.id}><div><strong>{item.word.term}</strong><span>{item.word.meaning}</span><small>{assessmentLabels[item.dimension]} · {judgementLabel(item.dimension, item.result!)}</small></div><strong>{assessmentResultLabels[item.result!]}</strong><button aria-label={`听${item.word.term}的缓存发音`} disabled={busy} onClick={() => void voice.speakCached(item.word.term)}>♫ 听示范</button></article>)}</div><p>薄弱项会进入之后的练习；口头能力由家长复测确认。</p><button className="assessment-primary" onClick={exit}>完成</button><button onClick={() => { voice.stop(); setSession(undefined); }}>再选一批</button></section>}
     {paused && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-label="测试已暂停"><h2>休息一下</h2><p>已提交的结果和当前位置都已保存。</p><button className="assessment-primary" onClick={() => setPaused(false)}>继续测试</button><button onClick={exit}>保存并返回</button></section></div>}
     {needsPin && <ParentGate onClose={exit} onUnlock={next => { onGrant(next); setNeedsPin(false); setError(''); }} />}
-  </main>;
+  </div>;
 }
 
 export function AssessmentPracticeView({ word, dimension, choices, busy:appBusy, play, complete, target, stopAudio, onHelp, revealedExternal,unified=false }: {

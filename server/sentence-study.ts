@@ -8,7 +8,7 @@ import type {GameWord} from '../shared/contracts.ts';
 
 export function requireSentenceStudy(data:StoredData,word:GameWord){if(sentenceLesson(word)&&!studiedSentence(data,word))throw new AppError('先学这句的用法，再来测试。','SENTENCE_STUDY_REQUIRED',409);}
 export function sentenceStudyAction(data:StoredData,body:Record<string,unknown>,now:Date){
-  if(Object.keys(body).some(key=>!['wordId','key','action','source','term'].includes(key))||!['start','demonstrate','choose'].includes(String(body.action)))throw new AppError('短句学习动作无效。');
+  if(Object.keys(body).some(key=>!['wordId','key','action','source','term','choiceTerms'].includes(key))||!['start','demonstrate','choose'].includes(String(body.action))||body.choiceTerms!==undefined&&body.action!=='choose')throw new AppError('短句学习动作无效。');
   const pool=assessmentWords(data),word=pool.find(word=>word.id===body.wordId),lesson=word&&sentenceLesson(word);
   if(!word||!lesson||body.key!==sentenceKey({...word,learningVersion:word.learningVersion??0}))throw new AppError('这个短句已更新，请回到学习页重新打开。','SENTENCE_STUDY_STALE',409);
   const rows=data.sentenceStudies??=[],key=sentenceKey({...word,learningVersion:word.learningVersion??0});let row=rows.find(row=>sentenceKey(row.word)===key);
@@ -21,7 +21,8 @@ export function sentenceStudyAction(data:StoredData,body:Record<string,unknown>,
     if(!row.demonstratedAt){row.demonstratedAt=now.toISOString();row.model=body.source;}return row;
   }
   if(!row.demonstratedAt)throw new AppError('先听一遍完整短句，再练一练。');
-  if(typeof body.term!=='string'||!sentenceChoices(word,pool).includes(body.term))throw new AppError('请选择这题里的词。');
+  const terms=body.choiceTerms??sentenceChoices(word,pool);
+  if(!Array.isArray(terms)||!terms.length||terms.length>3||new Set(terms).size!==terms.length||!terms.includes(word.term)||terms.some(term=>typeof term!=='string'||!pool.some(option=>option.term===term))||typeof body.term!=='string'||!terms.includes(body.term))throw new AppError('请选择这题里的词。');
   if(!row.completedAt){row.attempts.push({term:body.term,at:now.toISOString()});if(body.term===word.term)row.completedAt=now.toISOString();}
   return row;
 }

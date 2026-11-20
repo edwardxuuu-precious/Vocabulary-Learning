@@ -15,7 +15,7 @@ import {validLearningPause} from '../shared/learning-pause.ts';
 import { protectNewWordRecallGap } from '../shared/new-word-flow.ts';
 import { entryRecommendation, recommendedEntrySession } from '../shared/entry-recommendation.ts';
 import { adaptiveMainlineActivities } from '../shared/adaptive-mainline.ts';
-import { blankGuidance, coreLearningKinds, ruleGuide, validGuidance } from '../shared/learning-guidance.ts';
+import { blankGuidance, ruleGuide, validGuidance } from '../shared/learning-guidance.ts';
 import {entryScopeCurrent,learnedReviewWords,requestEntrySource,sameLearningEntry,validEntrySource} from '../shared/learning-entry.ts';
 import { mainlineActivities } from '../shared/mainline-experience.ts';
 import { fixedPackGame, randomPackGame } from '../shared/pack-games.ts';
@@ -499,7 +499,10 @@ export class Store {
     });
   }
   startStudy(body:Record<string,unknown>,readyWordIds:string[],mode:'child'|'test') {
-    return this.mutate(data=>startStudyExecution(data,body,{now:this.clock(),mode,readyWordIds,build:(tasks,purpose,requestId)=>this.buildSession(data,'random',{}, {mode:'recommended',entry:tasks.every(task=>task.mode==='new')?'learn':'review',strategy:'memory-loop',requestId,...(tasks.every(task=>task.mode==='new')?{startNew:true}:{})},readyWordIds,tasks)}));
+    return this.mutate(data=>startStudyExecution(data,body,{now:this.clock(),mode,readyWordIds,build:(tasks,_purpose,requestId)=>{
+      const includesNew=tasks.some(task=>task.mode==='new');
+      return this.buildSession(data,'random',{}, {mode:'recommended',entry:includesNew?'learn':'review',strategy:'memory-loop',requestId,...(includesNew?{startNew:true}:{})},readyWordIds,tasks);
+    }}));
   }
   startSession(withGames: boolean | 'random' = false, gameOptions: GamePlanOptions = {}, input: LearningStartRequest = {}, readyWordIds?:string[]) {
     return this.mutate(data => this.buildSession(data, withGames, gameOptions, input, readyWordIds));
@@ -651,8 +654,7 @@ export class Store {
       if (session.activities.slice(boundary + 1).some(a => activityDone(session,a) || Object.keys(session.activityStates?.[a.id] ?? {}).length || data.attempts.some(row=>row.sessionId===session.id&&row.activityId===a.id) || data.practiceRecordings?.some(row=>row.sessionId===session.id&&row.activityId===a.id))) throw new AppError('后面的题目已经开始，保持原有进度。','SESSION_PLAN_CHANGED',409);
       session.experienceUpgrade = { fromVersion:body.expectedVersion as 1|2,toVersion:targetVersion as 2|3, at:this.clock().toISOString(),checkpointId:body.checkpointId,previousActivities:clone(session.activities),...(session.experienceUpgrade?{previousUpgrade:clone(session.experienceUpgrade)}:{}) };
       const arrange=targetVersion===3?adaptiveMainlineActivities:mainlineActivities;
-      const guidedOptions=session.learningPolicy?.guidanceVersion===1?{...gameOptions,allowedKinds:coreLearningKinds.filter(kind=>!gameOptions.allowedKinds||gameOptions.allowedKinds.includes(kind))}:gameOptions;
-      session.activities = arrange(session.activities, data.words.filter(w => session.wordIds.includes(w.id)), session.gameSeed ?? session.id, boundary + 1, session.learningPolicy!.checkpoints,{familyEnabled:data.settings.familyGamesEnabled===true,contextEnabled:data.settings.contextGamesEnabled===true,...guidedOptions});
+      session.activities = arrange(session.activities, data.words.filter(w => session.wordIds.includes(w.id)), session.gameSeed ?? session.id, boundary + 1, session.learningPolicy!.checkpoints,{familyEnabled:data.settings.familyGamesEnabled===true,contextEnabled:data.settings.contextGamesEnabled===true,...gameOptions});
       if(session.learningPolicy?.reviewSequence===1)session.activities=reviewActivitySkins(session.activities,boundary+1);
       if(session.learningPolicy?.teachingSequence)session.activities=protectNewWordRecallGap(session.tasks!,session.activities,boundary+1);
       session.learningPolicy = { ...session.learningPolicy!, version:targetVersion as 2|3 };

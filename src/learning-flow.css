@@ -1,4 +1,11 @@
 /* A shared frame for the saved learning plan; game boards keep their own interactions. */
+.screen-play .flow-nav .lesson-progress-wrap{display:flex;flex-direction:column;align-items:stretch;gap:7px}
+.screen-play .flow-nav .lesson-progress-wrap .lesson-progress{width:100%;flex:none}
+.flow-progress-summary{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:3px 10px;min-width:0}
+.flow-word-count{font-size:14px;line-height:1.5;color:#607a9d;white-space:nowrap}
+.flow-progress-summary .flow-progress-count small{display:inline;font-size:14px}
+.flow-continuation{display:grid;justify-items:center;align-content:center;gap:18px;min-height:260px;color:#607a9d;font-size:16px;line-height:1.6}
+.flow-continuation p{margin:0}
 .app.screen-play[data-learning-background],.app.screen-reward[data-learning-background]{background:linear-gradient(155deg,#edf4ffed,#fffaf2ed),var(--learning-scene,none) center/cover fixed;color:#294368}
 .screen-play .lesson-page,.screen-play .goal-page{width:min(1060px,100%);max-width:1060px;margin:0 auto;padding:clamp(44px,6vh,72px) 36px 138px;min-height:100svh;gap:0;box-sizing:border-box}.screen-play .lesson-page.page-enter,.screen-play .goal-page.page-enter,.screen-play .memory-page.page-enter{animation:flow-reveal .2s ease both}@keyframes flow-reveal{from{opacity:0}to{opacity:1}}
 .screen-play .flow-nav{display:grid;grid-template-columns:112px minmax(0,1fr) 94px;gap:22px;align-items:center;width:100%;margin:0}.screen-play .flow-nav .lesson-nav-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;width:100%;height:48px;min-height:48px;border:1px solid #dce5f2;border-radius:15px;background:#ffffffc9;box-shadow:none;color:#607a9d}.screen-play .flow-nav .lesson-nav-button:hover{background:#fff}.screen-play .flow-nav .lesson-progress-wrap{gap:16px;min-width:0}.screen-play .flow-nav .lesson-progress{width:auto;flex:1;max-width:none;height:9px;box-shadow:none;background:#dfe7f5}.screen-play .flow-nav .lesson-progress>span{background:#727cde}.flow-progress-count{display:flex;align-items:baseline;gap:4px;flex-shrink:0;white-space:nowrap;color:#8596b0;font-size:14px}.flow-progress-count strong{font-size:17px;color:#5269b7}.flow-progress-count small{font-size:11px;margin-left:4px}
@@ -15,6 +22,15 @@
 .screen-play .lesson-sound-instructions{padding:10px 14px;border:0;border-radius:13px;background:#f1f5fc;box-shadow:none;color:#7185a4}.screen-play .lesson-sound-instructions p{justify-content:center;gap:9px}.screen-play .lesson-sound-instructions strong{font-size:15px;font-weight:600}.screen-play .lesson-sound-row{border-color:#dce5f2;box-shadow:0 4px 14px #50608f09}.screen-play .lesson-sound-select{background:#f1f4ff;color:#526bb4;border-color:#dce5f2}.screen-play .lesson-sound-row.is-correct{border-color:#7bbba3;background:#effaf5;box-shadow:0 4px 0 #cae5d9}
 @media(max-width:760px){.screen-play .lesson-sound .lesson-content{padding:20px 17px}.screen-play .lesson-match{gap:14px;padding:0}.screen-play .lesson-match>.lesson-picture{width:165px;padding:6px;border-radius:21px;border-color:#dce5f2;box-shadow:0 4px 14px #50608f09}.screen-play .lesson-sound-panel{width:100%;gap:12px}.screen-play .lesson-sound-instructions{padding:9px 10px}.screen-play .lesson-sound-instructions strong{font-size:13px}.screen-play .lesson-sounds{gap:10px}.screen-play .lesson-sound-row{border-radius:18px}.screen-play .lesson-sound-play,.screen-play .lesson-sound-select{min-height:58px}.screen-play .lesson-sound-play{gap:8px;padding:9px 10px}.screen-play .lesson-sound-label,.screen-play .lesson-sound-select{font-size:16px}.screen-play .lesson-sound-select{min-width:104px}.screen-play .lesson-sound-play>svg{width:23px;height:23px}.screen-play .lesson-sound-number{font-size:15px}}
 @media(prefers-reduced-motion:reduce){.screen-play .flow-nav .lesson-progress>span{transition:none}.screen-play .lesson-page.page-enter,.screen-play .goal-page.page-enter,.screen-play .memory-page.page-enter{animation:none}}
+
+.screen-play .flow-nav .lesson-progress-wrap{display:flex;flex-direction:column;align-items:stretch;gap:7px}
+.screen-play .flow-nav .lesson-progress{width:100%;flex:none}
+.flow-progress-summary{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:2px 10px}
+.flow-word-count{font-size:14px;line-height:1.5;color:#607a9d;white-space:nowrap}
+.flow-progress-summary .flow-progress-count small{display:inline;font-size:14px;margin-left:2px}
+.flow-continuation{display:grid;justify-items:center;align-content:center;gap:18px;min-height:260px;color:#607a9d;font-size:16px;line-height:1.6;text-align:center}
+.flow-continuation p{margin:0}
+.flow-continuation .lesson-next{min-height:48px;padding:12px 20px}
 
 /* One calm card, a stable progress bar, and the next action in the same place. */
 .screen-play .flow-nav .lesson-nav-button svg{flex-shrink:0;width:21px;height:21px}

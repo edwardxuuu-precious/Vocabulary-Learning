@@ -1,6 +1,5 @@
 /* Approved illustrated learning hall. Navigation and learning evidence stay in main.tsx. */
 .screen-home{background:#e9f3fb;min-height:100svh}
-body:has(.app.screen-home){min-width:320px}
 .entry-home{position:relative;isolation:isolate;display:grid;align-items:center;width:100%;min-height:100svh;background:linear-gradient(150deg,#e4f2ff 0%,#f5f7f8 48%,#f9eddb 100%);color:#20334b;animation:entry-home-reveal .35s ease both}
 .entry-home button{cursor:pointer}
 .entry-home button:focus-visible{outline:4px solid #2458b4;outline-offset:5px}
@@ -143,3 +142,84 @@ body:has(.app.screen-home){min-width:320px}
 
 @media(max-aspect-ratio:1/1){.entry-waiting h1{font-size:27px}}
 @media(prefers-reduced-motion:reduce){.entry-home,.entry-waiting{animation:none!important}.entry-home button{transition:none}}
+
+/* Keep the illustrated entrance in the same type and control system. */
+.entry-home .entry-hall {
+  width: var(--ui-shell, min(1060px, calc(100% - 32px)));
+  max-width: none;
+  padding: var(--ui-page-top, 24px) 0 32px;
+  --module-radius: var(--ui-panel-radius, 24px);
+  font-family: var(--ui-font, "Segoe UI", "Microsoft YaHei", sans-serif);
+}
+.entry-home .entry-hall-parent {
+  min-height: var(--ui-touch, 44px);
+  border-radius: var(--ui-control-radius, 14px);
+  border-color: var(--ui-line, #dbe3ef);
+  font-size: var(--ui-caption, 14px);
+  color: var(--ui-ink, #283a55);
+}
+.entry-home .entry-hall-welcome h2 {
+  max-width: none;
+  font-size: var(--ui-page-title, 28px);
+  letter-spacing: -.02em;
+}
+.entry-home .entry-hall-welcome p,
+.entry-home .entry-hall-learn .entry-hall-detail,
+.entry-home .entry-hall-review .entry-hall-description,
+.entry-home .entry-hall-caption small {
+  font-size: var(--ui-caption, 14px);
+  color: var(--ui-muted, #58677e);
+}
+.entry-home .entry-hall-go,
+.entry-home .entry-hall-review .entry-hall-go {
+  min-height: var(--ui-touch, 44px);
+  border-radius: var(--ui-control-radius, 14px);
+  font-size: var(--ui-caption, 14px);
+}
+.entry-home .entry-hall-learn .entry-hall-go {
+  background: var(--ui-accent, #5653cf);
+  color: white;
+  box-shadow: 0 3px 0 var(--ui-accent-edge, #4340a9);
+}
+.entry-home .entry-hall-caption { top: auto; bottom: 16px; }
+@media (min-width: 901px) and (max-height: 719px) {
+  .entry-home .entry-hall { padding-block: 20px 24px; }
+  .entry-home .entry-hall-welcome { margin-block: 16px; min-height: 72px; }
+}
+@media (max-width: 759px) and (min-width: 520px) {
+  .entry-home .entry-hall-caption { top: 32px; bottom: auto; }
+}
+@media (max-width: 519px) {
+  .entry-home .entry-hall-welcome p { max-width: none; }
+  .entry-home .entry-hall-modules { grid-template-rows: 252px 206px minmax(134px, auto); }
+  .entry-home .entry-hall-caption { left: 12px; right: 12px; }
+  .entry-home .entry-hall-caption strong { font-size: 16px; }
+}
+
+.entry-home .entry-hall-welcome { min-height: 0; margin-block: 32px 20px; }
+.entry-home .entry-hall-go,
+.entry-home .entry-hall-review .entry-hall-go { min-height: var(--ui-control-height, 48px); }
+.entry-home .entry-hall-review .entry-hall-go { border: 1px solid #d9d0ed; box-shadow: none; }
+.entry-home :is(.entry-hall-companions, .entry-hall-growth) { border-color: #e1e6f0; background: #fffffff5; box-shadow: 0 6px 20px #253f5810; }
+
+@media (min-width: 760px) {
+  .entry-home .entry-hall-modules { grid-template-columns: 1.2fr 1fr; grid-template-rows: 300px auto; gap: 16px; }
+  .entry-home .entry-hall-learn { grid-row: auto; }
+  .entry-home .entry-hall-learn .entry-hall-character { height: 258px; width: 176px; right: 20px; }
+  .entry-home .entry-hall-review { padding: 35px 28px; }
+  .entry-home .entry-hall-review .entry-hall-title { font-size: clamp(26px, 3vw, 35px); }
+  .entry-home .entry-hall-review .entry-hall-go { left: 28px; bottom: 29px; }
+  .entry-home .entry-hall-review .entry-hall-character { height: 246px; width: 176px; right: 12px; }
+  .entry-home .entry-hall-small-modules { grid-column: 1 / -1; gap: 16px; }
+  .entry-home .entry-hall-small-modules .entry-hall-module { min-height: 104px; }
+  .entry-home .entry-hall-small-modules .entry-hall-caption { left: 134px; top: 50%; bottom: auto; transform: translateY(-50%); }
+  .entry-home .entry-hall-small-modules .entry-hall-small-arrow { top: 50%; bottom: auto; transform: translateY(-50%); }
+  .entry-home .entry-hall-portraits { top: 50%; transform: translateY(-50%); }
+  .entry-home .entry-hall-medal { top: 50%; transform: translateY(-50%) rotate(-10deg); }
+}
+
+@media (min-width: 901px) and (max-height: 719px) {
+  .entry-home .entry-hall-welcome { margin-block: 20px 16px; }
+  .entry-home .entry-hall-modules { grid-template-rows: 272px auto; }
+  .entry-home .entry-hall-learn .entry-hall-character { height: 236px; }
+}

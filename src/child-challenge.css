@@ -46,3 +46,5 @@ body:has(.child-challenge),body:has(.reward-focused){min-width:0}
 .quest-repaired-cue button{display:flex;align-items:center;gap:8px;flex-shrink:0;padding:12px 16px;border:0;border-radius:12px;background:#5b5edb;color:white;font:inherit;cursor:pointer}
 .quest-repaired-cue button:disabled{opacity:.55;cursor:default}
 @media(max-width:480px){.quest-repaired-cue{align-items:flex-start;flex-direction:column;padding:16px}.quest-repaired-cue button{align-self:stretch;justify-content:center}.quest-word-chinese:has(.quest-sentence){padding:22px 16px}}
+
+.quest-learning-needed{margin:24px 0;padding:24px;background:#fff;border:1px solid #dce4f3;border-radius:22px;color:#304764}.quest-learning-needed h2{margin:0 0 10px;font-size:24px}.quest-learning-needed p{margin:0 0 20px;font-size:18px;line-height:1.6;color:#526780}.quest-learning-needed .quest-button{font-size:18px}

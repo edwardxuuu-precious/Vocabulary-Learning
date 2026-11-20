@@ -11,7 +11,7 @@ export const isEntryRecommendation=(session:LearningSession,entry:LearningEntry)
   &&(session.mode??'recommended')==='recommended'&&!session.practiceOnly&&!!session.tasks?.length
   &&session.tasks.every(task=>task.mode===(entry==='learn'?'new':'review'));
 export const learningReturn=(session:LearningSession|null|undefined):'hub'|'review'|'books'|'book-games'=>
-  session?.entrySource?.entry==='review'?(session.packGame?'book-games':session.practicePackId?'books':'review'):'hub';
+  session?.entrySource?.entry==='review'&&session.studyPlan?.purpose!=='learn'?(session.packGame?'book-games':session.practicePackId?'books':'review'):'hub';
 
 /** Only actual current-meaning encounters, never progress/reservation/selection alone. */
 export function learnedReviewWords(data:LearningHistoryData,now=new Date()) {

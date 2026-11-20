@@ -39,7 +39,8 @@ export function studyContinuity(data:WordLearningData,now=new Date(),suppliedPro
       if(!profile||!snapshotCurrent(data,item))return {...base,state:'blocked',reason:'stale-content'};
       if(!profile.available||[...item.choices,...(item.targets??[]),...(item.cueWord?[item.cueWord]:[])].some(snapshot=>!profiles.get(snapshot.id)?.available))return {...base,state:'blocked',reason:'content-unavailable'};
       if(protectedIds.has(item.id))return {...base,state:'preserve-current',reason:'saved-scene'};
-      if(explicit)return {...base,state:'needed',reason:'explicit-practice'};
+      const plannedPractice=session.studyPlan?.purpose==='learn'&&session.tasks?.some(task=>task.wordId===item.wordId&&task.mode==='review');
+      if(explicit||plannedPractice)return {...base,state:'needed',reason:'explicit-practice'};
       return studyTargetCovered(profile,item.step)?{...base,state:'covered',reason:'evidence-covered'}:{...base,state:'needed',reason:'target-needed'};
     });
     // Shared boards and paired repair tasks must remain coherent until their whole group is covered.

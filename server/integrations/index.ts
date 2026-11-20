@@ -8,6 +8,6 @@ export { estimateSttCost, estimateTtsCost, getCachedSpeech, synthesizeSpeech, st
 export type { TtsInput, TtsStreamResult, LiveSttSessionInput, LiveSttSession } from './speech-router.ts';
 export { IntegrationError } from './errors.ts';
 
-export async function probeIntegrations(): Promise<IntegrationStatus> {
-  return { speech: speechStatus(), stt: sttStatus(), tts: ttsStatus(), codex: await probeCodex() };
+export async function probeIntegrations(dataDir?: string): Promise<IntegrationStatus> {
+  return { speech: speechStatus(dataDir), stt: sttStatus(), tts: ttsStatus(dataDir ? { locale: 'en-US', dataDir } : undefined), codex: await probeCodex() };
 }

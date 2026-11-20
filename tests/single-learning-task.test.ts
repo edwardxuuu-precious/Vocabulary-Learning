@@ -23,6 +23,14 @@ function fixture(){
   return {dir,store,ready,request,now:()=>time,nextDay(){time=new Date(time.getTime()+86400000);},close(){store.close();assert.ok(resolve(dir).startsWith(resolve(tmpdir())+sep));rmSync(dir,{recursive:true,force:true});}};
 }
 
+function verifyWord(store:Store,wordId:string){
+  const test=store.createAssessment({mode:'full',wordIds:[wordId]});
+  for(const item of test.items){
+    const body=item.dimension==='look'?{action:'choose',selectedId:wordId}:{action:'judge',judgement:'correct'};
+    store.assessmentAction(test.id,{itemId:item.id,...body});
+  }
+}
+
 test('single task migration keeps current position and word facts, retiring only old pending tasks',()=>{
   const f=fixture();try{
     f.store.mutate(data=>{data.settings.dailyNewWords=3;});const ids=f.ready();
@@ -45,7 +53,8 @@ test('single task migration keeps current position and word facts, retiring only
 test('automatic new learning schedules five unseen words without old reservations or the legacy three-word time slice',()=>{
   const f=fixture();try{
     const ids=f.ready();f.store.mutate(data=>{data.sessions.push({id:'previous-word',wordIds:[ids[0]],completedWordIds:[ids[0]],startedAt:'2026-11-16T02:00:00Z',completedAt:'2026-11-16T02:00:00Z',rewardGranted:false,exposures:[{wordId:ids[0],learningVersion:0,introducedAt:'2026-11-16T02:00:00Z'}]});});
-    f.store.enableSingleLearningTask();const view=studyRuntimeState(f.store.read(),ids,f.now(),'child');assert.equal(view.plans.learn.agenda.newWordCount,5);assert.ok(view.plans.learn.agenda.goals.every(goal=>goal.kind==='introduce'&&goal.wordId!==ids[0]));
+    f.store.enableSingleLearningTask();verifyWord(f.store,ids[0]);
+    const view=studyRuntimeState(f.store.read(),ids,f.now(),'child');assert.equal(view.plans.learn.agenda.newWordCount,5);assert.ok(view.plans.learn.agenda.goals.every(goal=>goal.kind==='introduce'&&goal.wordId!==ids[0]));
     const body=f.request(),target=f.store.startStudy(body,ids,'child');assert.equal(target.kind,'learning');
     const current=f.store.state(status).activeSession!;assert.equal(current.wordIds.length,5);assert.ok(!current.wordIds.includes(ids[0]));assert.ok(current.tasks!.every(task=>task.mode==='new'));
     assert.deepEqual(f.store.startStudy(body,ids,'child'),target);assert.equal(f.store.state(status).resumableSessions?.length,1);
@@ -75,7 +84,9 @@ test('temporary quantity changes only today; choosing a learned word manually re
     f.nextDay();assert.equal(learningChoiceSummary(f.store.read(),f.now()).goal,5);
     const id=f.ready()[0];f.store.mutate(data=>{data.sessions.push({id:'seen',wordIds:[id],completedWordIds:[id],startedAt:'2026-11-16T02:00:00Z',completedAt:'2026-11-16T02:00:00Z',rewardGranted:false});});
     const manual=f.store.startSession(false,{}, {entry:'learn',mode:'relearn',wordIds:[id]});assert.deepEqual(manual.wordIds,[id]);assert.equal(manual.mode,'relearn');assert.equal(f.store.state(status).activeSession?.id,manual.id);
-    assert.ok(!studyRuntimeState(f.store.read(),f.ready(),f.now(),'child').plans.learn.agenda.goals.some(goal=>goal.wordId===id));
+    const locked=studyRuntimeState(f.store.read(),f.ready(),f.now(),'child').plans.learn.agenda;
+    assert.equal(locked.newWordCount,0);assert.ok(locked.goals.every(goal=>goal.wordId===id&&goal.kind==='check'));
+    verifyWord(f.store,id);
     const bookOne=f.store.startSession(false,{}, {entry:'learn',mode:'relearn',packId:'family',wordIds:[f.ready()[1]]});const bookTwo=f.store.startSession(false,{}, {entry:'learn',mode:'relearn',packId:'family',wordIds:[f.ready()[2]]});assert.notEqual(bookTwo.id,bookOne.id);assert.deepEqual(bookTwo.wordIds,[f.ready()[2]]);assert.equal(f.store.state(status).resumableSessions?.length,1);
   }finally{f.close();}
 });
@@ -90,7 +101,7 @@ test('actual entry and quantity picker show a prominent adjustment, five origina
     f.store.enableSingleLearningTask();const state={...f.store.state(status),study:studyRuntimeState(f.store.read(),f.ready(),f.now(),'child')};
     const {StudyHub}=await vite.ssrLoadModule('/src/study-hub.tsx'),{LearningChoice}=await vite.ssrLoadModule('/src/learning-choice.tsx');
     const html=renderToStaticMarkup(createElement(StudyHub,{state,busy:false,onStudyStart(){},onHome(){},onSelect(){},onTest(){},onChoose(){}}));assert.match(html,/调整词量/);assert.match(html,/认识 5 个新词/);assert.doesNotMatch(html,/继续已保存|其他保存的进度|调整学习安排/);assert.equal((html.match(/未学习/g)??[]).length,5);
-    const goal=renderToStaticMarkup(createElement(LearningChoice,{state,mode:'goal',onSaved(){},onBack(){}}));assert.match(goal,/仅调整今天/);assert.match(goal,/明天恢复 5 个新词/);assert.match(goal,/今天目标设为 5 个/);assert.doesNotMatch(goal,/未完成已安排|原来的学习进度|下一轮/);
+    const goal=renderToStaticMarkup(createElement(LearningChoice,{state,mode:'goal',onSaved(){},onBack(){}}));assert.match(goal,/调整今日词量/);assert.match(goal,/明天恢复每天 5 个新词/);assert.match(goal,/设为 5 个新词/);assert.doesNotMatch(goal,/未完成已安排|原来的学习进度|下一轮/);
     assert.equal(f.store.read().sessions.length,0);assert.equal(f.store.read().dailyLearningChoice,undefined);
   }finally{await vite.close();f.close();}
 });

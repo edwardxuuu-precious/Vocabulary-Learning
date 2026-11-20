@@ -6,4 +6,7 @@
 .learning-choice .choice-actions>button{display:inline-flex;align-items:center;justify-content:center;min-width:104px;min-height:54px;margin:0;padding:14px 24px;border-radius:17px;font-size:17px;line-height:1.3}
 .learning-choice .choice-actions>button:not(.hub-start){border:1px solid #dce5f2;background:#fff;color:#48658b}
 .learning-choice .choice-actions>button:not(.hub-start):hover:not(:disabled){border-color:#bdc9e7;background:#f4f7fc}
+@media (min-width: 901px) {
+  .learning-choice .choice-goals { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+}
 @media(max-width:540px){.learning-choice .choice-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}.learning-choice .choice-actions>button{width:100%;min-width:0}}

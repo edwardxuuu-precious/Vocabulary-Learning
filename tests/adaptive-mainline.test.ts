@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { adaptiveMainlineActivities, adaptiveMainlineKinds } from '../shared/adaptive-mainline.ts';
+import { adaptiveMainlineActivities, adaptiveMainlineKinds,automaticMainlineKinds } from '../shared/adaptive-mainline.ts';
 import { extendedKinds } from '../shared/game-materials.ts';
 import { buildActivities } from '../shared/game-plan.ts';
 import { arrangeMemoryLoop, freezeMemoryLoop, memoryLoopTasks, validMemoryLoopPolicy } from '../shared/learning-policy.ts';
@@ -53,7 +53,7 @@ test('seeded rotation is frozen, varies short rounds, and never replaces require
     for(const row of a.activities){kinds.add(row.kind);if(row.step==='listen'&&gameDefinition(row.kind)?.practiceOnly)assert.equal(a.activities.find(r=>r.wordId===row.wordId&&r.step==='sound')?.kind,'standard');
       if(pairedGame(row.kind)){const pair=a.activities.filter(r=>r.groupId===row.groupId&&r.kind===row.kind);assert.equal(pair.length,2);assert.ok(!a.checkpoints.includes(pair[0].id));}}
   }
-  assert.ok(kinds.size>=7);
+  assert.ok([...kinds].every(kind=>['standard','portal'].includes(kind)||automaticMainlineKinds.has(kind as GameKind)));
   const due=plan(words,{},'due',words.map(w=>({wordId:w.id,mode:'review' as const,steps:['listen']})));assert.ok(due.activities.every(a=>!gameDefinition(a.kind)?.practiceOnly));
 });
 test('spelling skins reuse only existing spelling goals and freeze valid letter boards',()=>{

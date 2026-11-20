@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import type { PackAudioStatus, Word, WordPack } from '../shared/contracts.ts';
+import { sentenceLesson } from '../shared/sentence-study.ts';
 import type { TtsInput } from './integrations/elevenlabs.ts';
 import type * as Providers from './integrations/index.ts';
 import { AppError, type Store } from './store.ts';
@@ -10,7 +11,7 @@ export interface PackAudioOptions {
   dataDir: string;
   toMediaUrl: (filePath: string) => string;
 }
-interface Snapshot { pack: WordPack; words: Word[]; fingerprint: string }
+interface Snapshot { pack: WordPack; words: Word[]; clipsByWord: Map<string, string[]>; fingerprint: string }
 interface Job { packId: string; fingerprint: string; controller: AbortController; done: Promise<void>; currentTerm?: string }
 interface Outcome { fingerprint: string; status: 'stopped' | 'error'; error?: string }
 
@@ -24,15 +25,21 @@ export function createPackAudioManager(options: PackAudioOptions) {
     const data = store.read(), pack = data.packs.find(item => item.id === packId && !item.deletedAt);
     if (!pack) throw new AppError('找不到这本词表。', 'PACK_AUDIO_NOT_FOUND', 404);
     const words = data.words.filter(word => word.packId === packId && !word.deletedAt);
+    const nova = integration.ttsStatus({ locale: 'en-US', dataDir }).provider === 'nova';
+    const clipsByWord = new Map(words.map(word => {
+      const lesson = nova ? sentenceLesson(word) : undefined;
+      return [word.id, lesson ? [word.term, lesson.full] : [word.term]];
+    }));
     // Picture approval, labels and enablement can proceed in parallel; only the audio input/membership matters.
-    return { pack, words, fingerprint: JSON.stringify([pack.id, words.map(word => [word.id, word.term])]) };
+    return { pack, words, clipsByWord, fingerprint: JSON.stringify([pack.id, [...clipsByWord]]) };
   }
   function check(job: Job) {
     if (closed || job.controller.signal.aborted) throw new AppError('词表发音准备已停止。', 'CANCELLED', 409);
     if (snapshot(job.packId).fingerprint !== job.fingerprint) throw new AppError('词表内容已变化，请按新内容重新准备发音。', 'PACK_AUDIO_CHANGED', 409);
   }
   async function cached(text: string, signal?: AbortSignal) {
-    if (integration.ttsStatus().provider !== 'elevenlabs') throw new AppError('预缓存只支持现有 ElevenLabs 朗读。', 'PACK_AUDIO_PROVIDER', 503);
+    const voice = integration.ttsStatus(input(text, signal)).provider;
+    if (voice !== 'elevenlabs' && voice !== 'nova') throw new AppError('请先配置可用的英文朗读服务。', 'PACK_AUDIO_PROVIDER', 503);
     if (!text.trim() || text.length > 500 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(text)) throw new AppError('词表中有无效的英文词条，请家长检查后重试。', 'PACK_AUDIO_INVALID_TERM');
     const file = await integration.getCachedSpeech(input(text, signal));
     if (file) toMediaUrl(file); // Provider checks bytes/format; the host checks the current local media boundary.
@@ -40,13 +47,13 @@ export function createPackAudioManager(options: PackAudioOptions) {
   }
   async function scan(value: Snapshot): Promise<PackAudioStatus['words']> {
     const terms = new Map<string, Promise<boolean>>();
-    for (const word of value.words) if (!terms.has(word.term)) terms.set(word.term, cached(word.term));
+    for (const text of new Set([...value.clipsByWord.values()].flat())) terms.set(text, cached(text));
     // Await every rejection even if one term fails, without querying duplicate terms twice.
     const rows = await Promise.allSettled([...terms].map(async ([term, pending]) => [term, await pending] as const));
     const failure = rows.find(row => row.status === 'rejected');
     if (failure?.status === 'rejected') throw failure.reason;
     const found = new Map(rows.flatMap(row => row.status === 'fulfilled' ? [row.value] : []));
-    return value.words.map(word => ({ wordId: word.id, term: word.term, cached: found.get(word.term) === true }));
+    return value.words.map(word => ({ wordId: word.id, term: word.term, cached: value.clipsByWord.get(word.id)!.every(text => found.get(text) === true) }));
   }
   function safeMessage(error: unknown) {
     const code = (error as { code?: string })?.code;
@@ -55,6 +62,7 @@ export function createPackAudioManager(options: PackAudioOptions) {
     if (code === 'PACK_AUDIO_INVALID_TERM') return '词表中有无效的英文词条，请家长检查后重试。';
     if (code === 'SPEECH_RATE_LIMIT') return 'ElevenLabs 额度或频率受限，已停止；请家长检查后再重试。';
     if (code === 'PACK_AUDIO_PROVIDER') return '请先配置现有 ElevenLabs 英文朗读服务，再重试准备发音。';
+    if (code === 'NOVA_RUNTIME_MISSING') return '已有 Nova 发音可播放，请恢复本机发音工具后再准备新词。';
     if (code === 'SPEECH_AUTH') return 'ElevenLabs 认证或音色权限未通过，已停止准备。';
     return '发音准备没有完成，已停止；已缓存的发音会保留，请家长检查后重试。';
   }
@@ -78,12 +86,13 @@ export function createPackAudioManager(options: PackAudioOptions) {
     return { packId, status: 'error', total: value.words.length, cached: 0, words: value.words.map(word => ({ wordId: word.id, term: word.term, cached: false })), error: '词表内容正在变化，请稍后重新检查。' };
   }
   function requireProvider() {
-    const status = integration.ttsStatus();
-    if (status.provider !== 'elevenlabs' || !status.configured) throw new AppError('当前英文朗读服务未配置。', 'PACK_AUDIO_PROVIDER', 503);
+    const status = integration.ttsStatus({ locale: 'en-US', dataDir });
+    if (status.provider === 'nova' && !status.configured) throw new AppError('本机 Nova 准备工具尚未就绪。', 'NOVA_RUNTIME_MISSING', 503);
+    if ((status.provider !== 'elevenlabs' && status.provider !== 'nova') || !status.configured) throw new AppError('当前英文朗读服务未配置。', 'PACK_AUDIO_PROVIDER', 503);
   }
   async function run(job: Job, value: Snapshot) {
     try {
-      for (const term of new Set(value.words.map(word => word.term))) {
+      for (const term of new Set([...value.clipsByWord.values()].flat())) {
         check(job); job.currentTerm = term;
         if (await cached(term, job.controller.signal)) { check(job); continue; }
         check(job); requireProvider();
@@ -91,7 +100,7 @@ export function createPackAudioManager(options: PackAudioOptions) {
         const result = await integration.synthesizeSpeech({ ...input(term, job.controller.signal), beforeRequest: () => {
           check(job); requireProvider();
           if (charge) throw new AppError('发音请求不能重复记账。', 'PACK_AUDIO_OWNER', 500);
-          charge = store.reserve('tts', integration.estimateTtsCost(term), term.length);
+          charge = store.reserve('tts', integration.estimateTtsCost(term, input(term)), term.length);
         } });
         // Only the provider's actual request owner reserves/settles. A shared in-flight waiter owns no charge.
         if (result.mode !== 'api' || !Number.isFinite(result.costCny) || result.costCny < 0) throw new AppError('没有获得真实缓存发音。', 'PACK_AUDIO_RESULT', 502);

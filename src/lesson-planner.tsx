@@ -1,10 +1,11 @@
+import { ActionBar, BackButton, PageHeading } from './ui-layout';
 import { useEffect, useState } from 'react';
 import type { AppState, AssessmentGrant } from '../shared/contracts';
 import { api, errorMessage } from './api';
 import { lessonSegment } from '../shared/lesson-plan';
 import './lesson-planner.css';
 
-export function LessonPlanner({state,grant,reload,onBack}:{state:AppState;grant:AssessmentGrant;reload:()=>Promise<AppState>;onBack:()=>void}) {
+export function LessonPlanner({state,grant,reload,onBack,backLabel='回家长空间'}:{state:AppState;grant:AssessmentGrant;reload:()=>Promise<AppState>;onBack:()=>void;backLabel?:string}) {
   const plan=state.lessonPlan;
   useEffect(()=>{window.scrollTo({top:0,left:0});},[]);
   const [fresh,setFresh]=useState(false),[title,setTitle]=useState(plan?.title??'课堂词表');
@@ -28,8 +29,8 @@ export function LessonPlanner({state,grant,reload,onBack}:{state:AppState;grant:
     } catch(error){setMessage(errorMessage(error));}finally{setBusy(false);}
   };
   return <main className="lesson-planner learning-hub page-enter">
-    <nav className="hub-nav"><button onClick={onBack}>← 回家长空间</button></nav>
-    <header className="hub-heading"><h1>按上课进度安排</h1></header>
+    <nav className="hub-nav"><BackButton onClick={onBack}>{backLabel}</BackButton></nav>
+    <PageHeading title="课堂单词安排" description="从整课词表里勾选这次要学的词。"/>
     <section className="lesson-plan-settings">
       <label>本课名称<input maxLength={80} value={title} onChange={e=>setTitle(e.target.value)} disabled={busy}/></label>
       <label>每段大约<select value={minutes} onChange={e=>setMinutes(Number(e.target.value))} disabled={busy}>{[5,8,10,15].map(n=><option key={n} value={n}>{n}分钟</option>)}</select></label>
@@ -51,7 +52,7 @@ export function LessonPlanner({state,grant,reload,onBack}:{state:AppState;grant:
       {visible.length>0&&visible.every(word=>ids.includes(word.id))&&<p>当前筛选的单词都已在本课，可在上方调整重点和顺序。</p>}
       <div className="lesson-word-grid">{visible.filter(word=>!ids.includes(word.id)).map(word=><button key={word.id} disabled={busy||ids.includes(word.id)} onClick={()=>add([word.id])}><img src={word.imageUrl} alt="" loading="lazy"/><strong>{word.term}</strong><span>{word.meaning}</span><small>{ids.includes(word.id)?'已在本课':'＋ 加入本课'}</small></button>)}</div>
     </section>
-    <footer className="picker-footer"><div className="picker-selection"><strong>本课 {ids.length} 词 · 本次 {focus.length} 词</strong><p>{preview?.words.length?`下一段 ${preview.words.length} 词，约 ${preview.minutes} 分钟`:focus.length?'本次重点已练完，或需要先补齐素材':'可先保存整课范围，稍后再选重点'}</p><small>保存后当前正在玩的段落保持原样。需要立即换词，可在大厅学习卡片右上角的“更多”中换词。</small></div><button className="picker-start" disabled={busy||!ids.length||!title.trim()} onClick={()=>void save()}>{busy?'保存中…':'保存安排'}</button></footer>
+    <ActionBar className="picker-footer" context={<div className="picker-selection"><strong>本课 {ids.length} 词 · 本次 {focus.length} 词</strong><p>{preview?.words.length?`下一段 ${preview.words.length} 词，约 ${preview.minutes} 分钟`:focus.length?'本次重点已练完，或需要先补齐素材':'可先保存整课范围，稍后再选重点'}</p></div>} primary={<button className="picker-start" disabled={busy||!ids.length||!title.trim()} onClick={()=>void save()}>{busy?'保存中…':'保存安排'}</button>}/>
     {message&&<p className="lesson-plan-message" role="status">{message}</p>}
   </main>;
 }

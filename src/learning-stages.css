@@ -1,0 +1,11 @@
+.learning-stages{display:flex;gap:16px;list-style:none;margin:0 0 24px;padding:0;color:#68758b;font-size:15px;line-height:1.5}
+.learning-stages li{display:flex;align-items:center;gap:8px;flex:1;position:relative}
+.learning-stages li+li:before{content:"";width:16px;height:1px;background:#ced8e8;flex-shrink:0}
+.learning-stages li>span{display:grid;place-items:center;width:28px;height:28px;flex-shrink:0;border-radius:50%;background:#e9edf6;color:#64758f}
+.learning-stages strong{font-weight:500}
+.learning-stages .is-current{color:#574ca6}
+.learning-stages .is-current>span{background:#7768be;color:white}
+.learning-stages .is-current strong{font-weight:750}
+.learning-stages .is-done>span{background:#e3f2ed;color:#328269}
+.growth-reward .learning-stages{margin-bottom:28px;text-align:left}
+@media(max-width:480px){.learning-stages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;font-size:14px;margin-bottom:18px}.learning-stages li{flex-direction:column;gap:6px;min-width:0;text-align:center}.learning-stages li+li:before{display:none}.learning-stages li>span{width:23px;height:23px}}

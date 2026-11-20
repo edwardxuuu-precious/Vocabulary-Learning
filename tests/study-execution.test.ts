@@ -11,6 +11,8 @@ import type {StudyStartRequest,StudyTarget} from '../shared/study-execution.ts';
 import {createApp} from '../server/index.ts';
 import {rebuildAssessmentProgress} from '../server/assessments.ts';
 import {pendingLearningCheckpoint} from '../shared/learning-policy.ts';
+import {createChallengeManager} from '../server/challenges.ts';
+import {assessmentCurrent} from '../shared/assessment.ts';
 
 const initial=new Date('2026-11-16T04:00:00Z'),prior='2026-11-14T02:00:00Z';
 function fixture(){const dir=mkdtempSync(join(tmpdir(),'study-executor-'));let time=initial.getTime();const store=new Store(dir,()=>new Date(time));store.mutate(data=>{data.packs=[{id:'engineering',title:'隔离工程词书',enabled:true,createdAt:prior}];data.words=data.words.slice(0,3).map(word=>({...word,packId:'engineering',assetStatus:'approved',learningVersion:0}));data.sessions=[];data.attempts=[];data.progress=[];data.assessments=[];data.assessmentAttempts=[];data.assessmentProgress=[];data.assessmentPractices=[];data.studyReceipts=[];data.activeLearningSessionId=null;});return {dir,store,now:()=>new Date(time),advance:(ms:number)=>{time+=ms;},ready:()=>store.read().words.map(word=>word.id),close(){store.close();const root=realpathSync(dir);assert.ok(root.startsWith(realpathSync(tmpdir())+sep));rmSync(root,{recursive:true,force:true});}};}
@@ -54,6 +56,79 @@ test('RF07: retries of an old start cannot activate a different current session 
 test('RF07: HTTP preview and start enforce rest, preserve saves, and reject test crossover',async()=>{const f=fixture();mkdirSync(join(f.dir,'speech'),{recursive:true});const clip=join(f.dir,'speech','cached.mp3');writeFileSync(clip,'ID3-engineering-cache');const offline={configured:false,available:false,status:'engineering',detail:'隔离替身，不调用云服务'};const app=createApp({dataDir:f.dir,clock:f.now,integrations:{probeIntegrations:async()=>({speech:offline,codex:offline}),getCachedSpeech:async()=>clip}});try{await new Promise<void>(resolve=>app.server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${(app.server.address() as {port:number}).port}`,send=(url:string,body:unknown)=>fetch(base+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const before=app.store.read(),view=await (await fetch(base+'/api/study')).json() as any;assert.deepEqual(app.store.read(),before);const body={version:1,mode:'child',purpose:'learn',action:'new',requestId:crypto.randomUUID(),planId:view.plans.learn.planId};const response=await send('/api/study/start',body);assert.equal(response.status,200);const result=await response.json() as any,s=app.store.read().sessions.find(row=>row.id===result.target.sessionId)!,a=currentActivity(s)!;assert.equal((await send('/api/test/study/start',body)).status,403);for(let n=0;n<180;n++){app.store.screenTime.heartbeat('study-rest-test',true);f.advance(5000);}app.store.screenTime.heartbeat('study-rest-test',true);assert.equal((await send('/api/study/start',{...body,requestId:crypto.randomUUID()})).status,423);assert.equal((await send('/api/study/save',{mode:'child',requestId:crypto.randomUUID(),sessionId:s.id,activityId:a.id,planVersion:3,reason:'rest'})).status,200);assert.equal(app.store.read().attempts.length,0);}finally{await app.close();f.close();}});
 
 function audibleWav(){const bytes=Buffer.alloc(32044);bytes.write('RIFF');bytes.writeUInt32LE(bytes.length-8,4);bytes.write('WAVEfmt ',8);bytes.writeUInt32LE(16,16);bytes.writeUInt16LE(1,20);bytes.writeUInt16LE(1,22);bytes.writeUInt32LE(16000,24);bytes.writeUInt32LE(32000,28);bytes.writeUInt16LE(2,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);bytes.writeUInt32LE(32000,40);for(let n=0;n<16000;n++)bytes.writeInt16LE(Math.round(Math.sin(n*2*Math.PI*220/16000)*6000),44+n*2);return bytes;}
+
+test('new words wait for the current group, missed directions get practice and a focused recheck, and weak older words interleave',async()=>{
+  const f=fixture();
+  const noProvider=async()=>{throw Error('工程样例不调用外部服务');};
+  const manager=createChallengeManager({store:f.store,dataDir:f.dir,imageAvailable:()=>true,services:{transcribe:noProvider,grade:noProvider}});
+  try{
+    const [oldId,groupId,newId]=f.ready();
+    f.store.enableSingleLearningTask(false);
+    f.store.mutate(data=>{
+      data.settings.dailyNewWords=1;
+      for(const [id,wordId,at] of [['older-group',oldId,prior],['current-group',groupId,'2026-11-15T01:00:00Z']]){
+        data.sessions.push({id,entrySource:{entry:'learn',kind:'recommended'},wordIds:[wordId],completedWordIds:[wordId],startedAt:at,completedAt:at,rewardGranted:true,exposures:[{wordId,learningVersion:0,introducedAt:at}]});
+      }
+    });
+    grades(f,'incorrect',['read']);
+    const agenda=()=>studyRuntimeState(f.store.read(),f.ready(),f.now(),'child').plans.learn.agenda;
+    const recommend=()=>execute(f,request(f,'learn',{action:'recommended'}));
+    assert.deepEqual(agenda().learningGroup?.wordIds,[groupId]);
+    assert.equal(agenda().newWordCount,0);
+    assert.equal(execute(f,request(f)).kind,'empty');
+    assert.throws(()=>f.store.startSession(true,{}, {mode:'relearn',entry:'learn',wordIds:[newId]}),/再开始下一组/);
+    f.advance(86400000);
+    assert.equal(agenda().newWordCount,0,'a fresh daily quota does not unlock the next group');
+
+    const finishTest=(target:StudyTarget)=>{
+      assert.equal(target.kind,'assessment');
+      let assessment=f.store.read().assessments!.find(row=>row.id===target.assessmentId)!;
+      assert.equal(agenda().learningGroup?.resumeAssessmentId,assessment.id);
+      while(assessmentCurrent(assessment)){
+        const item=assessmentCurrent(assessment)!;
+        assessment=item.dimension==='look'
+          ?manager.respond(assessment.id,{itemId:item.id,expectedVersion:0,action:'choose',selectedId:item.word.id})
+          :manager.upload(assessment.id,item.id,0,audibleWav(),item.dimension==='zh-en'?2:undefined);
+      }
+      return manager.submit(assessment.id);
+    };
+    const submitted=finishTest(recommend());
+    assert.deepEqual(submitted.wordIds,[groupId]);
+    assert.equal(submitted.items.length,4);
+    assert.equal(agenda().learningGroup?.pending,1);
+    assert.equal(agenda().learningGroup?.mastered,0);
+    assert.equal(agenda().newWordCount,0);
+    assert.equal(recommend().kind,'empty');
+    const verify=(assessment:typeof submitted,read:'correct'|'incorrect')=>manager.review(assessment.id,{items:assessment.items.filter(item=>item.dimension!=='look').map(item=>({itemId:item.id,responseVersion:1,proposalVersion:0,reviewVersion:0,result:item.dimension==='read'?read:'correct'}))});
+    verify(submitted,'incorrect');
+
+    f.advance(1000);
+    const practice=sessionFor(f,recommend());
+    assert.deepEqual(practice.tasks,[{wordId:groupId,mode:'review',steps:['practice-read']}]);
+    const activity=currentActivity(practice)!;
+    createPracticeRecordings(f.store).upload({sessionId:practice.id,activityId:activity.id,planVersion:3},crypto.randomUUID(),audibleWav());
+    f.store.assessmentPractice({sessionId:practice.id,planVersion:3,wordId:groupId,learningVersion:0,dimension:'read',oralStatus:'recorded'});
+    f.store.updateSession({sessionId:practice.id,planVersion:3,complete:true});
+    assert.equal(agenda().learningGroup?.sessionId,'current-group');
+    assert.equal(agenda().learningGroup?.mastered,0);
+    f.advance(1000);
+    const retry=finishTest(recommend());
+    assert.deepEqual(retry.items.map(item=>item.dimension),['read']);
+    verify(retry,'correct');
+    assert.equal(agenda().learningGroup?.mastered,1);
+    assert.equal(agenda().newWordCount,1);
+    const next=sessionFor(f,execute(f,request(f)));
+    assert.deepEqual(next.tasks?.map(task=>[task.wordId,task.mode]),[[newId,'new'],[oldId,'review']]);
+    assert.equal(next.activities![0].wordId,newId);
+    assert.equal(next.activities![0].step,'learn');
+    const reviewIndex=next.activities!.findIndex(row=>row.wordId===oldId);
+    assert.ok(reviewIndex>0&&reviewIndex<next.activities!.length-1);
+    const backup=f.store.exportBackup();
+    assert.ok(validateBackup(backup));
+    f.store.restoreBackup(backup);
+    assert.deepEqual(f.store.read().sessions.find(session=>session.id===next.id)?.activities,next.activities);
+  }finally{await manager.close();f.close();}
+});
 
 test('RF12: saved focused oral practice leads to the missing formal check without same-day suppression',()=>{const f=fixture();try{encountered(f);grades(f,'incorrect',['read']);const word=f.ready()[0],target=execute(f,request(f,'review',{action:'follow-up',wordIds:[word]})),s=sessionFor(f,target),a=currentActivity(s)!;const audio=createPracticeRecordings(f.store);audio.upload({sessionId:s.id,activityId:a.id,planVersion:3},crypto.randomUUID(),audibleWav());f.store.assessmentPractice({sessionId:s.id,planVersion:3,wordId:word,learningVersion:0,dimension:'read',oralStatus:'recorded'});f.store.updateSession({sessionId:s.id,planVersion:3,complete:true});const next=execute(f,request(f,'review',{action:'follow-up',wordIds:[word]}));assert.equal(next.kind,'assessment');if(next.kind==='assessment')assert.deepEqual(f.store.read().assessments!.find(test=>test.id===next.assessmentId)!.items.map(item=>item.dimension),['read']);assert.equal(f.store.read().assessmentAttempts!.at(-1)!.result,'incorrect');assert.ok(validateBackup(f.store.exportBackup()));}finally{f.close();}});
 

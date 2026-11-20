@@ -1,3 +1,4 @@
+import { TaskHeading } from './ui-layout';
 import { useEffect, useRef, useState } from 'react';
 import { LearningTopbar } from './learning-topbar';
 import type { ActivityAction, GameWord, LearningActivity, LearningSession } from '../shared/contracts';
@@ -49,8 +50,8 @@ export function BatchTwoLearningGame({activity:a,session,busy:appBusy,playing,on
     a.kind==='quiz'&&state.handedOver&&!state.revealed?{label:'一起揭晓',action:()=>onAction('reveal')}:undefined;
   return <main className={`lesson-page game-page batch-page batch-${a.kind}`}>
 <LearningTopbar session={session} onHome={onHome} onPause={onPause} />
-    <div className="lesson-guide"><Mascot small character={companionFor(session.id,Math.max(0,session.activities?.findIndex(item=>item.id===a.id)??0))}/><h1>{activityTitles[a.kind]}</h1></div>
     <section className="game-stage batch-stage" aria-label={activityTitles[a.kind]}>
+      <TaskHeading title={activityTitles[a.kind]}><Mascot small character={companionFor(session.id,Math.max(0,session.activities?.findIndex(item=>item.id===a.id)??0))}/></TaskHeading>
       {pairedGame(a.kind)&&<><p className="game-prompt">{a.kind==='queue'?'按听到的顺序，选出两张图':'找出刚才听到的两个朋友'}</p>
         <div className="pair-workspace"><aside className={`pair-listen ${heard?'has-listened':''}`} aria-label="听音区"><span className="pair-eyebrow">先听一听</span>{audio}<span className="pair-sound-waves" aria-hidden="true"><i/><i/><i/><i/><i/></span><p>{heard?'没听清，可以再听一次':'不着急，听完再选'}</p></aside>
         <div className="pair-answer-area"><div className="pair-answer-heading"><span>{a.kind==='queue'?'排好它们的位置':'装进小小收集篮'}</span>{chosen.length>0&&!accepted&&<button className="pair-undo" disabled={busy} onClick={()=>onAction('undo')} aria-label="撤回一张">↶ <span>撤回</span></button>}</div>

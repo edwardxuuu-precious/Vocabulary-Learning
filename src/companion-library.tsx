@@ -1,9 +1,9 @@
+import { BackButton, PageHeading } from './ui-layout';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { companionBiographies, companionCharacters, companionIds, type CompanionCharacter } from '../shared/companions';
-import { companionAnimationRemaining, companionUnlockSize, companionUnlockSummary, type CompanionUnlockSummary } from '../shared/companion-unlocks';
+import { companionAnimationRemaining, companionUnlockSummary, type CompanionUnlockSummary } from '../shared/companion-unlocks';
 import { companionVideos } from '../shared/companion-videos';
-import { Mascot } from './mascot';
 import { CompanionAnimation } from './companion-animation';
 import './companion-library.css';
 
@@ -61,11 +61,11 @@ export function CompanionLibrary({ onBack, progress = companionUnlockSummary() }
 
   return <>
     <main className="companion-library page-enter" inert={selected !== null}>
-      <nav className="companion-library-nav" aria-label="图鉴导航"><button onClick={onBack} aria-label="回到单词游乐园首页"><CompanionArrow direction="left" />回首页</button></nav>
-      <header className="companion-library-header"><div><h1>伙伴图鉴</h1><p>已解锁 {progress.unlockedIds.length} / {companionIds.length} 位伙伴 · 动画 {animationIds.length} / {companionIds.length}</p></div><Mascot small /></header>
+      <nav className="companion-library-nav" aria-label="图鉴导航"><BackButton onClick={onBack} label="回到单词游乐园首页">回首页</BackButton></nav>
+      <PageHeading title="伙伴图鉴" description={`已解锁 ${progress.unlockedIds.length} / ${companionIds.length} 位伙伴 · 动画 ${animationIds.length} / ${companionIds.length}`}/>
       <section className="companion-unlock-progress" aria-label="伙伴解锁进度">
         <div className="companion-unlock-heading"><CompanionLock/><div><h2>{progress.allUnlocked ? '人物和动画都解锁啦！' : next?.kind === 'animation' ? `解锁${nextName}的动画` : '认识下一位伙伴'}</h2><p>{progress.allUnlocked ? '所有伙伴的图片、故事和动画都可以看了。' : progress.newWords < 20 ? '每新学会10个词，解锁一段领袖动画。' : '新学会10词开人物，再学10词开它的动画，然后认识下一位。'}</p></div></div>
-        {!progress.allUnlocked && next && <div className="companion-credit-track companion-cycle-track"><div><strong>{next.kind === 'character' ? `${nextName}的图片和故事` : `${nextName}的动画`}</strong><span>{next.progress} / {companionUnlockSize} 词</span></div><progress max={companionUnlockSize} value={next.progress} aria-label={next.kind === 'character' ? '人物解锁进度' : '动画解锁进度'}/><small>累计新学会 {progress.newWords} 词 · 再学会 {next.remaining} 词{next.kind === 'character' ? '认识这位新伙伴' : '看它的动画'}</small></div>}
+        {!progress.allUnlocked && next && <div className="companion-credit-track companion-cycle-track"><div><strong>{next.kind === 'character' ? `${nextName}的图片和故事` : `${nextName}的动画`}</strong><span>{next.progress} / {next.progress + next.remaining} 词</span></div><progress max={next.progress + next.remaining} value={next.progress} aria-label={next.kind === 'character' ? '人物解锁进度' : '动画解锁进度'}/><small>累计新学会 {progress.newWords} 词 · 再学会 {next.remaining} 词{next.kind === 'character' ? '认识这位新伙伴' : '看它的动画'}</small></div>}
         <details className="companion-credit-rules"><summary>怎样算进度</summary><p>只累计新学会的不同英文。擎天柱、威震天的图片和故事默认可看，动画分别在累计10词、20词时解锁。同时，10词解锁大黄蜂的图片和故事，20词解锁它的动画，30词、40词再解锁下一位的图文和动画，随后循环。新词仍以四项正式测试均独立通过为准，口头回答由家长核验；同词跨书只计一次，复习不推进这个循环，已经学会词数获得的奖励永久保留。</p></details>
       </section>
       <div className="companion-filters" role="group" aria-label="伙伴阵营">{filters.map(item => <button key={item.id} aria-pressed={faction === item.id} onClick={() => { setFaction(item.id); setPage(0); }}>{item.label}<span>{companionIds.filter(id => item.id === 'all' || companionCharacters[id].faction === item.id).length}</span></button>)}</div>

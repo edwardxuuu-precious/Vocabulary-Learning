@@ -137,7 +137,7 @@ test('R02: unavailable due words cannot be reported as no-due while other known 
 test('L02/R02 HTTP: local readiness and preview match actual starts, refresh creates no rounds, empty start is rejected',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'entry-rec-http-')),cache=join(dir,'speech','explicit-audio-fixture.wav');mkdirSync(join(dir,'speech'));writeFileSync(cache,Buffer.alloc(64));
   let cached=true,forbidden=0;
-  const app=createApp({dataDir:dir,integrations:{probeIntegrations:async()=>({speech:offline,codex:offline}),ttsStatus:()=>offline,getCachedSpeech:async()=>cached?cache:undefined,
+  const app=createApp({dataDir:dir,studyExecution:false,integrations:{probeIntegrations:async()=>({speech:offline,codex:offline}),ttsStatus:()=>offline,getCachedSpeech:async()=>cached?cache:undefined,
     synthesizeSpeech:async()=>{forbidden++;throw Error('No cloud');}}});app.store.clock=()=>now;seed(app.store);
   try{
     await new Promise<void>(done=>app.server.listen(0,'127.0.0.1',done));const base=`http://127.0.0.1:${(app.server.address() as {port:number}).port}`;
@@ -156,7 +156,7 @@ test('L02/R02 actual components: primary purpose/empty state, explicit extra rou
     const learn=render('learn'),review=render('review');assert.ok(learn.includes('认识 3 个新词'));assert.ok(learn.includes('开始学习'));assert.ok(!learn.includes('复习 2 个已学到期词'));
     assert.ok(review.includes('复习 2 个已学到期词'));assert.ok(review.includes('开始复习'));assert.ok(review.includes('按书加练'));assert.ok(state.words.slice(0,4).some(word=>review.includes(word.imageUrl)));
     const future={...state,learningNow:'2026-10-23T02:00:00Z'};assert.ok(render('review',future).includes('今天没有到期复习'));
-    f.store.startSession(false,{}, {entry:'learn'});const resumed=render('learn',f.store.state({speech:offline,codex:offline}));assert.ok(resumed.includes('本小段进度'));assert.ok(resumed.includes('aria-valuemax="8"'));
+    f.store.startSession(false,{}, {entry:'learn'});const resumed=render('learn',f.store.state({speech:offline,codex:offline}));assert.ok(resumed.includes('整份任务进度'));assert.ok(resumed.includes('aria-valuemax="18"'));
     const noAudio={...state,learningReadyWordIds:[]};assert.ok(render('learn',noAudio).includes('词语还需准备'));assert.ok(render('review',noAudio).includes('词语还需准备'));
   }finally{await vite.close();f.close();}
 });

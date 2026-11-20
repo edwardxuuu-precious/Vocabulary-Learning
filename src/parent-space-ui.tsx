@@ -1,8 +1,9 @@
+import { BackButton } from './ui-layout';
 import { useState, type ReactNode } from 'react';
 import { Mascot } from './mascot';
 
 type ParentTab = 'packs' | 'learning' | 'assets' | 'settings';
-type ParentSymbolKind = 'back' | 'book' | 'history' | 'settings' | 'down' | 'services' | 'shield';
+type ParentSymbolKind = 'back' | 'book' | 'history' | 'settings' | 'down' | 'services' | 'shield' | 'sound' | 'image';
 
 export function ParentSymbol({ kind }: { kind: ParentSymbolKind }) {
   const paths: Record<ParentSymbolKind, string> = {
@@ -13,16 +14,41 @@ export function ParentSymbol({ kind }: { kind: ParentSymbolKind }) {
     down: 'm6 9 6 6 6-6',
     services: 'M8 3v5m8-5v5M6 8h12v4a6 6 0 0 1-6 6v4m-6-14v4a6 6 0 0 0 6 6',
     shield: 'M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6Z m-4 9 3 3 5-6',
+    sound: 'M11 5 6 9H3v6h3l5 4ZM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12',
+    image: 'M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4m-5-8h.01',
   };
   return <svg className="parent-symbol" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[kind]} /></svg>;
 }
 
-export function ParentSpaceHeader({ tab, reviewing, settingsDirty = false, onExit, onNavigate }: { tab: ParentTab; reviewing: number; settingsDirty?: boolean; onExit: () => void; onNavigate: (tab: Exclude<ParentTab, 'assets'>) => void }) {
-  return <>
-    <nav className="parent-home-nav" aria-label="家长空间返回"><button onClick={onExit}><ParentSymbol kind="back" />孩子首页</button></nav>
-    <header className="parent-space-heading"><h1>家长空间</h1><Mascot small /></header>
-    <nav className="studio-tabs" aria-label="家长空间导航">{([{ id: 'packs', label: '备课', icon: 'book' }, { id: 'learning', label: '学习记录', icon: 'history' }, { id: 'settings', label: '设置', icon: 'settings' }] as const).map(item => <button key={item.id} aria-current={tab === item.id || item.id === 'packs' && tab === 'assets' ? 'page' : undefined} onClick={() => onNavigate(item.id)}><ParentSymbol kind={item.icon} />{item.label}{item.id==='settings'&&settingsDirty&&<b aria-label="设置有未保存更改">未保存</b>}{item.id === 'packs' && reviewing > 0 && <b aria-label={reviewing + '张图片待审核'}>{reviewing}</b>}</button>)}</nav>
-  </>;
+export function ParentWorkspace({ test = false, navigation, utility, onExit, children }: {
+  test?: boolean;
+  navigation?: ReactNode;
+  utility?: ReactNode;
+  onExit: () => void;
+  children: ReactNode;
+}) {
+  return <main className="parent-page parent-studio parent-workspace page-enter">
+    <aside className="parent-workspace-rail" aria-label={test ? '家长测试' : '家长空间'}>
+      <div className="parent-workspace-identity"><Mascot small /><strong>{test ? '家长测试' : '家长空间'}</strong></div>
+      {navigation}
+      <nav className="parent-workspace-return" aria-label="返回"><BackButton onClick={onExit}>{test ? '回测试首页' : '孩子首页'}</BackButton></nav>
+      {utility}
+    </aside>
+    <div className="parent-workspace-content">{children}</div>
+  </main>;
+}
+
+export function ParentNavigation({ tab, reviewing, settingsDirty = false, onNavigate }: { tab: ParentTab; reviewing: number; settingsDirty?: boolean; onNavigate: (tab: Exclude<ParentTab, 'assets'>) => void }) {
+  return <nav className="studio-tabs" aria-label="家长空间导航">
+    {([{ id: 'packs', label: '备课', icon: 'book' }, { id: 'learning', label: '学习记录', icon: 'history' }, { id: 'settings', label: '设置', icon: 'settings' }] as const).map(item =>
+      <button key={item.id} type="button" aria-current={tab === item.id || item.id === 'packs' && tab === 'assets' ? 'page' : undefined} onClick={() => onNavigate(item.id)}>
+        <ParentSymbol kind={item.icon} />
+        <span>{item.label}</span>
+        {item.id === 'settings' && settingsDirty && <b aria-label="设置有未保存更改">未保存</b>}
+        {item.id === 'packs' && reviewing > 0 && <b aria-label={reviewing + '张图片待审核'}>{reviewing}</b>}
+      </button>
+    )}
+  </nav>;
 }
 
 export function ParentDisclosure({ title, description, icon, children }: { title: string; description: string; icon: 'services' | 'shield' | 'book'; children: ReactNode }) {

@@ -7,7 +7,7 @@ import type { AppState, SpeechResponse } from '../shared/contracts.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 if (existsSync(resolve(root, '.env'))) process.loadEnvFile(resolve(root, '.env'));
-const { getCachedSpeech } = await import('../server/integrations/speech-router.ts');
+const { getCachedSpeech, synthesizeSpeech } = await import('../server/integrations/speech-router.ts');
 const base = 'http://127.0.0.1:8787';
 const dataDir = resolve(root, process.env.PLAYROOM_DATA_DIR ?? 'data');
 const apply = process.argv.includes('--apply');
@@ -16,6 +16,7 @@ if (process.argv.slice(2).some(arg => !['--apply','--include-samples'].includes(
 const stateResponse = await fetch(base + '/api/state', { signal: AbortSignal.timeout(10000) });
 if (!stateResponse.ok) throw new Error('本机应用未就绪。');
 const before = await stateResponse.json() as AppState;
+const nova = before.integrations.tts?.provider === 'nova';
 const packIds = new Set(before.packs.filter(pack => includeSamples || !pack.isSample).map(pack => pack.id));
 const words = [...new Set(before.words.filter(word => packIds.has(word.packId)).map(word => word.term))];
 const input = (text: string) => ({ text, locale: 'en-US' as const, tone: 'clear' as const, dataDir });
@@ -48,7 +49,7 @@ if (apply) {
   try {
     for (const row of rows) {
       let generated = false;
-      if (!row.cachedBefore) generated = !(await request(row.text)).cached;
+      if (!row.cachedBefore) generated = !(await (nova ? synthesizeSpeech(input(row.text)) : request(row.text))).cached;
       // Never issue a supposed verification request until the current exact cache key exists.
       assert.ok(await getCachedSpeech(input(row.text)), '单词缓存未写入：' + row.text);
       const started = performance.now();

@@ -1,3 +1,4 @@
+import { ActionBar, BackButton, PageHeading } from './ui-layout';
 import {useState} from 'react';
 import type {AppState} from '../shared/contracts';
 import {learningChoiceSummary,choiceDay} from '../shared/daily-learning-choice';
@@ -6,7 +7,6 @@ import {buildStudyAgenda} from '../shared/study-agenda';
 import {entryRecommendation} from '../shared/entry-recommendation';
 import {learningEncounters} from '../shared/learning-history';
 import {api,errorMessage} from './api';
-import {Mascot} from './mascot';
 import './learning-choice.css';
 
 /** An explicit daily choice. Persistent parent settings and in-progress rounds remain separate. */
@@ -24,7 +24,7 @@ function LegacyLearningChoice({state,mode,onSaved,onBack}:{state:AppState;mode:'
   const save=async()=>{setBusy(true);setError('');try{
     const next=await api<AppState>('/api/session/daily-choice',{method:'POST',body:JSON.stringify({day:summary.day,revision:summary.revision,goal,...(ids.length?{wordIds:ids,wordVersions:Object.fromEntries(words.map(w=>[w.id,w.learningVersion??0]))}:{})})});onSaved(next);
   }catch(e){setError(errorMessage(e));}finally{setBusy(false);}};
-  return <main className="learning-hub learning-choice page-enter"><nav className="hub-nav"><button disabled={busy} onClick={onBack}>← 取消，回学习</button></nav><header className="hub-heading"><h1>{mode==='goal'?'今天学几个新词？':preview?'确认想学的词':'今天想学哪些词？'}</h1><Mascot small/></header>
+  return <main className="learning-hub learning-choice page-enter"><nav className="hub-nav"><BackButton disabled={busy} onClick={onBack}>回学习</BackButton></nav><PageHeading title={mode==='goal'?'调整今日词量':preview?'确认选词':'选择新词'}/>
     <section className="hub-current choice-summary"><h2>今天已认识 {base.usedNewToday} 个新词</h2><p>今日目标 {goal} 词 · 未完成已安排 {base.reservedNew} 词 · 可新安排 {remaining} 词</p><p>原来的学习进度保留；修改只影响下一轮。每天的默认目标由家长设置，今天可自己调整。</p>
       <div className="choice-goals" role="group" aria-label="今日新词目标">{Array.from({length:20},(_,i)=>i+1).map(n=><button key={n} disabled={busy} aria-pressed={goal===n} onClick={()=>setGoal(n)}>{n} 词</button>)}</div>
     </section>
@@ -46,6 +46,8 @@ function DailyGoalChoice({state,onSaved,onBack}:{state:AppState;onSaved:(next:Ap
   const [goal,setGoal]=useState(summary.goal),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const learnedToday=new Set(learningEncounters(state).filter(row=>Date.parse(row.introducedAt)<=now.getTime()&&choiceDay(new Date(row.introducedAt))===summary.day&&state.packs.some(pack=>pack.id===state.words.find(word=>word.id===row.wordId)?.packId&&!pack.isSample)).map(row=>row.wordId)).size;
   const plan=buildStudyAgenda({...state,dailyLearningChoice:{day:summary.day,revision:summary.revision+1,goal}},{now,purpose:'learn'},state.study?.profiles);
+  const group=state.study?.plans.learn.agenda.learningGroup;
+  const waitingForMastery=!!group&&group.mastered<group.wordIds.length;
   const save=async()=>{setBusy(true);setError('');try{onSaved(await api<AppState>('/api/session/daily-choice',{method:'POST',body:JSON.stringify({day:summary.day,revision:summary.revision,goal})}));}catch(error){setError(errorMessage(error));}finally{setBusy(false);}};
-  return <main className="learning-hub learning-choice page-enter"><nav className="hub-nav"><button disabled={busy} onClick={onBack}>← 回学习</button></nav><header className="hub-heading"><h1>今天学几个新词？</h1><Mascot small/></header><section className="hub-current choice-summary"><div className="choice-goal-lifetime"><strong>仅调整今天</strong><span>明天恢复 {state.settings.dailyNewWords} 个新词</span></div><div className="choice-goals" role="group" aria-label="今日新词目标">{Array.from({length:20},(_,i)=>i+1).map(n=><button key={n} disabled={busy} aria-pressed={goal===n} onClick={()=>setGoal(n)}>{n} 个</button>)}</div><div className="choice-goal-result"><span>今天已认识 <strong>{learnedToday}</strong> 个</span><span>还可安排 <strong>{plan.newWordCount}</strong> 个新词</span></div></section>{error&&<p role="alert">{error}</p>}<footer className="choice-actions"><button disabled={busy} onClick={onBack}>取消</button><button className="hub-start" disabled={busy} onClick={()=>void save()}>{busy?'保存中…':`今天目标设为 ${goal} 个`}</button></footer></main>;
+  return <main className="learning-hub learning-choice page-enter"><nav className="hub-nav"><BackButton disabled={busy} onClick={onBack}>回学习</BackButton></nav><PageHeading title="调整今日词量" description={`明天恢复每天 ${state.settings.dailyNewWords} 个新词。`}/><section className="hub-current choice-summary" aria-label="选择今日词量"><div className="choice-goals" role="group" aria-label="今日新词目标">{Array.from({length:20},(_,i)=>i+1).map(n=><button key={n} disabled={busy} aria-pressed={goal===n} onClick={()=>setGoal(n)}>{n} 个</button>)}</div><div className="choice-goal-result"><span>今天已认识 <strong>{learnedToday}</strong> 个</span>{waitingForMastery?<span>学会当前这组后，再安排新词</span>:<span>还可安排 <strong>{plan.newWordCount}</strong> 个新词</span>}</div></section>{error&&<p role="alert">{error}</p>}<ActionBar className="choice-actions" primary={<button className="hub-start" disabled={busy} onClick={()=>void save()}>{busy?'保存中…':`设为 ${goal} 个新词`}</button>}><button className="ui-secondary" disabled={busy} onClick={onBack}>取消</button></ActionBar></main>;
 }

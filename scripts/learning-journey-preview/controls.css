@@ -1,0 +1,30 @@
+.journey-preview-banner {
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.journey-preview-banner .journey-preview-replay {
+  display: none;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+body:has(.app.screen-hub):not(:has(.app.screen-hub [data-session-id])) .journey-preview-replay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body:has(.journey-preview-banner) .app.screen-hub .hub-round-test:has(~ [data-session-id]) {
+  display: none;
+}
+
+.journey-preview-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #8b342a;
+}
+
+.journey-preview-error:empty {
+  display: none;
+}

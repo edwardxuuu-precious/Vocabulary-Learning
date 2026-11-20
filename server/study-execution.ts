@@ -1,8 +1,9 @@
 import {reconcileStudySession} from './study-migration.ts';
-import type {LearningTask,LearningSession} from '../shared/contracts.ts';
+import type {GameWord,LearningTask,LearningSession} from '../shared/contracts.ts';
 import type {AgendaPurpose} from '../shared/study-agenda.ts';
 import type {StudyStartRequest,StudyTarget,StudyRuntimeState} from '../shared/study-execution.ts';
 import {abilityDimension} from '../shared/word-learning.ts';
+import {assessmentPicturePool,maxAssessmentWords,sameAssessmentWord} from '../shared/assessment.ts';
 import {gameWord,currentActivity} from '../shared/game-plan.ts';
 import {studyReadModel} from './study-read-model.ts';
 import {createAssessment} from './assessments.ts';
@@ -38,7 +39,9 @@ export function startStudyExecution(data:StoredData,body:Record<string,unknown>,
   let target:StudyTarget;
   if(request.action==='resume-assessment'){
     const assessment=data.assessments?.find(row=>row.id===request.assessmentId&&row.workflow==='recorded'&&!row.submittedAt);
-    if(!assessment||assessment.items.some(item=>!data.words.some(word=>ctx.readyWordIds.includes(word.id)&&word.id===item.word.id&&(word.learningVersion??0)===item.word.learningVersion&&word.term===item.word.term&&word.meaning===item.word.meaning&&word.imageUrl===item.word.imageUrl)))throw new AppError('原检查记录保留，请先检查词义或素材。','STUDY_CONTENT_CHANGED',409);
+    const pictures=assessmentPicturePool(data);
+    if(!assessment||assessment.items.some(item=>!data.words.some(word=>ctx.readyWordIds.includes(word.id)&&sameAssessmentWord(word,item.word))
+      ||item.choices.some(choice=>!pictures.some(word=>sameAssessmentWord(word,choice)))))throw new AppError('原检查记录保留，请先检查词义或素材。','STUDY_CONTENT_CHANGED',409);
     target={kind:'assessment',assessmentId:assessment.id};
   }else if(request.action==='resume'){
     const session=data.sessions.find(session=>session.id===request.sessionId&&!session.completedAt&&!session.suspendedAt);
@@ -49,9 +52,11 @@ export function startStudyExecution(data:StoredData,body:Record<string,unknown>,
   }else{
     if(request.sessionId!==undefined||request.activityId!==undefined||request.action==='new'&&request.purpose!=='learn')throw new AppError('学习安排范围无效。','STUDY_INVALID');
     const agenda=request.action==='follow-up'&&request.wordIds?studyReadModel({...data,words:data.words.filter(word=>request.wordIds!.includes(word.id)),learningReadyWordIds:ctx.readyWordIds},{now:ctx.now,mode:ctx.mode,purpose:'review'}).agenda:model.agenda;
-    const goals=agenda.goals.filter(goal=>request.action!=='new'||goal.kind==='introduce');
+    const newGroup=agenda.learningGroup;
+    const needsMastery=!!newGroup&&newGroup.mastered<newGroup.wordIds.length;
+    const goals=request.action!=='new'?agenda.goals:agenda.goals.some(goal=>goal.kind==='introduce')?agenda.goals.filter(goal=>goal.kind==='introduce'||goal.kind==='consolidate'):[];
     const first=goals[0];
-    if(!first)target={kind:'empty',reason:model.agenda.waitingReviewWordIds.length?'回答已保存，等待家长核验；可以休息或主动选择其他词。':'今天这部分已经完成，可以休息或选择其他内容。'};
+    if(!first)target={kind:'empty',reason:needsMastery?'先完成这组词的学习与核验，再开始下一组。':model.agenda.waitingReviewWordIds.length?'回答已保存，等待家长核验；可以休息或主动选择其他词。':'今天这部分已经完成，可以休息或选择其他内容。'};
     else if(first.kind==='continue'&&first.savedTarget){
       const session=data.sessions.find(session=>session.id===first.savedTarget!.sessionId&&!session.completedAt&&!session.suspendedAt);
       if(!session||model.continuity.find(row=>row.sessionId===session.id)?.action==='prepare-content'||!entryScopeCurrent(data,session))throw new AppError('这份进度需要检查，原记录仍保留。','STUDY_CONTENT_CHANGED',409);
@@ -60,16 +65,22 @@ export function startStudyExecution(data:StoredData,body:Record<string,unknown>,
       const ids=goals.filter(goal=>goal.kind==='teach-usage').map(goal=>goal.wordId);
       target={kind:'usage',wordIds:ids,followUpWordIds:request.wordIds??ids};
     }else if(first.kind==='check'||first.kind==='review'&&goals.some(goal=>goal.kind==='review'&&goal.ability&&abilityDimension(goal.ability))){
-      const checks=goals.filter(goal=>goal.kind===first.kind&&abilityDimension(goal.ability!)).map(goal=>({wordId:goal.wordId,dimension:abilityDimension(goal.ability!)!}));
+      const candidates=goals.filter(goal=>goal.kind===first.kind&&abilityDimension(goal.ability!));
+      const checkIds=new Set([...new Set(candidates.map(goal=>goal.wordId))].slice(0,maxAssessmentWords));
+      const checks=candidates.filter(goal=>checkIds.has(goal.wordId)).map(goal=>({wordId:goal.wordId,dimension:abilityDimension(goal.ability!)!}));
       const words=data.words.filter(word=>checks.some(row=>row.wordId===word.id)),pending=pendingSentenceWords(data,words.filter(word=>checks.some(row=>row.wordId===word.id&&row.dimension==='zh-en')));
       if(pending.length)target={kind:'usage',wordIds:pending.map(word=>word.id),followUpWordIds:request.wordIds??checks.map(row=>row.wordId).filter((id,index,ids)=>ids.indexOf(id)===index)};
       else{
-        const existing=[...(data.assessments??[])].reverse().find(session=>session.workflow==='recorded'&&!session.submittedAt&&session.items.length===checks.length&&session.items.every(item=>checks.some(row=>row.wordId===item.word.id&&row.dimension===item.dimension)&&data.words.some(word=>word.id===item.word.id&&(word.learningVersion??0)===item.word.learningVersion&&word.term===item.word.term&&word.meaning===item.word.meaning)));
+        const current=(snapshot:GameWord)=>data.words.some(word=>ctx.readyWordIds.includes(word.id)&&sameAssessmentWord(word,snapshot));
+        const pictures=assessmentPicturePool(data);
+        const existing=[...(data.assessments??[])].reverse().find(session=>session.workflow==='recorded'&&!session.submittedAt&&session.items.length===checks.length
+          &&session.items.every(item=>checks.some(row=>row.wordId===item.word.id&&row.dimension===item.dimension)&&current(item.word)
+            &&item.choices.every(choice=>pictures.some(word=>sameAssessmentWord(word,choice)))));
         const assessment=existing??createAssessment(data,{mode:'recommended',workflow:'recorded',cueVersion:2},ctx.now,Math.random,checks);
         target={kind:'assessment',assessmentId:assessment.id};
       }
     }else{
-      const selected=goals.filter(goal=>goal.kind===first.kind);
+      const selected=goals.filter(goal=>goal.kind===first.kind||request.purpose==='learn'&&first.kind==='introduce'&&goal.kind==='consolidate');
       const tasks:LearningTask[]=[];
       for(const goal of selected){let task=tasks.find(task=>task.wordId===goal.wordId);if(!task){task={wordId:goal.wordId,mode:goal.kind==='introduce'?'new':'review',steps:[]};tasks.push(task);}for(const step of goal.steps)if(!task.steps.includes(step))task.steps.push(step);}
       const session=ctx.build(tasks,request.purpose,request.requestId);session.studyPlan={version:1,purpose:request.purpose,goalIds:selected.map(goal=>goal.id),covered:[]};target={kind:'learning',sessionId:session.id};

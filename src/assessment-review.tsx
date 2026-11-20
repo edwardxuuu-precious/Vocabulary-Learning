@@ -1,3 +1,4 @@
+import { ActionBar } from './ui-layout';
 import {challengeReviewResult} from '../shared/assessment-cues';
 import {parentReviewSummary} from '../shared/parent-review';
 import {sameAssessmentWord} from '../shared/assessment';
@@ -35,15 +36,8 @@ export function AssessmentReviewCenter({ state, grant, onGrant, reload, onExit }
   });
   const defaultResult = (item: AssessmentItem): AssessmentResult => item.reviews?.at(-1)?.result ?? challengeReviewResult(item,item.response?.kind === 'skipped' ? 'skipped' : item.proposal?.verdict === 'matched' ? 'correct' : item.proposal?.verdict === 'practice' ? 'incorrect' : 'unconfirmed',state.words);
   if (!validGrant) return <ParentGate onClose={onExit} onUnlock={onGrant} />;
-  return <section className="assessment-card assessment-review"><h1>集中核验挑战</h1><p>先回听、核对转写与本次义项，再勾选要确认的题目。AI 建议不计入正式成绩。朗读初判只比较识别到的内容。</p><p>核验保存后删除原音，保留文字与结论。未听清请选“未确认”，以后重新测试。</p><section className="review-plan-summary" aria-label="核验与下一步"><p>待核验 {review.waiting} 项 · 缺原音 {review.missing} 项 · 词义变化 {review.changed} 轮 · 处理中断 {review.failed} 轮</p>{review.suggestions.map(text=><p key={text}>{text}</p>)}<label>显示 <select value={filter} onChange={e=>{setFilter(e.target.value as typeof filter);setSelected({});}}><option value="pending">待核验</option><option value="reviewed">已核验/改判</option><option value="all">全部</option></select></label></section><p role="alert">{error}</p><div className="assessment-review-toolbar"><button disabled={busy} onClick={() => void operation(refresh)}>刷新待核验记录</button><button className="assessment-primary" disabled={busy || !Object.keys(selected).length} onClick={() => void operation(async () => {
-    for (const session of sessions) {
-      const items = session.items.filter(item => selected[`${session.id}:${item.id}`]).map(item => ({ itemId: item.id, responseVersion: item.response!.version, proposalVersion: item.proposal?.version ?? 0, reviewVersion: item.reviews?.length ?? 0, result: selected[`${session.id}:${item.id}`] }));
-      if (items.length) await api(`/api/assessments/${session.id}/review`, { method: 'POST', headers: { Authorization: `Bearer ${grant.token}` }, body: JSON.stringify({ items }) });
-    }
-    if (audioUrl.current) { URL.revokeObjectURL(audioUrl.current); audioUrl.current = ''; setAudio(undefined); }
-    await refresh();
-  })}>确认选中的 {Object.keys(selected).length} 项</button></div>
-    {!sessions.length && <p>还没有待核验的录音挑战。</p>}
+  return <section className="assessment-card assessment-review"><h1>集中核验挑战</h1><p>回听原音，对照本次义项，勾选并确认要保存的结论。未听清时选择「未确认」。</p><section className="review-plan-summary" aria-label="核验与下一步"><p>待核验 {review.waiting} 项 · 缺原音 {review.missing} 项 · 词义变化 {review.changed} 轮 · 处理中断 {review.failed} 轮</p>{review.suggestions.map(text=><p key={text}>{text}</p>)}<label>显示 <select value={filter} onChange={e=>{setFilter(e.target.value as typeof filter);setSelected({});}}><option value="pending">待核验</option><option value="reviewed">已核验/改判</option><option value="all">全部</option></select></label></section><p role="alert">{error}</p><button className="ui-secondary" disabled={busy} onClick={() => void operation(refresh)}>刷新核验记录</button>
+    {!sessions.length && <p>暂无待核验的录音。</p>}
     {!shown.length&&sessions.length>0&&<p>此筛选没有记录，可切换已核验查看历史或改判。</p>}
     {shown.map(session => <section className="assessment-review-round" key={session.id}><h2>{new Date(session.startedAt).toLocaleString('zh-CN')} · {session.wordIds.length} 词 / {session.items.length} 项</h2><p>{session.items.filter(item => item.dimension !== 'look').every(item => item.reviews?.length) ? '本轮已核验；未确认项需重新测试' : session.job && statuses[session.job.status]} {session.job?.error}</p>{['failed', 'interrupted'].includes(session.job?.status ?? '') && <button disabled={busy} onClick={() => void operation(async () => { await api(`/api/assessments/${session.id}/retry`, { method: 'POST', headers: { Authorization: `Bearer ${grant.token}` } }); await refresh(); })}>重试未完成的批改阶段</button>}
       {session.items.filter(item => item.dimension !== 'look').map(item => {
@@ -59,5 +53,13 @@ export function AssessmentReviewCenter({ state, grant, onGrant, reload, onExit }
         </article>;
       })}
     </section>)}
+    {shown.length>0&&<ActionBar className="assessment-review-toolbar" context="确认后保存结论，并删除对应原音。" primary={<button className="assessment-primary" disabled={busy || !Object.keys(selected).length} onClick={() => void operation(async () => {
+    for (const session of sessions) {
+      const items = session.items.filter(item => selected[`${session.id}:${item.id}`]).map(item => ({ itemId: item.id, responseVersion: item.response!.version, proposalVersion: item.proposal?.version ?? 0, reviewVersion: item.reviews?.length ?? 0, result: selected[`${session.id}:${item.id}`] }));
+      if (items.length) await api(`/api/assessments/${session.id}/review`, { method: 'POST', headers: { Authorization: `Bearer ${grant.token}` }, body: JSON.stringify({ items }) });
+    }
+    if (audioUrl.current) { URL.revokeObjectURL(audioUrl.current); audioUrl.current = ''; setAudio(undefined); }
+    await refresh();
+  })}>确认选中的 {Object.keys(selected).length} 项</button>}/>}
   </section>;
 }

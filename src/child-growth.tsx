@@ -1,43 +1,52 @@
+import { ActionBar, BackButton, PageHeading } from './ui-layout';
 import {roundFeedback} from '../shared/round-feedback';
 import {studyPracticedWordIds} from '../shared/study-execution';
 import {pendingSentenceWords} from '../shared/sentence-study';
 import type {AssessmentPractice} from '../shared/contracts';
 import type {LearningAttempt} from '../shared/contracts';
-import {learningReturn} from '../shared/learning-entry';
 import { useEffect, useRef, useState } from 'react';
 import type { GrowthSummary, LearningSession, Word } from '../shared/contracts';
 import { assessmentDay, assessmentLabels, assessmentResultLabels } from '../shared/assessment';
 import { shiftGrowthDay } from '../shared/growth';
 import { companionFor } from '../shared/companions';
 import { Mascot } from './mascot';
-import { LearningSymbol } from './learning-topbar';
+import { LearningSymbol, learningBackLabel } from './learning-topbar';
 import { BadgeArt, BadgeCollection } from './badge-collection';
 import './child-growth.css';
 import type {AppState} from '../shared/contracts';
 import {completedTestWordIds,learningVerification} from '../shared/learning-verification';
+import {learningJourney} from '../shared/learning-journey';
+import {LearningStages} from './learning-stages';
 
 export function Medal({ locked = false, kind = 'skill' }: { locked?: boolean; kind?: 'practice' | 'skill' }) {
   return <span className={`growth-medal ${locked ? 'is-locked' : ''} medal-${kind}`} aria-hidden="true"><svg viewBox="0 0 88 100" fill="none"><path d="m23 57-7 37 28-13 28 13-7-37" fill="currentColor" opacity=".65" /><circle cx="44" cy="40" r="33" fill="currentColor" /><circle cx="44" cy="40" r="26" stroke="white" strokeWidth="3" opacity=".65" /><path d="m44 20 6 13 15 2-11 11 3 15-13-7-13 7 3-15-11-11 15-2Z" fill="white" /></svg></span>;
 }
 
-export function LearningReward({ state, session, busy = false, onTest, onHome, onAgain, onParentReview }: { state?:AppState; growth?: GrowthSummary; session: LearningSession | null; attempts?:LearningAttempt[]; practices?:AssessmentPractice[]; busy?: boolean; onGrowth: () => void; onTest: () => void; onHome: () => void; onAgain?: () => void; onSelect?: () => void; onParentReview?:()=>void; onReview?:()=>void }) {
+export function LearningReward({ state, session, busy = false, onTest, onLearnUsage, onHome, onAgain, onParentReview }: { state?:AppState; growth?: GrowthSummary; session: LearningSession | null; attempts?:LearningAttempt[]; practices?:AssessmentPractice[]; busy?: boolean; onGrowth: () => void; onTest: () => void; onLearnUsage?:()=>void; onHome: () => void; onAgain?: () => void; onSelect?: () => void; onParentReview?:()=>void; onReview?:()=>void }) {
   const practicedIds=state?studyPracticedWordIds(state,session):session?.completedWordIds??[];
   const participation=session?roundFeedback(session,state?.attempts??[],state?.assessmentPractices??[]):undefined;
   const onlySkipped=!!participation&&participation.skipped>0&&!participation.introduced&&!participation.recorded&&!participation.helped&&(state?.attempts??[]).filter(row=>row.sessionId===session?.id).every(row=>row.oralStatus==='skipped'||row.responseStatus==='skipped'||row.responseStatus==='unavailable');
-  const verification=state&&session&&!session.packGame?learningVerification(state,practicedIds):undefined;
-  const canTest=!!verification&&(state?.study?state.study.profiles.some(profile=>practicedIds.includes(profile.wordId)&&['check','learn-usage'].includes(profile.next.action)):!!verification&&(!!verification.resume||verification.nextWordIds.length>0));
-  const pending=!!verification?.pending,changed=verification?Math.max(0,(session?.completedWordIds.length??0)-verification.total):0;
+  const completedLearning=session?.entrySource?.entry==='learn'&&!session.packGame;
+  const verification=state&&session&&!session.packGame?learningVerification(state,completedLearning?completedTestWordIds(state,session):practicedIds):undefined;
+  const canTest=!!verification&&(completedLearning||!state?.study?!!verification.resume||verification.nextWordIds.length>0:state.study.profiles.some(profile=>practicedIds.includes(profile.wordId)&&['check','learn-usage'].includes(profile.next.action)));
+  const freshIds=session?.studyPlan&&session.tasks?.filter(task=>task.mode==='new').map(task=>task.wordId);
+  const testTotal=completedLearning&&freshIds?.length?session?.completedWordIds.filter(id=>freshIds.includes(id)).length:session?.completedWordIds.length;
+  const pending=!!verification?.pending,changed=verification?Math.max(0,(testTotal??0)-verification.total):0;
   const words=practicedIds.flatMap(id=>{const word=state?.words.find(word=>word.id===id)??session?.activities?.find(activity=>activity.wordId===id)?.word;return word?[word]:[];}).slice(0,3);
-  const needsUsage=!!state&&!!verification&&pendingSentenceWords(state,state.words.filter(word=>practicedIds.includes(word.id))).length>0;
-  const homeLabel=learningReturn(session)==='book-games'?'回游戏选择':session?.entrySource?.entry==='review'?'回复习':'回学习大厅';
+  const journey=state?learningJourney(state,session):undefined;
+  const needsUsage=completedLearning?journey?.stage==='usage':!!state&&!!verification&&pendingSentenceWords(state,state.words.filter(word=>practicedIds.includes(word.id))).length>0;
+  const homeLabel=learningBackLabel(session);
+  const hasNext=needsUsage||canTest||pending&&!!onParentReview;
   return <main className="growth-reward flow-reward reward-focused page-enter"><section className="reward-main-card" aria-labelledby="reward-title">
-    <div className="reward-focused-hero"><div><h1 id="reward-title">{onlySkipped?'这次已跳过':needsUsage?'单词练完啦！':session?.lessonPlanId?'这一段完成啦！':'这次练习完成啦！'}</h1><p className="reward-word-total"><strong>{practicedIds.length}</strong><span>{onlySkipped?'个词，留着下次练':'个词，本次练习结束'}</span></p></div><div className="reward-companion"><Mascot character={companionFor(session?.id??'reward',19)}/></div></div>
+    {completedLearning&&!!journey?.sentenceWordIds.length&&<LearningStages stage={journey.stage}/>}
+    <div className="reward-focused-hero"><div><h1 id="reward-title">{onlySkipped?'这次已跳过':needsUsage?'单词练完啦！':completedLearning?'这次学习完成啦！':session?.lessonPlanId?'这一段完成啦！':'这次练习完成啦！'}</h1><p className="reward-word-total"><strong>{practicedIds.length}</strong><span>{onlySkipped?'个词，留着下次练':needsUsage?'个词，接着学短句':'个词，本次练习结束'}</span></p></div><div className="reward-companion"><Mascot character={companionFor(session?.id??'reward',19)}/></div></div>
     {words.length>0&&<div className="reward-word-pictures" aria-label="本次安排的词语">{words.map(word=><span key={word.id}><img src={word.imageUrl} alt={word.meaning}/></span>)}</div>}
     {!!participation?.skipped&&!onlySkipped&&<p className="reward-outcome">有 {participation.skipped} 项先跳过了，已有学习记录保留。</p>}
     {pending&&!canTest&&<p className="reward-outcome">测试回答已保存，等家长核验。</p>}
     {changed>0&&<p className="reward-outcome reward-needs-parent" role="status">有词语更新了，请家长检查后再测。</p>}
-    <div className="reward-focused-actions"><button className="growth-primary" disabled={busy} onClick={canTest?onTest:pending&&onParentReview?onParentReview:onHome}>{canTest?needsUsage?'学会怎么用':verification!.resume?'继续上次检查':`开始${verification!.nextWordIds.length}词测试`:pending&&onParentReview?'请家长核验':homeLabel}<LearningSymbol kind="arrow"/></button>
-    {canTest||pending?<button className="reward-rest-button" disabled={busy} onClick={onHome}>先休息，回大厅</button>:session?.packGame&&onAgain?<button className="reward-rest-button" disabled={busy} onClick={onAgain}>再玩一次</button>:null}</div>
+    <ActionBar className="reward-focused-actions" primary={<button className="growth-primary" disabled={busy} onClick={needsUsage?(onLearnUsage??onHome):canTest?onTest:pending&&onParentReview?onParentReview:onHome}>{needsUsage?'继续学短句':canTest?completedLearning?verification!.resume?'继续测试':'开始测试':verification!.resume?'继续上次检查':`开始${verification!.nextWordIds.length}词测试`:pending&&onParentReview?'请家长核验':homeLabel}<LearningSymbol kind="arrow"/></button>}>
+      {hasNext?<button className="ui-secondary" disabled={busy} onClick={onHome}>{homeLabel}</button>:session?.packGame&&onAgain?<button className="ui-secondary" disabled={busy} onClick={onAgain}>再玩一次</button>:null}
+    </ActionBar>
   </section></main>;
 }
 
@@ -107,12 +116,12 @@ export function ChildGrowth({ growth, words = [], backLabel = '回首页', onBac
   const [module, setModule] = useState<GrowthModule>('overview');
   const [wordFilter, setWordFilter] = useState<WordFilter>('practiced');
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [module]);
-  if (!growth) return <main className="growth-page"><nav className="growth-nav"><button onClick={onBack}><GrowthSymbol kind="back" />{backLabel}</button></nav><header className="growth-heading"><h1>我的成长</h1><Mascot small /></header><section className="growth-panel"><p role="status">成长记录尚未载入，请重新连接本机服务。</p></section></main>;
+  if (!growth) return <main className="growth-page"><nav className="growth-nav"><BackButton onClick={onBack}>{backLabel}</BackButton></nav><PageHeading title="我的成长"/><section className="growth-panel"><p role="status">成长记录尚未载入，请重新连接本机服务。</p></section></main>;
   const earned = growth.badges.filter(badge => badge.unlocked);
   const openWords = (filter: WordFilter) => {setWordFilter(filter); setModule('words');};
   return <main className="growth-page page-enter" data-growth-module={module}>
-    <nav className="growth-nav" aria-label="成长导航"><button onClick={onBack}><GrowthSymbol kind="back" />{backLabel}</button></nav>
-    <header className="growth-heading"><h1>{module === 'overview' ? '我的成长' : growthModules.find(item => item.id === module)!.title}</h1><Mascot small /></header>
+    <nav className="growth-nav" aria-label="成长导航"><BackButton onClick={onBack}>{backLabel}</BackButton></nav>
+    <PageHeading title={module === 'overview' ? '我的成长' : growthModules.find(item => item.id === module)!.title}/>
     <nav className="growth-module-nav" aria-label="成长模块">{growthModules.map(item => <button key={item.id} aria-label={item.title} aria-current={module === item.id ? 'page' : undefined} onClick={() => {if (item.id === 'words') setWordFilter('practiced'); setModule(item.id);}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={item.path} /></svg><span>{item.short}</span></button>)}</nav>
     {module === 'overview' && <>
       <section className="growth-highlight" aria-labelledby="growth-title"><div className="growth-highlight-copy"><h2 id="growth-title">{earned.length ? `收获了 ${earned.length} 枚奖章` : '第一枚奖章，等你点亮'}</h2><p>{growth.todayCheckedIn ? '今天的努力，已经记住啦' : growth.totalDays ? '带上单词朋友，再玩一轮吧' : '从认识第一个单词开始吧'}</p><button onClick={onLearn ?? onBack}><GrowthSymbol kind="play" />{onLearn ? growth.totalDays ? '继续玩' : '开始学习' : '回首页'}</button></div><div className="growth-highlight-art" aria-hidden="true">{earned.length ? earned.slice(-3).map(badge => <span key={badge.id}><BadgeArt badge={badge} /></span>) : <span><Medal locked /></span>}</div></section>

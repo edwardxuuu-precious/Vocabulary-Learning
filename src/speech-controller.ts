@@ -1,7 +1,7 @@
 import type { VoiceTone } from '../shared/contracts';
 
 export interface SpeechSegment { text: string; locale: 'zh-CN' | 'en-US'; tone?: VoiceTone; cacheOnly?: boolean; allowLocalFallback?: boolean }
-export interface SpeechAsset { mode: 'api' | 'local'; audioUrl?: string }
+export interface SpeechAsset { mode: 'api' | 'local'; audioUrl?: string; preset?: 'nova' }
 export interface SpeechState { speaking: boolean; localMode: boolean; currentText: string; message: string; progress?: number }
 export interface PlaybackContext { signal: AbortSignal; onStart: () => void; onProgress?: (progress:number) => void }
 export type StreamPlaybackResult = 'completed' | 'unsupported' | 'unavailable' | 'failed';
@@ -70,7 +70,7 @@ export class SpeechPlaybackController {
     }
     if (requestCompleteAudio) try { asset = await this.runtime.requestAudio(segment, signal); } catch (failure) {
       if (!isCurrent()) return false;
-      if (segment.allowLocalFallback === false) { this.runtime.update({ speaking: false, message: failure instanceof Error ? failure.message : '这次声音没能播放，可以点按钮继续。' }); return false; }
+      if (segment.allowLocalFallback === false || (failure as { code?: string } | null)?.code === 'NOVA_AUDIO_PENDING') { this.runtime.update({ speaking: false, message: failure instanceof Error ? failure.message : '这次声音没能播放，可以点按钮继续。' }); return false; }
     }
     if (!isCurrent()) return false;
     if (asset.mode === 'api' && asset.audioUrl) {
@@ -85,7 +85,7 @@ export class SpeechPlaybackController {
       if (played) return true;
     }
     if (!isCurrent()) return false;
-    if (segment.cacheOnly) { this.runtime.update({ speaking: false, message: '缓存声音暂时没能播放，可以重听或跳过。' }); return false; }
+    if (segment.cacheOnly || asset.preset === 'nova') { this.runtime.update({ speaking: false, message: '缓存声音暂时没能播放，可以重听或跳过。' }); return false; }
     if (segment.allowLocalFallback === false) { this.runtime.update({ speaking: false, message: '讲解声音暂时不可用，可以重听或点箭头继续。' }); return false; }
     this.runtime.update({ localMode: true });
     let played = false;

@@ -90,15 +90,17 @@ export function OralPractice({target,active,busy,rounds=1,demonstrate,stopAudio,
     const begin=()=>{autoStarted.current=true;setSessionConsent(true);try{sessionStorage.setItem(consentKey,'1');}catch{}void start(!!pending);};
     const action=()=>{if(idle&&canContinue)complete?.();else if(recording){setPhase('saving');capture.current?.stop();}else begin();};
     const actionLabel=idle&&canContinue?'继续':recording?'说完了':phase==='loading'?'准备一下…':phase==='preparing'?'打开麦克风…':phase==='saving'?'正在保存…':phase==='playing'?'正在回放…':phase==='demo'?'听示范…':pending?'重新保存':message?'再试一次':variant==='task'&&!sessionConsent?'打开麦克风':'开始说';
+    const actionDisabled=busy||!active||(!idle&&!recording);
     const status=message||(recording?'说完停一停，会自动保存；也可以点“说完了”':ready?'声音已保存，可以继续':readOnly?'这步已记录，可以继续':takes.some(t=>t.status==='missing')?'上次的录音找不到了，可以重新说一次':phase==='saving'?'正在保存你的声音，请稍等':phase==='playing'?'正在回放你的录音':phase==='preparing'?'麦克风准备中…':'');
     return <div className="task-speech" aria-label={variant==='task'?'读词录音':'口头练习录音'}>
-      <div className={`task-mic-disc${recording?' is-recording':ready?' is-saved':''}`}><TaskIcon kind={recording?'mic':ready?'check':'mic'}/></div>
-      <p className="task-speech-title">{recording?'我在听，慢慢说':ready?'声音收好啦':readOnly?'这步已记录':variant==='task'?'准备好，就读出来':'想一想，用英语说出来'}</p>
+      <button type="button" className="task-mic-action" disabled={actionDisabled} onClick={action}>
+        <span className={`task-mic-disc${recording?' is-recording':canContinue?' is-saved':''}`}><TaskIcon kind={recording?'stop':canContinue?'arrow':'mic'}/></span>
+        <span className="task-speech-title">{actionLabel}</span>
+      </button>
       {recording&&<span className="task-voice-level" role="meter" aria-label="麦克风实时音量" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level*100)}><i style={{width:`${level*100}%`}}/></span>}
       <TaskActionBar status={status} tone={message?'error':ready?'success':'normal'}
         skip={!ready&&!readOnly&&onSkip?{action:()=>{cancel();onSkip();},disabled:!idle||busy||!active}:undefined}
-        secondary={<>{ready&&<button disabled={!idle||busy||!active} onClick={()=>void replay(saved.at(-1)!)}><PlaybackIcon size={18}/>听听自己</button>}{ready&&!readOnly&&saved.length<3&&<button disabled={!idle||busy||!active} onClick={begin}><TaskIcon kind="retry"/>再说一遍</button>}{pending&&idle&&<button disabled={busy||!active} onClick={()=>{setPending(undefined);void start();}}>重新录音</button>}{secondaryControls}</>}
-        primary={<button className={recording?'is-recording':''} disabled={busy||!active||(!idle&&!recording)} onClick={action}>{idle&&canContinue?<TaskIcon kind="arrow"/>:<TaskIcon kind={recording?'stop':'mic'}/>}<span>{actionLabel}</span></button>}/>
+        secondary={<>{ready&&<button disabled={!idle||busy||!active} onClick={()=>void replay(saved.at(-1)!)}><PlaybackIcon size={18}/>听听自己</button>}{ready&&!readOnly&&saved.length<3&&<button disabled={!idle||busy||!active} onClick={begin}><TaskIcon kind="retry"/>再说一遍</button>}{pending&&idle&&<button disabled={busy||!active} onClick={()=>{setPending(undefined);void start();}}>重新录音</button>}{secondaryControls}</>}/>
     </div>;
   }
   if(variant==='task'){

@@ -4,7 +4,7 @@ import {currentReviewRetry,orderReviewSteps,reviewActivitySkins,reviewDirection,
 import { protectNewWordRecallGap } from '../shared/new-word-flow.ts';
 import { entryRecommendation, recommendedEntrySession } from '../shared/entry-recommendation.ts';
 import { adaptiveMainlineActivities } from '../shared/adaptive-mainline.ts';
-import { blankGuidance, coreLearningKinds, ruleGuide, validGuidance } from '../shared/learning-guidance.ts';
+import { blankGuidance, ruleGuide, validGuidance } from '../shared/learning-guidance.ts';
 import {entryScopeCurrent,learnedReviewWords,requestEntrySource,sameLearningEntry,validEntrySource} from '../shared/learning-entry.ts';
 import { fixedPackGame, randomPackGame } from '../shared/pack-games.ts';
 import { lessonSegment, syncLessonProgress, validLessonPlan } from '../shared/lesson-plan.ts';
@@ -14,6 +14,8 @@ import { activityDone, buildActivities, currentActivity } from '../shared/game-p
 import { memoryLoopKinds, memoryLoopTasks, arrangeMemoryLoop, freezeMemoryLoop, pendingLearningCheckpoint, recallFirstActivity, transitionMemoryRecall, validMemoryLoopPolicy } from '../shared/learning-policy.ts';
 import { seededRandom, recallGame, gameDefinition, gameRegistry, type GamePlanOptions } from '../shared/game-registry.ts';
 import { isGoalCheckpoint } from '../shared/learning-goals.ts';
+import { latestNewWordGroup } from '../shared/learning-progression.ts';
+import { learningEncounters } from '../shared/learning-history.ts';
 import type { AppState, ChildProfile, Settings, Word, WordPack, SkillProgress, LearningAttempt, LearningSession, IllustrationJob, IntegrationStatus, ImportRow, Skill, LearningStep, ImageReviewSelection } from '../shared/contracts.ts';
 const clone=<T>(value:T):T=>JSON.parse(JSON.stringify(value));
 export function buildLearningSession(data:StoredData,{clock,activeLearningSession}:{clock:()=>Date;activeLearningSession:(data:StoredData)=>LearningSession|null},withGames:boolean|'random',gameOptions:GamePlanOptions,input:LearningStartRequest,readyWordIds?:string[],studyTasks?:LearningTask[]){
@@ -89,6 +91,13 @@ export function buildLearningSession(data:StoredData,{clock,activeLearningSessio
         const tasks = selectedLearningTasks(data, ids, mode), taskCount = tasks.reduce((sum, task) => sum + task.steps.length, 0);
         plan = { ...plan, tasks, taskCount, taskLimit: Math.max(plan.taskLimit, taskCount), estimatedMinutes: Math.ceil(taskCount * SECONDS_PER_LEARNING_TASK / 60) };
       }
+      if(data.learningTaskPolicy===1){
+        const now=clock(),encountered=new Set(learningEncounters(data).filter(row=>Date.parse(row.introducedAt)<=now.getTime()).map(row=>row.wordId));
+        if(plan.tasks.some(task=>!encountered.has(task.wordId))){
+          const group=latestNewWordGroup(data,now);
+          if(group&&group.mastered<group.wordIds.length)throw new AppError('先完成这组词的学习与核验，再开始下一组。','NEW_WORD_MASTERY_REQUIRED',409);
+        }
+      }
       if (memoryLoop) plan.tasks = memoryLoopTasks(plan.tasks);
       const session: LearningSession = { id: randomUUID(), mode: mode as LearningSession['mode'], practiceOnly, ...(typeof body.requestId === 'string' ? {requestId: body.requestId} : {}), exposures: [], wordIds: [...new Set(plan.tasks.map(task => task.wordId))], completedWordIds: [], startedAt: clock().toISOString(), rewardGranted: false, goalVersion:1, tasks: clone(plan.tasks), completedSteps: {}, taskLimit: plan.taskLimit, estimatedMinutes: plan.estimatedMinutes };
       const entrySource=requestEntrySource(input);if(entrySource)session.entrySource=entrySource;
@@ -122,14 +131,13 @@ export function buildLearningSession(data:StoredData,{clock,activeLearningSessio
         if(!withGames)session.activities.sort((a,b)=>session.tasks!.findIndex(t=>t.wordId===a.wordId)-session.tasks!.findIndex(t=>t.wordId===b.wordId)||session.tasks!.find(t=>t.wordId===a.wordId)!.steps.indexOf(a.step)-session.tasks!.find(t=>t.wordId===b.wordId)!.steps.indexOf(b.step));
       }
       if (memoryLoop && session.activities) {
-        const teachingSequence=body.entry==='learn'&&session.tasks!.every(task=>task.mode==='new')?'meaning-recall-v1' as const:undefined;
+        const teachingSequence=body.entry==='learn'&&(studyTasks?session.tasks!.some(task=>task.mode==='new'):session.tasks!.every(task=>task.mode==='new'))?'meaning-recall-v1' as const:undefined;
         const supportedReview=body.entry==='review'&&!session.practicePackId&&session.tasks!.every(task=>task.mode==='review');
         if(supportedReview)session.tasks=session.tasks!.map(task=>({...task,steps:orderReviewSteps(task.steps)}));
         session.activities = arrangeMemoryLoop(session.tasks!, session.activities,teachingSequence,supportedReview?1:undefined);
         const version = withGames && !session.practicePackId ? 3 : 1;
         const guidedLearning=body.entry==='learn'&&!session.practicePackId;
-        const guidedOptions=guidedLearning?{...gameOptions,allowedKinds:coreLearningKinds.filter(kind=>!gameOptions.allowedKinds||gameOptions.allowedKinds.includes(kind))}:gameOptions;
-        if (version === 3) session.activities = adaptiveMainlineActivities(session.activities, plan.available, session.gameSeed!, 0, freezeMemoryLoop(session.activities).checkpoints, {familyEnabled:data.settings.familyGamesEnabled===true,contextEnabled:data.settings.contextGamesEnabled===true,...guidedOptions});
+        if (version === 3) session.activities = adaptiveMainlineActivities(session.activities, plan.available, session.gameSeed!, 0, freezeMemoryLoop(session.activities).checkpoints, {familyEnabled:data.settings.familyGamesEnabled===true,contextEnabled:data.settings.contextGamesEnabled===true,...gameOptions});
         if(supportedReview)session.activities=reviewActivitySkins(session.activities);
         if(teachingSequence)session.activities=protectNewWordRecallGap(session.tasks!,session.activities);
         session.learningPolicy = freezeMemoryLoop(session.activities, version,teachingSequence); session.acknowledgedCheckpoints = [];

@@ -84,7 +84,7 @@ export function createApp(options: AppOptions = {}) {
   let closed = false;
   async function serviceStatus(refresh = false): Promise<IntegrationStatus> {
     if (!refresh && Date.now() - statusTime < 30_000) return status;
-    if (!statusPromise) statusPromise = Promise.all([integration.probeIntegrations(), chatEnabled ? dialogue.status().catch(() => ({ configured: false, available: false, status: 'error', provider: 'codex' as const, detail: 'Codex 对话状态检查失败，请重试。' })) : Promise.resolve(disabledChat)]).then(([result, chat]) => { status = { ...result, dialogue: chat }; statusTime = Date.now(); if(chatEnabled&&!preparationStarted&&!closed){preparationStarted=true;void dialogue.prepare?.().catch(()=>{});}return status; }).catch(() => { status = { speech: { configured: false, available: false, status: 'error', detail: '服务配置检查失败，请稍后再试。' }, codex: { configured: false, available: false, status: 'error', detail: 'Codex 状态检查失败，请检查安装或登录状态。' }, dialogue: chatEnabled ? { configured: false, available: false, status: 'error', provider: 'codex', detail: 'Codex 对话状态暂不可用。' } : disabledChat }; statusTime = Date.now(); return status; }).finally(() => { statusPromise = null; });
+    if (!statusPromise) statusPromise = Promise.all([integration.probeIntegrations(dataDir), chatEnabled ? dialogue.status().catch(() => ({ configured: false, available: false, status: 'error', provider: 'codex' as const, detail: 'Codex 对话状态检查失败，请重试。' })) : Promise.resolve(disabledChat)]).then(([result, chat]) => { status = { ...result, dialogue: chat }; statusTime = Date.now(); if(chatEnabled&&!preparationStarted&&!closed){preparationStarted=true;void dialogue.prepare?.().catch(()=>{});}return status; }).catch(() => { status = { speech: { configured: false, available: false, status: 'error', detail: '服务配置检查失败，请稍后再试。' }, codex: { configured: false, available: false, status: 'error', detail: 'Codex 状态检查失败，请检查安装或登录状态。' }, dialogue: chatEnabled ? { configured: false, available: false, status: 'error', provider: 'codex', detail: 'Codex 对话状态暂不可用。' } : disabledChat }; statusTime = Date.now(); return status; }).finally(() => { statusPromise = null; });
     return statusPromise!;
   }
   function toMediaUrl(filePath: string): string {
@@ -400,16 +400,20 @@ export function createApp(options: AppOptions = {}) {
         res.on('close', cancelTts);
         try{
           const ttsInput = { text: body.text, locale: body.locale as 'zh-CN' | 'en-US', rate: body.rate as number | undefined, tone: body.tone as VoiceTone | undefined, dataDir,signal:ttsController.signal, freeOnly: body.locale === 'zh-CN' };
+          const nova = integration.ttsStatus(ttsInput).provider === 'nova';
           const cached = await integration.getCachedSpeech(ttsInput);
           if(ttsController.signal.aborted||closed)throw new AppError('朗读已停止。','CANCELLED',409);
           if(cached){
             const mediaUrl=toMediaUrl(cached);
-            if(!streamed)return json(res, { audioUrl: mediaUrl, mode: 'api', cached: true });
+            if(!streamed)return json(res, { audioUrl: mediaUrl, mode: 'api', cached: true, ...(nova ? { preset: 'nova' } : {}) });
             res.writeHead(200,{'Content-Type':'audio/mpeg','X-TTS-Cached':'true','X-TTS-Mode':'api','Content-Length':statSync(cached).size,'Cache-Control':'no-store'});
             await pipeline(createReadStream(cached),res,{signal:ttsController.signal});return;
           }
+          if (nova) throw new AppError('这段 Nova 发音还没准备好，可以请家长备课后再听。', 'NOVA_AUDIO_PENDING', 409);
           if (body.cacheOnly === true) throw new AppError('这个单词的缓存发音暂不可用，可以跳过后继续。', 'AUDIO_CACHE_MISSING', 409);
-          const services = await serviceStatus(), configured = (services.tts ?? services.speech).configured;
+          const services = await serviceStatus(), output = services.tts ?? services.speech;
+          const selectedTts = output.provider === 'nova' ? integration.ttsStatus(ttsInput) : output;
+          const configured = selectedTts.configured;
           if(ttsController.signal.aborted||closed)throw new AppError('朗读已停止。','CANCELLED',409);
           if(streamed){
             if(!configured)throw new AppError('云端朗读尚未配置完整，可以使用本机朗读。','SPEECH_STREAM_UNAVAILABLE',503);
@@ -427,7 +431,6 @@ export function createApp(options: AppOptions = {}) {
             }catch(error){audio.cancel();if(res.headersSent)res.destroy();throw error;}
           }
           // ElevenLabs arbitrates stream and file callers in one in-flight map. Reserve only for its actual request owner.
-          const selectedTts=services.tts??services.speech;
           let charge:string|undefined;
           const reserve=()=>{if(ttsController.signal.aborted||closed)throw new AppError('朗读已停止。','CANCELLED',409);charge=store.reserve('tts',configured?integration.estimateTtsCost(body.text as string):0,configured?(body.text as string).length:0);};
           if(selectedTts.provider!=='elevenlabs')reserve();
@@ -525,7 +528,7 @@ export function createApp(options: AppOptions = {}) {
           try{
             const check=()=>{const data=store.read(),current=data.words.find(w=>w.id===word.id);if(closed||!current||current.imageUrl!==word.imageUrl||current.meaning!==word.meaning||current.term!==word.term||material.wordIds.some(id=>!data.words.some(w=>w.id===id&&(w.learningVersion??0)===material.wordVersions[id]&&w.assetStatus==='approved')))throw new AppError('素材已经变化或准备已停止。','GAME_MATERIAL_STALE',409);};
             const verified=(await serviceStatus()).tts??{configured:false,available:false,status:'unavailable',detail:'朗读尚未配置'};
-            await prepareGameAudio({word,kind,material,integration:{...integration,ttsStatus:()=>verified},store,dataDir,signal:controller.signal,check});
+            await prepareGameAudio({word,kind,material,integration:{...integration,ttsStatus: input => input && verified.provider === 'nova' ? integration.ttsStatus(input) : verified},store,dataDir,signal:controller.signal,check});
             return json(res,{ready:true});
           }finally{res.off('close',cancel);ttsControllers.delete(controller);}
         }

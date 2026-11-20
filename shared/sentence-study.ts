@@ -2,11 +2,23 @@ import type {AssessmentData,GameWord,Word} from './contracts.ts';
 import {assessmentCue,type AssessmentCue} from './assessment-cues.ts';
 
 export interface SentenceStudy {word:GameWord;cue:AssessmentCue;startedAt:string;demonstratedAt?:string;model?:'audio'|'adult';attempts:{term:string;at:string}[];completedAt?:string}
+const usagePairs:Record<string,{meaning:string;phrase:string}>={
+  am:{meaning:'我是',phrase:'I am'},
+  are:{meaning:'你是',phrase:'You are'},
+  is:{meaning:'他是',phrase:'He is'},
+  be:{meaning:'想当',phrase:'want to be'},
+  at:{meaning:'在学校',phrase:'at school'},
+  ate:{meaning:'吃了',phrase:'ate'},
+  came:{meaning:'来了',phrase:'came'},
+  all:{meaning:'所有的小朋友',phrase:'all the children'},
+  but:{meaning:'但是',phrase:'but'},
+  black:{meaning:'黑色的',phrase:'black'},
+  brown:{meaning:'棕色的',phrase:'brown'},
+};
 export function sentenceLesson(word:Pick<GameWord,'term'|'meaning'>){
   const cue=assessmentCue(word);if(!cue.sentence)return;
   const full=cue.sentence.replace('___',cue.sentence.startsWith('___')?word.term[0].toUpperCase()+word.term.slice(1):word.term);
-  const notes:Record<string,string>={am:'说“我是”，I 后面用 am。',are:'说“你是”，You 后面用 are。',is:'说“他是”，He 后面用 is。',be:'想当什么，用 want to be。to 后面用 be。',at:'说在某个地点，可以用 at。',ate:'说昨天吃了，用 ate。',came:'说昨天来了，用 came。',all:'说全部的小朋友，用 all。',but:'前后意思转了个弯，“但是”用 but。',black:'黑色的，英文是 black。',brown:'棕色的，英文是 brown。'};
-  return {cue,full,note:notes[word.term.toLowerCase()]??word.meaning};
+  return {cue,full,usage:usagePairs[word.term.toLowerCase()]??{meaning:word.meaning,phrase:word.term}};
 }
 export function sentenceKey(word:Pick<Word,'id'|'term'|'meaning'|'learningVersion'|'imageUrl'>){return JSON.stringify([word.id,word.learningVersion??0,word.term,word.meaning,word.imageUrl,sentenceLesson(word)?.cue]);}
 export function studiedSentence(data:AssessmentData,word:Word|GameWord){return (data.sentenceStudies??[]).find(row=>sentenceKey(row.word)===sentenceKey({...word,learningVersion:word.learningVersion??0})&&row.completedAt);}

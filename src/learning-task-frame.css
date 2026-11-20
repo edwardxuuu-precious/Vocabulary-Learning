@@ -45,6 +45,21 @@
 .unified-task .task-sound-option.is-playing{border-color:#889bec;background:#eef2ff;opacity:1}.unified-task .task-sound-option.is-correct{border-color:#54a88c;background:#f0faf5;opacity:1}.unified-task .task-sound-option.is-retry{border-color:#dfa76b}
 .unified-task .task-sound-option:hover:not(:disabled){border-color:#899ae3;background:#f7f8ff}
 .unified-task .task-speech{display:flex;flex-direction:column;align-items:center;gap:17px;min-height:190px;justify-content:center;text-align:center}
+.unified-task:has(.task-speech) .task-action-row{min-height:88px}
+.unified-task:has(.task-speech) .task-action-bar{grid-template-columns:minmax(78px,1fr) minmax(0,auto);grid-template-areas:"feedback feedback" "skip secondary"}
+.unified-task:has(.task-speech) .task-primary-slot{display:none}
+.unified-task:has(.task-speech) .task-secondary-slot{justify-content:flex-end}
+.unified-task:has(.task-speech) .task-feedback{font-size:14px}
+.unified-task:has(.task-speech) .task-feedback:empty{display:none}
+/* Speech auxiliary controls */
+.unified-task:has(.task-speech) :is(.task-skip,.task-secondary-slot>button){display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:104px;min-height:48px;padding:9px 12px;border:1px solid #dce5f2;border-radius:13px;background:#fff;color:#516ca1;font-family:inherit;font-size:15px;font-weight:500;line-height:1.5;white-space:nowrap}
+.unified-task:has(.task-speech) .task-skip{flex-direction:row-reverse}
+.unified-task:has(.task-speech) :is(.task-skip,.task-secondary-slot>button) svg{flex-shrink:0;width:20px;height:20px}
+@media(max-width:760px){.unified-task:has(.task-speech) :is(.task-skip,.task-secondary-slot>button){min-width:100px;min-height:44px;padding:7px 10px;border-radius:12px;font-size:14px}}
+/* End speech auxiliary controls */
+.unified-task .task-mic-action{display:flex;flex-direction:column;align-items:center;gap:17px;max-width:100%;padding:0;border:0;border-radius:32px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.unified-task .task-mic-action:hover:not(:disabled) .task-mic-disc{box-shadow:0 0 0 4px #dce2ff}
+.unified-task .task-mic-action:active:not(:disabled) .task-mic-disc{transform:scale(.97)}
 .unified-task .task-mic-disc{display:grid;place-items:center;width:104px;height:104px;border-radius:32px;background:#edf0ff;color:#6573d0}.unified-task .task-mic-disc svg{width:44px;height:44px}
 .unified-task .task-mic-disc.is-recording{background:#fff0e9;color:#bc7161}.unified-task .task-mic-disc.is-saved{background:#e7f7ef;color:#319574}
 .unified-task .task-speech-title{margin:0;font-size:21px;font-weight:750;line-height:1.5;color:#385678}

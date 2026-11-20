@@ -43,6 +43,7 @@
 .extra-sound-row button:last-child { background:#657ddd; border-color:#546bc3; color:white; }
 .extra-sound-row.is-correct button { background:#e1f2e7; color:#316b51; border-color:#83b59c; }
 /* Answer feedback stays visible when the submitted choices become disabled. */
+.game-audio>.game-audio-label { font-size:inherit; }
 .app.screen-play .game-page .extra-picture { transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease, opacity .16s ease; }
 .app.screen-play .game-page .extra-picture:active:not(:disabled) { transform:scale(.96); }
 .app.screen-play .game-page .extra-picture:is(.is-correct,.is-retry,.is-pending):disabled { opacity:1; }
@@ -58,6 +59,8 @@
 .app.screen-play .game-page .extra-stage>.game-feedback.is-correct { border-color:#a9d5c1; background:#e9f7ef; color:#206747; }
 .app.screen-play .game-page .extra-stage>.game-feedback.is-retry { border-color:#e3c29c; background:#fff3e4; color:#8a4d20; }
 .extra-feedback-symbol { display:grid; place-items:center; flex-shrink:0; width:34px; height:34px; border:2px solid currentColor; border-radius:50%; font-size:24px; line-height:1; }
+/* Picture cards own the single visible result; keep one live announcement. */
+.app.screen-play .game-page .extra-stage>.game-feedback.is-attached { display:block; position:absolute; width:1px; height:1px; min-height:0; max-width:none; padding:0; margin:-1px; border:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 @keyframes extra-answer-pop { 50% { transform:translateY(-5px) scale(1.025); } }
 @keyframes extra-answer-retry { 33% { transform:translateX(-4px); } 66% { transform:translateX(4px); } }
 @media(max-width:600px) { .extra-choice-result { top:5px; right:5px; gap:4px; padding:4px 7px; font-size:14px; border-radius:11px; } .extra-choice-result>span { font-size:20px; } .app.screen-play .game-page .extra-stage>.game-feedback.has-feedback { gap:9px; padding:9px 14px; font-size:18px; } }

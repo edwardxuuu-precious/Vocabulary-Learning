@@ -1,3 +1,4 @@
+import { TaskHeading } from './ui-layout';
 import { useEffect, useState } from 'react';
 import { LearningTopbar } from './learning-topbar';
 import type { ActivityAction, GameTile, LearningActivity, LearningSession } from '../shared/contracts';
@@ -37,8 +38,9 @@ export function ExtendedLearningGame({activity:a,session,busy:appBusy,playing,on
   const primary=accepted?{label:'继续冒险',action:()=>act('next')}:spoken&&s.revealed?{label:'我练过啦',action:()=>act('finish')}:canCheck?{label:['story','program'].includes(k)&&!s.gameStage?'运行我的安排':'检查一下',action:()=>act(['story','program'].includes(k)&&!s.gameStage?'run':'submit')}:undefined;
   return <main className={`lesson-page game-page ext-page ext-${k}`}>
 <LearningTopbar session={session} onHome={onHome} onPause={onPause} />
-    <div className="lesson-guide"><Mascot small character={companionFor(session.id,session.activities?.findIndex(item=>item.id===a.id)??0)}/><h1>{activityTitles[k]}</h1></div>
-    <section className="game-stage ext-stage" aria-label={activityTitles[k]}><div className="ext-heading"><p className="game-prompt">{prompts[k]}</p>{instruction&&<button className="ext-help" disabled={busy} aria-label="听玩法说明" onClick={()=>{setHelp(!help);act('guide');}}>?</button>}</div>{help&&<p className="ext-help-text">{instruction}</p>}
+    <section className="game-stage ext-stage" aria-label={activityTitles[k]}>
+      <TaskHeading title={activityTitles[k]}><Mascot small character={companionFor(session.id,session.activities?.findIndex(item=>item.id===a.id)??0)}/></TaskHeading>
+<div className="ext-heading"><p className="game-prompt">{prompts[k]}</p>{instruction&&<button className="ext-help" disabled={busy} aria-label="听玩法说明" onClick={()=>{setHelp(!help);act('guide');}}>?</button>}</div>{help&&<p className="ext-help-text">{instruction}</p>}
       {!spoken&&!['intersection','detective'].includes(k)&&audio}
       {['variants','opposites','negative'].includes(k)&&<>{k==='opposites'&&<div className="ext-opposites" aria-label="寻找相反词"><img src={a.word.imageUrl} alt={a.word.meaning}/><span aria-hidden="true">⇄</span><div>{moves[0]?visual(m!.tiles.find(t=>t.id===moves[0])!):'?'}</div></div>}<div className="ext-tile-grid">{m!.tiles.map(t=>tileButton(t))}</div></>}
       {['assemble','sort','position','combine','assign'].includes(k)&&<div className="ext-workspace"><div className={`ext-workbench bench-${k} ${m?.tiles.some(t=>t.fragment!==undefined)?'is-fragment-puzzle':''}`}>{k==='combine'&&Object.keys(placed).length===m!.answer.length&&<div className="ext-composite" style={{borderColor:m!.tiles.find(t=>t.color&&placed[t.id])?.color}}>{m!.tiles.filter(t=>t.imageUrl&&placed[t.id]).map(t=><img key={t.id} src={t.imageUrl} alt={t.label}/>)}</div>}{k==='position'&&<div className="ext-box" aria-hidden="true">▣</div>}{m?.origin==='approved-word'&&k==='assemble'&&<img className="puzzle-reference" src={a.word.imageUrl} alt="拼图参考"/>}{slots}</div><div className="ext-pool" aria-label="选择物品或部件">{m!.tiles.map(t=>tileButton(t,'pick',!heard,!!placed[t.id]))}</div></div>}

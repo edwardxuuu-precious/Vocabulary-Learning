@@ -1,0 +1,98 @@
+import {useEffect,useRef,useState,type CSSProperties} from 'react';
+import {createRoot} from 'react-dom/client';
+import {audioEngine,stopBrowserAudio,unlockBrowserAudio} from '../../src/buffered-audio';
+import {useScreenTime} from '../../src/screen-time';
+import {choose,gameAvailable,gameInfo,nextMission,newRun,target,validRun,wordsFor,type GameId,type PreviewContent,type Run,type WordCard} from './model';
+import {PairGame} from './pair-game';
+import './style.css';
+
+function Sound({size=24}:{size?:number}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m11 5-5 4H3v6h3l5 4V5Z" fill="currentColor"/><path d="M15 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>;}
+function Check(){return <svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true"><path d="m5 12 5 5L20 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>;}
+function Bolt(){return <svg viewBox="0 0 28 36" aria-hidden="true"><path d="M16 1 3 21h10l-1 14 13-21H15Z" fill="currentColor"/></svg>;}
+const partNames=['车门','车身','车顶'],paintParts=[1,0,2];
+function Truck({fills=[],active=-1,complete=false,focus}:{fills?:string[];active?:number;complete?:boolean;focus?:number}){
+  const p=(i:number)=>({fill:fills[i]??(active===i?'#fcfaff':'#e4eaf4'),className:active===i?'active-part':active>=0?'context-part':''});
+  const view=focus===1?'126 121 195 127':focus===0?'309 177 261 86':focus===2?'117 100 313 42':'0 0 680 340';
+  return <svg className={`truck-art ${complete?'truck-ready':''}`} viewBox={view} aria-label="随着英文颜色指令完成涂装的小车">
+    <defs><linearGradient id="truck-glass" x2="1" y2="1"><stop stopColor="#c4efff"/><stop offset="1" stopColor="#76b7e5"/></linearGradient><linearGradient id="truck-shade" x2="0" y2="1"><stop stopColor="#fff" stopOpacity=".45"/><stop offset="1" stopColor="#344770" stopOpacity=".18"/></linearGradient></defs>
+    <ellipse cx="345" cy="298" rx="262" ry="20" fill="#455477" opacity=".1"/>
+    <g stroke="#52627f" strokeWidth="4" strokeLinejoin="round">
+      <path d="M110 151q0-28 26-28h211l71 7 48 70h65q39 0 39 38v32H110Z" {...p(0)}/>
+      <path d="M326 130h83l46 64H326Z" fill="url(#truck-glass)"/>
+      <path d="M142 139h170v98H142Z" {...p(1)}/>
+      <path d="M130 113h276l17 18H126Z" {...p(2)}/>
+      <path d="M490 237h93v31h-93Z" {...p(3)}/>
+      <path d="M111 150h200v85H111Z" fill="url(#truck-shade)" stroke="none" pointerEvents="none"/>
+      <path d="M288 178h17" strokeWidth="7" strokeLinecap="round"/>
+      <rect x="530" y="211" width="31" height="17" rx="5" fill={complete?'#ffe69c':'#fff7d9'}/>
+      <circle cx="218" cy="266" r="46" fill="#3b465a"/><circle cx="218" cy="266" r="25" {...p(5)}/>
+      <circle cx="460" cy="266" r="46" fill="#3b465a"/><circle cx="460" cy="266" r="25" {...p(4)}/>
+    </g>
+
+  </svg>;
+}
+function Cabinet({placed,onPlace,disabled,flipped=false}:{placed?:string;onPlace?:(term:string)=>void;disabled:boolean;flipped?:boolean}){
+  return <div className={`cabinet-scene ${flipped?'cabinet-scene-b':''}`}>
+    <svg className="cabinet-art" viewBox="0 0 640 420" aria-hidden="true"><ellipse cx="322" cy="380" rx="205" ry="20" fill="#455477" opacity=".08"/><g stroke="#60769c" strokeWidth="4" strokeLinejoin="round"><path d="m205 155 46-28h205l-46 28Z" fill="#dceaff"/><path d="M410 155 456 127v168l-46 31Z" fill="#a7c8ef"/><path d="M205 155h205v171H205Z" fill="#bfd9f7"/><path d="M223 172h169v137H223Z" fill="#6f92be"/><path d="m223 290 25-13h144v32H223Z" fill="#94b4dd"/><path d="M218 326h24v53h-24Zm158 0h24v53h-24Z" fill="#a7c8ef"/></g></svg>
+    {(['on','in','under'] as const).map(term=>{const body=<><span className={`energy-block ${placed===term?'is-placed':'is-ghost'}`}><Bolt/></span>{placed!==term&&<span className="drop-plus" aria-hidden="true">+</span>}</>;return onPlace?<button key={term} className={`drop-zone drop-${term} ${placed===term?'has-energy':''}`} aria-label={`放到柜子${term==='on'?'上面':term==='in'?'里面':'下面'}`} disabled={disabled} onClick={()=>onPlace(term)}>{body}</button>:<span key={term} className={`drop-zone drop-${term} ${placed===term?'has-energy':''}`} aria-hidden="true">{body}</span>;})}
+  </div>;
+}
+interface Saved {intros:string[];runs:Partial<Record<GameId,Run>>;active:GameId|null}
+function load(content:PreviewContent):Saved{try{const v=JSON.parse(localStorage.getItem('meaning-games:'+content.key)??'{}');return {active:['paint','place','talk'].includes(v.active)?v.active:null,intros:Array.isArray(v.intros)?v.intros.filter((id:unknown)=>typeof id==='string'&&content.words.some(w=>w.id===id)):[],runs:Object.fromEntries(Object.entries(v.runs??{}).filter(([game,run])=>validRun(content,run)&&(run as Run).game===game))};}catch{return {intros:[],runs:{},active:null};}}
+
+function App({content}:{content:PreviewContent}){
+  const [saved,setSaved]=useState(()=>load(content)),[game,setGame]=useState<GameId|null>(saved.active),[screen,setScreen]=useState<'home'|'intro'|'play'>(saved.active?(saved.runs[saved.active]?'play':'intro'):'home');
+  const [pairOpen,setPairOpen]=useState(()=>localStorage.getItem('meaning-pairs:'+content.key+':active')==='true');
+  const [playing,setPlaying]=useState(''),[audioError,setAudioError]=useState(''),[saveError,setSaveError]=useState(''),[help,setHelp]=useState(false);
+  const audioOwner=useRef(new AbortController()),epoch=useRef(0),screenTime=useScreenTime(undefined,!pairOpen);
+  const busy=!!playing,blocked=screenTime.blocked,run=game?saved.runs[game]:undefined,word=run?target(content,run):undefined;
+  const updateRun=(next:Run)=>setSaved(s=>({...s,runs:{...s.runs,[next.game]:next}}));
+  useEffect(()=>{window.scrollTo({top:0,left:0,behavior:'auto'});},[screen,game]);
+  useEffect(()=>{try{localStorage.setItem('meaning-games:'+content.key,JSON.stringify(saved));setSaveError('');}catch{setSaveError('浏览器没能保存这次进度，请先保留这个页面。');}},[saved]);
+  function cancel(){epoch.current++;audioOwner.current.abort();stopBrowserAudio();setPlaying('');}
+  useEffect(()=>{if(blocked)cancel();},[blocked]);
+  useEffect(()=>{const pause=()=>{if(document.hidden)cancel();};document.addEventListener('visibilitychange',pause);return()=>{document.removeEventListener('visibilitychange',pause);audioOwner.current.abort();stopBrowserAudio();};},[]);
+  async function speak(items:{key:string;url:string}[],done?:(key:string)=>void){
+    const generation=++epoch.current;audioOwner.current.abort();const controller=new AbortController();audioOwner.current=controller;setAudioError('');
+    try{await unlockBrowserAudio();for(const item of items){if(generation!==epoch.current||controller.signal.aborted)return false;setPlaying(item.key);const ok=await audioEngine().play(item.url,{signal:controller.signal,onStart(){}});if(generation!==epoch.current||controller.signal.aborted)return false;if(!ok)throw Error('声音没能完整播出。');done?.(item.key);}return true;}
+    catch{if(generation===epoch.current)setAudioError('声音没有播出来，点喇叭重试。');return false;}
+    finally{if(generation===epoch.current)setPlaying('');}
+  }
+  function open(id:GameId){if(!gameAvailable(content,id))return;cancel();setAudioError('');setHelp(false);setGame(id);setSaved(s=>({...s,active:id}));setScreen(saved.runs[id]?'play':'intro');}
+  function home(){cancel();setHelp(false);setScreen('home');setGame(null);setSaved(s=>({...s,active:null}));}
+  async function start(){if(!game||blocked||busy)return;const id=game,words=wordsFor(content,id),unheard=words.filter(w=>!saved.intros.includes(w.id));
+    if(unheard.length){const ok=await speak(unheard.map(w=>({key:w.id,url:id==='talk'?content.lines.find(l=>l.wordId===w.id)!.audio:w.audio})),key=>setSaved(s=>({...s,intros:[...new Set([...s.intros,key])]})));if(!ok)return;}
+    const next=newRun(content,id);updateRun(next);setScreen('play');setHelp(false);
+    if(id!=='talk'){const w=target(content,next)!;await speak([{key:w.id,url:w.audio}],()=>updateRun({...next,heard:true}));}
+  }
+  async function listenCurrent(){if(!run||!word||busy||blocked)return;const copy=run;
+    if(run.game==='talk'){setHelp(true);updateRun({...copy,helped:true});await speak([{key:word.id,url:content.lines.find(l=>l.wordId===word.id)!.audio}]);}
+    else await speak([{key:word.id,url:word.audio}],()=>updateRun({...copy,heard:true}));
+  }
+  async function answer(id:string){if(!run||!word||blocked||busy)return;const next=choose(content,run,id);if(next===run)return;updateRun(next);if(next.solved){setHelp(false);const line=content.lines.find(l=>l.wordId===word.id);await speak([{key:word.id,url:run.game==='talk'?line!.audio:word.audio}]);}}
+  async function advance(){if(!run||blocked||busy||!run.solved)return;const next=nextMission(run);updateRun(next);setHelp(false);setAudioError('');if(next.index<next.missions.length&&next.game!=='talk'){const w=target(content,next)!;await speak([{key:w.id,url:w.audio}],()=>updateRun({...next,heard:true}));}}
+  function reveal(){if(run){setHelp(true);updateRun({...run,helped:true});}}
+  const paintFills:(string|undefined)[]=Array(6).fill(undefined);if(run?.game==='paint')for(let i=0;i<run.missions.length;i++){const a=run.answers[i];paintFills[paintParts[i]]=a?content.words.find(w=>w.id===a.wordId)!.color:run.index===i&&run.solved?word!.color:undefined;}
+  const line=word?content.lines.find(l=>l.wordId===word.id):undefined,complete=!!run&&run.index===run.missions.length;
+  const seconds=Math.ceil(screenTime.restRemaining/1000),completedMissions=run?run.index+(run.solved?1:0):0;
+  if(pairOpen)return <PairGame content={content} onExit={()=>{localStorage.setItem('meaning-pairs:'+content.key+':active','false');setPairOpen(false);home();}}/>;
+  return <div className="preview-shell" style={{'--base-art':`url(${content.art.home})`} as CSSProperties}>
+    <div className="app-content" inert={blocked}>
+      <header className="topbar"><button className="brand" onClick={home}><img src={content.art.icon} alt=""/><span>基地新任务</span></button><span className="test-label">独立测试版</span>{screen!=='home'&&<button className="quiet" onClick={home}>保存，回任务大厅</button>}</header>
+      {screen==='home'?<main className="home"><section className="welcome"><div><span className="eyebrow">本次学习范围 · {content.words.length}个词</span><h1>先听英文，再找词图伙伴</h1><p>用这组原词图和原音，分小组配成一对。</p></div><img className="welcome-hero" src={content.art.hero} alt="擎天柱"/></section><details className="scope-menu"><summary>看看这次有哪些词</summary><div>{content.words.map(w=><span key={w.id}>{w.term}</span>)}</div></details><button className="pair-entry" onClick={()=>{home();localStorage.setItem('meaning-pairs:'+content.key+':active','true');setPairOpen(true);}}><div className="pair-entry-art"><div className="entry-sound"><Sound size={40}/></div>{content.words.slice(0,3).map(w=><img key={w.id} src={w.image} alt={w.meaning}/>)}</div><div><span className="eyebrow">通用任务 · 适合这组不同词类的单词</span><h2>声音找伙伴</h2><p>先听声音，再翻词图。配对成功的卡片会留下来。</p><strong>去找伙伴 →</strong></div></button><h2 className="specialist-heading">这组词里的专项练习</h2><div className="game-menu specialist-menu">{(['paint','place','talk'] as GameId[]).filter(id=>gameAvailable(content,id)).map(id=><button className={`game-card card-${id}`} key={id} onClick={()=>open(id)}><div className="card-illustration">{id==='paint'?<Truck fills={['#26313c','#9a623b','#9a623b','#e4eaf4','#e4eaf4','#e4eaf4']}/>:id==='place'?<Cabinet disabled placed="in"/>:<div className="talk-card-art"><img src={content.art.hero} alt=""/><span>I <b>am</b><br/>You <b>are</b></span></div>}</div><div className="card-copy"><span className="specialist-type">{id==='paint'?'颜色专项':id==='place'?'位置专项':'用法专项'}</span><h2>{gameInfo[id].title}</h2><p>{id==='paint'?'只用这次学的颜色，给三个部件上色。':gameInfo[id].goal}</p><span className="word-list">{wordsFor(content,id).map(w=>w.term).join(' · ')}</span><span className="card-action">{saved.runs[id]&&saved.runs[id]!.index<saved.runs[id]!.missions.length?'接着完成任务':'去'+(id==='paint'?'涂装':id==='place'?'收纳':'通话')} <span aria-hidden="true">→</span></span></div></button>)}</div></main>:game&&<main className="mission-page">
+        <div className="mission-heading"><div><span className="eyebrow">{gameInfo[game].goal}</span><h1>{gameInfo[game].title}</h1></div>{screen==='play'&&run&&<div className="mission-progress" aria-label={`任务已完成${completedMissions}个，共${run.missions.length}个`}><span>{completedMissions}<small> / {run.missions.length}</small></span><div>{run.missions.map((_,i)=><i key={i} className={i<completedMissions?'done':i===run.index?'current':''}/>)}</div></div>}</div>
+        {screen==='intro'?<section className="intro"><div className="intro-heading"><h2>{game==='talk'?'先听三句伙伴的话':'先认识任务里的英文'}</h2><p>{game==='talk'?'听完整句子，再帮伙伴把话接上。':'点词卡可以再听一次，准备好就开始。'}</p></div><div className={`intro-cards ${game==='talk'?'sentence-cards':''}`}>{wordsFor(content,game).map(w=>{const l=content.lines.find(l=>l.wordId===w.id),heard=saved.intros.includes(w.id);return <button key={w.id} className={`intro-card ${playing===w.id?'speaking':''} ${heard?'heard':''}`} disabled={busy||blocked} onClick={()=>void speak([{key:w.id,url:game==='talk'?l!.audio:w.audio}],key=>setSaved(s=>({...s,intros:[...new Set([...s.intros,key])]})))}><img src={w.image} alt={w.meaning}/><div><strong>{game==='talk'?l!.full:w.term}</strong><span>{game==='talk'?l!.chinese:w.meaning}</span>{game==='talk'&&<em>{l!.phrase} · {l!.usage}</em>}</div><span className="intro-sound">{playing===w.id?<span className="sound-bars"/>:heard?<Check/>:<Sound/>}</span></button>;})}</div><div className="intro-footer"><span>{busy?'正在听，请稍等一下':game==='paint'?'英文颜色会决定小车各个部位的颜色。':game==='place'?'不用拖动，点一个位置就能放好。':'拼好的整句话会由伙伴读出来。'}</span><button className="primary" disabled={busy||blocked} onClick={()=>void start()}>{busy?'正在播放…':wordsFor(content,game).every(w=>saved.intros.includes(w.id))?'开始任务':'听一遍，开始任务'} <span aria-hidden="true">→</span></button></div></section>:run&&complete?<section className="completion"><div className="complete-check"><Check/></div><h2>{game==='paint'?'涂装完成，准备出发！':game==='place'?'能量块都摆好了！':'三句台词，接通啦！'}</h2><p>{game==='paint'?'这三个部件已经按英文指令涂好了。':game==='place'?'再听一听，想想能量块应该在哪里。':'点一句，和伙伴一起说一遍。'}</p>{game==='paint'?<div className="complete-vehicle"><Truck fills={paintFills as string[]} complete/></div>:game==='place'?<div className="place-recap">{wordsFor(content,game).map(w=><button key={w.id} disabled={busy} onClick={()=>void speak([{key:w.id,url:w.audio}])}><img src={w.image} alt={w.meaning}/><strong>{w.term}</strong><span>{w.meaning}</span><Sound size={18}/></button>)}</div>:<div className="dialogue-recap">{wordsFor(content,game).map(w=><button key={w.id} disabled={busy} onClick={()=>void speak([{key:w.id,url:content.lines.find(l=>l.wordId===w.id)!.audio}])}><Sound/><span>{content.lines.find(l=>l.wordId===w.id)!.full}</span></button>)}</div>}<div className="complete-actions"><button className="secondary" disabled={busy} onClick={()=>{cancel();updateRun(newRun(content,game));setHelp(false);}}>再玩一次</button><button className="primary" onClick={home}>回任务大厅 →</button></div></section>:run&&word?<section className={`play-surface play-${game}`}>
+          <div className="task-row"><div className="guide"><img src={content.art.hero} alt="擎天柱"/><div><span>{game==='talk'?'轮到你帮伙伴接话':'基地发来一个小任务'}</span><h2>{game==='paint'?`给${partNames[run.index]}上色`:game==='place'?'听位置，把这一块放好':line!.chinese}</h2></div></div>{game!=='talk'?<button className={`listen ${busy?'playing':''}`} disabled={busy} onClick={()=>void listenCurrent()}><Sound/>{busy?'正在播放…':run.heard?'再听一次':'听英文指令'}</button>:<button className="quiet hint-sound" disabled={busy} onClick={()=>void listenCurrent()}><Sound size={19}/>听整句（提示）</button>}</div>
+          {game==='paint'?<><div className="paint-stage clear-paint-stage"><div className="paint-context"><span>在小车上的位置</span><Truck fills={paintFills as string[]} active={run.solved?-1:paintParts[run.index]}/></div><div className="paint-focus"><strong>{partNames[run.index]} · 放大</strong><Truck fills={paintFills as string[]} active={run.solved?-1:paintParts[run.index]} focus={paintParts[run.index]}/></div></div><div className="paint-options" aria-label="选择油漆颜色">{wordsFor(content,game).map(w=><button key={w.id} className={`paint-pot ${run.selected===w.id?(run.solved?'selected-correct':'selected-retry'):''}`} style={{'--paint':w.color} as CSSProperties} aria-label={`选择${w.meaning}`} disabled={busy||run.solved||!run.heard&&!run.helped} onClick={()=>void answer(w.id)}><span className="paint-swatch"/>{run.solved&&run.selected===w.id&&<Check/>}</button>)}</div></>:game==='place'?<Cabinet flipped={run.index>=3} disabled={busy||run.solved||!run.heard&&!run.helped} placed={run.solved?word.term:undefined} onPlace={term=>void answer(content.words.find(w=>w.term===term)!.id)}/>:<><div className="conversation-stage"><div className="speaker-badge">{word.term==='are'?'对伙伴说':word.term==='am'?'我来介绍自己':'说说我的愿望'}</div><div className="sentence-bubble"><span className="quote-mark" aria-hidden="true">“</span><p>{line!.gap.split('___')[0]}<strong className={run.solved?'filled-word':'missing-word'}>{run.solved?word.term:'?'}</strong>{line!.gap.split('___')[1]}</p></div><img className="conversation-buddy" src={content.art.hero} alt="认真听你说话的擎天柱"/></div><div className="talk-options" aria-label="选择要说的词">{wordsFor(content,game).map(w=><button key={w.id} className={`word-chip ${run.selected===w.id?(run.solved?'selected-correct':'selected-retry'):''}`} disabled={busy||run.solved} onClick={()=>void answer(w.id)}>{w.term}{run.solved&&run.selected===w.id&&<Check/>}</button>)}</div></>}
+          {help&&<div className="word-help" role="status"><img src={word.image} alt={word.meaning}/><div><strong>{game==='talk'?line!.full:word.term}</strong><span>{game==='talk'?line!.usage:word.meaning}</span></div></div>}
+          <div className={`play-footer ${run.solved?'success-footer':''}`}><div className="feedback" role="status">{run.solved?<><Check/><div><strong>{game==='paint'?'颜色对上了！':game==='place'?'放到正确的位置了！':'这句话接上了！'}</strong><span>{game==='talk'?line!.phrase+' · '+line!.usage:word.term+' · '+word.meaning}</span></div></>:run.selected?<span>还没对上，再听一次试试。</span>:<span>{game==='paint'?'听懂颜色，点一罐油漆。':game==='place'?'点一个位置，能量块就会过去。':'选一个词，让这句话说完整。'}</span>}</div>{run.solved?<button className="primary" disabled={busy} onClick={()=>void advance()}>{busy?'听听完整的英文…':run.index===run.missions.length-1?'完成任务 →':'下一项 →'}</button>:<button className="quiet" disabled={busy||help} onClick={reveal}>看看词卡</button>}</div>
+        </section>:null}
+        {audioError&&<div className="error-message" role="alert"><Sound/><span>{audioError}</span><button disabled={busy} onClick={()=>screen==='intro'?void start():void listenCurrent()}>重试播放</button></div>}
+      </main>}
+      {saveError&&<p className="save-error" role="alert">{saveError}</p>}
+    </div>
+    {blocked&&<div className="rest-backdrop" role="dialog" aria-modal="true" aria-labelledby="rest-title"><div className="rest-panel"><h2 id="rest-title">{seconds?'眼睛休息一下':'正在连接本机计时'}</h2><p>{seconds?'刚才连续玩了15分钟，离开屏幕活动一下吧。':screenTime.error?'计时连接暂时没接上，任务已保存。':'任务已经准备好，稍等一下。'}</p>{seconds>0&&<strong className="rest-time">{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</strong>}{screenTime.error&&<button className="primary" onClick={()=>void screenTime.refresh()}>重试连接</button>}</div></div>}
+  </div>;
+}
+
+fetch('/preview/content').then(async r=>{if(!r.ok)throw Error('测试内容暂时没接上。');return r.json() as Promise<PreviewContent>;}).then(content=>createRoot(document.getElementById('root')!).render(<App content={content}/>)).catch(error=>{document.getElementById('root')!.textContent=error instanceof Error?error.message:'测试内容暂不可用，请刷新重试。';});

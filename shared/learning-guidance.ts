@@ -1,6 +1,5 @@
 import type { GameKind, LearningActivity, LearningSession } from './contracts.ts';
 
-export const coreLearningKinds:GameKind[]=['listen-first','supply','gate','repair','switch','portal'];
 export type RuleDemoKind='pictures'|'meaning'|'sounds'|'match'|'remember'|'oral'|'sequence'|'place'|'move'|'difference'|'draw'|'letters'|'wires';
 export interface LearningGuidanceProgress {version:1;seen:string[];ruleHelpActivityIds:string[];struggles:Record<string,number>}
 export interface RuleGuide {key:string;title:string;demo:RuleDemoKind;steps:[string,string,string];burden:1|2|3}

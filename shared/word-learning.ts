@@ -30,7 +30,7 @@ export interface WordLearningProfile {
   abilities:Record<WordAbility,AbilityProfile>;formal:{passed:boolean;stable:boolean;missing:AssessmentDimension[]};
   savedTargets:SavedWordTarget[];next:{action:WordNextAction;abilities:WordAbility[];reason:string};
 }
-export const wordLearningLabels:Record<WordLearningStatus,string>={unseen:'未学习',learning:'学习中','awaiting-check':'学过待检查','needs-practice':'需要巩固',passed:'本次已通过',stable:'表现较稳定'};
+export const wordLearningLabels:Record<WordLearningStatus,string>={unseen:'未学习',learning:'学习中','awaiting-check':'学过待检查','needs-practice':'需要巩固',passed:'已学会',stable:'已熟练'};
 export const wordAbilityLabels:Record<WordAbility,string>={recognize:'认意思',listen:'听辨',recall:'主动回忆',read:'朗读',meaning:'英译中',spell:'拼写'};
 const dimensionAbility:Record<AssessmentDimension,WordAbility>={look:'recognize',read:'read','en-zh':'meaning','zh-en':'recall'};
 export const abilityDimension=(ability:WordAbility)=>assessmentDimensions.find(dimension=>dimensionAbility[dimension]===ability);
@@ -83,7 +83,7 @@ function abilityProfile(data:WordLearningData,word:Word,ability:WordAbility,now:
   const judgedHistory=dimension?formal.filter(attempt=>judged(attempt.result)).map(attempt=>({at:attempt.createdAt,result:attempt.result})):practiceJudgments;
   const afterFailure=judgedHistory.slice(judgedHistory.findLastIndex(attempt=>attempt.result==='incorrect'||attempt.result==='hinted')+1);
   const passedDays=new Set(afterFailure.filter(attempt=>attempt.result==='correct').map(attempt=>assessmentDay(new Date(attempt.at))));
-  const pendingReview=!!dimension&&(data.assessments??[]).some(session=>session.workflow==='recorded'&&validAt(session.startedAt,now)&&validAt(session.submittedAt,now)&&session.items.some(item=>sameSnapshot(word,item.word)&&item.dimension===dimension&&item.response?.kind==='recording'&&item.response.recording?.status==='ready'&&validAt(item.response.answeredAt,now)&&!item.result));
+  const pendingReview=!!dimension&&(data.assessments??[]).some(session=>session.workflow==='recorded'&&validAt(session.startedAt,now)&&validAt(session.submittedAt,now)&&session.items.some(item=>sameSnapshot(word,item.word)&&item.dimension===dimension&&item.response?.kind==='recording'&&item.response.recording?.status==='ready'&&validAt(item.response.answeredAt,now)&&(!lastFormal||Date.parse(item.response.answeredAt)>=Date.parse(lastFormal.createdAt))&&!item.result));
   const observation=learning.at(-1),unknownFormal=formal.filter(attempt=>!judged(attempt.result)).at(-1);
   const latestObservation=unknownFormal&&(!observation||Date.parse(unknownFormal.createdAt)>=Date.parse(observation.createdAt))?unknownFormal.result as 'skipped'|'unavailable'|'unconfirmed':observation?.responseStatus??observation?.oralStatus;
   const formalProgress=lastFormal&&dimension?(data.assessmentProgress??[]).find(row=>row.wordId===word.id&&row.learningVersion===(word.learningVersion??0)&&row.dimension===dimension):undefined;

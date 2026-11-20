@@ -34,9 +34,9 @@
 .hub-current-copy h2{font-size:34px;line-height:1.3;letter-spacing:-.6px;margin:0;color:#2e466c}
 .hub-current-copy>p{font-size:15px;line-height:1.7;color:#73829c;margin:10px 0 0;overflow-wrap:anywhere}
 .hub-current-progress{max-width:310px;margin-top:24px}
-.hub-progress-label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#8290a6;margin-bottom:8px}
+.hub-progress-label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;color:#60718e;margin-bottom:8px}
 .hub-progress-label strong{font-size:15px;color:#5663bb;font-variant-numeric:tabular-nums}
-.hub-progress-label strong>span{font-weight:500;color:#8b96ad}
+.hub-progress-label strong>span{font-weight:500;color:#60718e}
 .hub-progress-track{height:7px;border-radius:8px;background:#e6eaf5;overflow:hidden}
 .hub-progress-track>span{display:block;height:100%;min-width:0;border-radius:8px;background:#727cde}
 .hub-start{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:57px;margin-top:25px;padding:14px 24px;border-radius:17px;border:1px solid #5665d7;background:#5868dc;color:white;font-size:20px;font-weight:750;line-height:1.3;box-shadow:0 4px 0 #4453b8;transition:background .15s,transform .15s,box-shadow .15s}
@@ -132,7 +132,7 @@
   .hub-current-copy h2{font-size:29px}
   .hub-current-copy>p{font-size:13px;margin-top:8px}
   .hub-current-progress{margin-top:21px}
-  .hub-progress-label{font-size:11px}
+  .hub-progress-label{font-size:14px}
   .hub-start{font-size:19px;padding:13px 18px;min-height:54px;border-radius:15px;margin-top:22px}
   .hub-start>span{margin-left:5px;font-size:20px}
   .hub-word-preview,.hub-word-preview:has(>span:nth-child(3)){--hub-preview-size:92px;flex-direction:column;justify-content:center;gap:9px}

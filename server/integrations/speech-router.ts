@@ -4,6 +4,7 @@ import { createSonioxSession, estimateSonioxSttCost, sonioxStatus } from './soni
 import { createElevenLabsSttSession, elevenLabsSttStatus, estimateElevenLabsSttCost, type LiveSttSession, type LiveSttSessionInput } from './elevenlabs-stt.ts';
 import * as azure from './speech.ts';
 import { IntegrationError, throwIfAborted } from './errors.ts';
+import { getNovaCache, novaStatus, synthesizeNova, usesNova } from './nova.ts';
 
 const elevenlabs = createElevenLabsProvider();
 const azureInput = azure.createSpeechProvider(), azureOutput = azure.createSpeechProvider();
@@ -17,25 +18,31 @@ export function sttStatus(): ServiceStatus {
   try { const selected = selection('input'); if (selected === 'elevenlabs') return elevenLabsSttStatus(); const status = azureInput.status(); return selected === 'soniox' ? sonioxStatus() : { ...status, provider: 'azure', status: status.available ? 'verified' : status.status }; }
   catch { return { configured: false, available: false, status: 'error', detail: '语音输入服务商配置无效。' }; }
 }
-export function ttsStatus(): ServiceStatus {
+export function ttsStatus(input?: Pick<TtsInput, 'locale' | 'dataDir'>): ServiceStatus {
+  if (input && usesNova(input)) return novaStatus(input.dataDir);
   try { const status = azureOutput.status(); return selection('output') === 'elevenlabs' ? elevenlabs.status() : { ...status, provider: 'azure', status: status.available ? 'verified' : status.status }; }
   catch { return { configured: false, available: false, status: 'error', detail: '语音输出服务商配置无效。' }; }
 }
 /** Legacy aggregate remains output-oriented so a missing microphone provider never blocks TTS. */
-export function speechStatus(): ServiceStatus { const input = sttStatus(), output = ttsStatus(); return { ...output, detail: `朗读：${output.detail} 聆听：${input.detail}` }; }
+export function speechStatus(dataDir?: string): ServiceStatus { const input = sttStatus(), output = ttsStatus(dataDir ? { locale: 'en-US', dataDir } : undefined); return { ...output, detail: `朗读：${output.detail} 聆听：${input.detail}` }; }
 export const validateTtsInput = azure.validateTtsInput;
 export const validateWav = azure.validateWav;
 export type { TtsInput, TtsStreamResult } from './elevenlabs.ts';
-export function estimateTtsCost(text: string): number { return selection('output') === 'elevenlabs' ? elevenlabs.estimateTtsCost(text) : azure.estimateTtsCost(text); }
+export function estimateTtsCost(text: string, input?: Pick<TtsInput, 'locale' | 'dataDir'>): number { return input && usesNova(input) ? 0 : selection('output') === 'elevenlabs' ? elevenlabs.estimateTtsCost(text) : azure.estimateTtsCost(text); }
 export function estimateSttCost(seconds: number): number { const provider = selection('input'); return provider === 'elevenlabs' ? estimateElevenLabsSttCost(seconds) : provider === 'soniox' ? estimateSonioxSttCost(seconds) : azure.estimateSttCost(seconds); }
-export function getCachedSpeech(input: TtsInput): Promise<string | undefined> { return selection('output') === 'elevenlabs' ? elevenlabs.getCachedSpeech(input) : azure.getCachedSpeech(input); }
+export function getCachedSpeech(input: TtsInput): Promise<string | undefined> {
+  if (usesNova(input)) return getNovaCache(input);
+  return selection('output') === 'elevenlabs' ? elevenlabs.getCachedSpeech(input) : azure.getCachedSpeech(input);
+}
 export function synthesizeSpeech(input: TtsInput): Promise<azure.TtsResult> {
   throwIfAborted(input.signal);
+  if (usesNova(input)) return synthesizeNova(input);
   if (input.freeOnly && selection('output') !== 'elevenlabs') return Promise.reject(new IntegrationError('SPEECH_FREE_QUOTA_UNAVAILABLE', '中文讲解仅使用已确认免费额度的 ElevenLabs 音色，请家长检查本机设置。'));
   return selection('output') === 'elevenlabs' ? elevenlabs.synthesizeSpeech(input) : azureOutput.synthesizeSpeech(input);
 }
 export function streamSpeech(input:TtsInput) {
   throwIfAborted(input.signal);
+  if (usesNova(input)) return Promise.reject(new IntegrationError('NOVA_AUDIO_PENDING', 'Nova 发音须先由家长准备。'));
   if(selection('output')!=='elevenlabs')return Promise.reject(new IntegrationError('SPEECH_STREAM_UNSUPPORTED','当前朗读服务不支持此音频流接口，可以使用本机朗读。'));
   return elevenlabs.streamSpeech(input);
 }

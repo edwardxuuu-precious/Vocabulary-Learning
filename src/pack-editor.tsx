@@ -1,3 +1,4 @@
+import { ActionBar } from './ui-layout';
 import { useState } from 'react';
 import type { AppState, PackEditRow, Word, WordPack } from '../shared/contracts';
 import { packContentRevision, partOfSpeechLabels, partsOfSpeech } from '../shared/vocabulary';
@@ -31,8 +32,8 @@ export function PackEditor({ pack, words, reload, saved, cancel }: Props) {
     saved(deletePack);
   };
   return <section className="pack-editor" aria-labelledby="pack-editor-title">
-    <div className="pack-editor-heading"><h2 id="pack-editor-title">编辑词表</h2><button type="button" className="prep-secondary" disabled={busy} onClick={cancel}>取消编辑</button></div>
-    <p className="pack-editor-note">可以修改名称、英文、中文意思和词性，也可以增删单词。修改过的词会暂停学习，重新准备并确认图片和发音后再使用；未修改的词保留素材和进度。</p>
+    <div className="pack-editor-heading"><h2 id="pack-editor-title">{initial.pack.title}</h2></div>
+    <p className="pack-editor-note">修改英文或词义后，该词需要重新确认图片和发音才能继续学习。</p>
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
       <fieldset disabled={busy || deleting}>
         <label className="field-label" htmlFor="pack-edit-title">词表名称</label><input id="pack-edit-title" value={title} onChange={event => setTitle(event.target.value)} maxLength={80} required autoFocus />
@@ -47,7 +48,9 @@ export function PackEditor({ pack, words, reload, saved, cancel }: Props) {
         {removed.length > 0 && <p className="pack-editor-removals" role="status">保存后删除 {removed.length} 个词：{removed.map(word => word.term).join('、')}。历史学习记录保留；取消编辑可撤回。</p>}
       </fieldset>
       {error && <p className="pack-error" role="alert">{error}</p>}
-      {!deleting && <div className="pack-editor-actions"><button className="prep-primary" type="submit" disabled={busy || !title.trim() || !rows.length || rows.some(row => !row.term.trim() || !row.meaning.trim())}>{busy ? '正在保存…' : '保存词表'}</button><button className="prep-text-button pack-delete-button" type="button" disabled={busy} onClick={() => { setDeleting(true); setError(''); }}>删除整本词表</button></div>}
+      {!deleting && <ActionBar className="pack-editor-actions" context={<button className="prep-text-button pack-delete-button" type="button" disabled={busy} onClick={() => { setDeleting(true); setError(''); }}>删除整本词表</button>} primary={<button className="prep-primary" type="submit" disabled={busy || !title.trim() || !rows.length || rows.some(row => !row.term.trim() || !row.meaning.trim())}>{busy ? '正在保存…' : '保存词表'}</button>}>
+        <button className="prep-secondary" type="button" disabled={busy} onClick={cancel}>取消编辑</button>
+      </ActionBar>}
     </form>
     {deleting && <div className="pack-delete-confirm" role="alert"><h3>删除“{initial.pack.title}”？</h3><p>整本词表的 {initial.words.length} 个单词会从备课和孩子的学习选择中移除，包含这些词的未完成轮次会停止。已有学习记录和素材保留。</p><div className="pack-editor-actions"><button className="prep-secondary" disabled={busy} onClick={() => setDeleting(false)}>保留词表</button><button className="prep-secondary pack-delete-button" disabled={busy} onClick={() => void save(true)}>{busy ? '正在删除…' : '确认删除词表'}</button></div></div>}
   </section>;

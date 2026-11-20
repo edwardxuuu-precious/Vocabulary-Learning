@@ -25,3 +25,35 @@ test('invalid time, purpose and budgets fail rather than generating a misleading
 test('parent-selected scope persists across days while the daily quantity resets to the default',()=>{const d=fixture([word,other]);d.dailyLearningChoice={revision:1,day:'2026-11-15',goal:1,wordIds:['other','w'],wordVersions:{other:0,w:0}};const a=buildStudyAgenda(d,{now,purpose:'learn'});assert.deepEqual(a.goals.map(goal=>goal.wordId),['other','w']);assert.equal(a.newWordCount,2);});
 test('learning and review select their own saved target even when the other entry is current',()=>{const d=fixture();encountered(d);const learn=saved(d);learn.entrySource={entry:'learn',kind:'recommended'};const review=structuredClone(learn);review.id='review';review.entrySource={entry:'review',kind:'recommended'};d.sessions!.push(review);d.activeSession=review;assert.equal(buildStudyAgenda(d,{now,purpose:'learn'}).goals[0].savedTarget?.sessionId,'learning');assert.equal(buildStudyAgenda(d,{now,purpose:'review'}).goals[0].savedTarget?.sessionId,'review');});
 test('explicit extra practice is preserved rather than reported as obsolete old work',()=>{const d=fixture();encountered(d);const s=saved(d);s.mode='relearn';passed(d,later);const a=buildStudyAgenda(d,{now});assert.deepEqual(a.coveredLegacyTargets,[]);assert.deepEqual(a.preservedSessionIds,['learning']);});
+
+test('ten introduced words keep one forty-item eligibility scope across review and a new day',()=>{
+  const terms=['apple','pear','chair','door','train','boat','cup','hat','dog','cat','tree'];
+  const words=terms.map((term,index)=>({...word,id:term,term,meaning:`词义 ${index}`,imageUrl:`/media/${term}.png`}));
+  const d=fixture(words);
+  d.learningTaskPolicy=1;
+  const ids=words.slice(0,10).map(w=>w.id);
+  d.sessions!.push({id:'ten',entrySource:{entry:'learn',kind:'recommended'},wordIds:ids,completedWordIds:ids,startedAt:before,completedAt:before,rewardGranted:true,exposures:ids.map(wordId=>({wordId,learningVersion:0,introducedAt:before}))});
+  d.sessions!.push({id:'extra',entrySource:{entry:'review',kind:'recommended'},wordIds:[ids[0]],completedWordIds:[ids[0]],startedAt:later,completedAt:later,rewardGranted:true});
+  const agenda=buildStudyAgenda(d,{now,purpose:'learn'});
+  assert.deepEqual(agenda.learningGroup?.wordIds,ids);
+  assert.equal(agenda.newWordCount,0);
+  assert.equal(agenda.goals.length,40);
+  assert.ok(agenda.goals.every(goal=>goal.kind==='check'));
+  for(const w of words.slice(0,10))passed(d,later,w);
+  assert.equal(buildStudyAgenda(d,{now,purpose:'learn'}).goals[0].wordId,'tree');
+});
+
+test('a missing distinct picture asks for preparation without scheduling an impossible check or passing it',()=>{
+  const d=fixture();
+  d.learningTaskPolicy=1;
+  d.sessions!.push({id:'singleton',wordIds:[word.id],completedWordIds:[word.id],startedAt:before,completedAt:before,rewardGranted:true,exposures:[{wordId:word.id,learningVersion:0,introducedAt:before}]});
+  for(const dimension of ['read','en-zh','zh-en'] as const)formal(d,dimension,'correct',later);
+  const agenda=buildStudyAgenda(d,{now,purpose:'learn'});
+  assert.equal(agenda.learningGroup?.blockedReason,'pictures');
+  assert.equal(agenda.learningGroup?.mastered,0);
+  assert.deepEqual(agenda.goals,[]);
+  d.words.push({...other,imageUrl:'/media/second-approved.png'});
+  const next=buildStudyAgenda(d,{now,purpose:'learn'});
+  assert.deepEqual(next.goals.map(goal=>[goal.wordId,goal.ability]),[[word.id,'recognize']]);
+  assert.equal(next.newWordCount,0);
+});
